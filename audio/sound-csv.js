@@ -2,7 +2,8 @@
 const shotParams = 'noiseDuration noiseGain noiseCutoff subStart subEnd subDuration subGain';
 export const SOUND_PARAMETERS = {
     shot: `${shotParams} sparkDuration sparkGain sparkCutoff`,
-    enemy: shotParams, aa: shotParams,
+    enemy: `${shotParams} sparkDuration sparkGain sparkCutoff`,
+    aa: shotParams,
     hit: 'heavyChance pitch decay snapGain bodyGain thudGain subGain ringGain heavyGain heavySubGain heavyRingGain',
     explode: 'debrisChance pitch decay crack bodyGain midGain highGain rumbleGain tailGain sparkGain dustGain debrisGain crackGain',
     rocket: 'snapGain pitch decay snapSubGain whooshGain whooshTailGain',

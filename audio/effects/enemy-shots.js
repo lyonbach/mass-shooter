@@ -7,7 +7,7 @@ export class EnemyShot extends SoundEffect {
     static key = 'enemy';
     render({ pan, gain, at, voice }) {
         new Noise(this.engine, { voice, duration: this.n('noiseDuration'), gain: gain * this.n('noiseGain'), frequency: this.n('noiseCutoff'), pan, time: at });
-        new Tone(this.engine, { voice, freq: this.n('subStart'), end: this.n('subEnd'), duration: this.n('subDuration'), gain: gain * this.n('subGain'), type: 'sawtooth', time: at });
+        new Tone(this.engine, { voice, freq: this.n('subStart'), end: this.n('subEnd'), duration: this.n('subDuration'), gain: gain * this.n('subGain'), type: 'sine', time: at });
     }
 }
 
