@@ -1,4 +1,4 @@
-# Nuclear Shooter — Blackout Protocol
+# Nuclear Shooter - Blackout Protocol
 
 A polished, top-down helicopter survival shooter. Fly the AH-07 Nighthawk through increasingly difficult enemy waves, choose upgrades between sorties, and face the Goliath command vehicle every fifth wave.
 
