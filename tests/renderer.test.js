@@ -4,7 +4,7 @@ import { Renderer } from '../renderer.js';
 
 function context() {
   const calls=[];
-  const c=new Proxy({calls,fillStyle:''},{
+  const c=new Proxy({calls,fillStyle:'',createRadialGradient:()=>({addColorStop(){}})},{
     get(target,key) {
       if(key in target)return target[key];
       return (...args)=>calls.push({name:key,args,fillStyle:target.fillStyle});
@@ -96,4 +96,46 @@ test('kamikaze drone is rendered at quarter scale',()=>{
   const c=context();
   renderer.enemy(c,{x:0,y:0,angle:0,type:'kamikaze',health:1,maxHealth:1},0);
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.55&&call.args[1]===.55));
+});
+
+test('smoke screen selection does not change tank paint, tracks or hit feedback',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const tank={x:0,y:0,angle:0,type:'tank',health:3,maxHealth:4,smokeScreen:true,hit:.1};
+  const first=context(),second=context(),normal=context();
+  renderer.enemy(first,tank,0);renderer.enemy(second,tank,10);renderer.enemy(normal,{...tank,smokeScreen:false},0);
+  assert.deepEqual(first.calls,second.calls);
+  assert.deepEqual(first.calls,normal.calls);
+  assert.ok(first.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582'));
+  assert.ok(first.calls.some(call=>call.name==='fill'&&call.fillStyle==='#fff6c4'));
+  assert.ok(normal.calls.some(call=>call.name==='fill'&&call.fillStyle==='#8c8e69'));
+});
+
+test('wrecks blend matching poses into charred silhouettes with layered fire and balanced canvas state',()=>{
+  for(const type of ['tank','rocketSemi','boss']){
+    const renderer=new Renderer({getContext:()=>context()},{effects:true});
+    const wreck={x:50,y:70,angle:.4,turret:1.2,type,wreck:true,transition:true,transitionAge:3,age:4,burnTime:12,seed:1};
+    const c=context();renderer.wreck(c,wreck);
+    const liveFill=type==='tank'?'#8c8e69':type==='boss'?'#727356':'#6c7857';
+    const charFill=type==='rocketSemi'?'#353b31':'#3d4436';
+    assert.ok(c.calls.some(call=>call.fillStyle===liveFill));
+    assert.ok(c.calls.some(call=>call.fillStyle===charFill));
+    assert.ok(c.calls.some(call=>call.fillStyle==='#b83f20'));
+    assert.ok(c.calls.some(call=>call.fillStyle==='#ffe09a'));
+    assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+    assert.ok(c.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.8)<1e-10));
+    const coast=context();renderer.wreck(coast,{...wreck,transitionAge:0});
+    assert.ok(coast.calls.some(call=>call.fillStyle===liveFill));
+    assert.equal(coast.calls.some(call=>call.fillStyle===charFill),false);
+    assert.ok(coast.calls.some(call=>call.fillStyle==='#ffe09a'));
+    const final=context();renderer.wreck(final,{...wreck,transitionAge:6,age:20,burnTime:0});
+    assert.equal(final.calls.some(call=>call.fillStyle===liveFill),false);
+    assert.equal(final.calls.some(call=>call.fillStyle==='#ffe09a'),false);
+  }
+  const low=new Renderer({getContext:()=>context()},{effects:false}),c=context();
+  low.wreck(c,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:0,burnTime:14});
+  assert.equal(c.calls.filter(call=>call.name==='fill'&&call.fillStyle==='#b83f20').length,1);
+  const state=context(),stack=[];state.globalAlpha=.7;
+  state.save=()=>stack.push(state.globalAlpha);state.restore=()=>{state.globalAlpha=stack.pop();};
+  low.wreck(state,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:1,burnTime:10});
+  assert.equal(state.globalAlpha,.7);assert.equal(stack.length,0);
 });
