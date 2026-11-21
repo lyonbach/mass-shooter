@@ -24,11 +24,14 @@ function explosion(x,y,size=75){
 function flakBurst(x,y){
   const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const limit=settings.effects?650:180,full=settings.effects&&!reduced;
-  const add=particle=>{if(g.particles.length<limit)g.particles.push(particle);};
-  if(!reduced)add({x,y,vx:0,vy:0,life:.1,maxLife:.1,flakFlash:true,size:12});
+  const add=(particle,essential=false)=>{
+    if(g.particles.length<limit)g.particles.push(particle);
+    else if(essential&&g.particles.length){const index=g.particles.findIndex(p=>!p.screenSmoke&&!p.flakFlash);g.particles[index<0?0:index]=particle;}
+  };
+  if(!reduced)add({x,y,vx:0,vy:0,life:.1,maxLife:.1,flakFlash:true,size:12},true);
   for(let i=0;i<(full?4:2);i++){
     const a=i*TAU/4+.4,life=1.15+i*.12;
-    add({x:x+Math.cos(a)*4,y:y+Math.sin(a)*4,vx:Math.cos(a)*9,vy:Math.sin(a)*9-5,life,maxLife:life,smoke:true,flakSmoke:true,smokeVariant:i%3,size:10+i});
+    add({x:x+Math.cos(a)*4,y:y+Math.sin(a)*4,vx:Math.cos(a)*9,vy:Math.sin(a)*9-5,life,maxLife:life,smoke:true,flakSmoke:true,smokeVariant:i%3,size:10+i},reduced&&i===0);
   }
   if(full)for(let i=0;i<5;i++){
     const a=i*TAU/5+.25,life=.18;

@@ -136,6 +136,7 @@ test('AA flak preserves detonation timing, radius, sound and bounded cosmetic li
     game.g.particles=Array.from({length:reduced?650:649},()=>({x:0,y:0,vx:0,vy:0,life:10,maxLife:10,size:1}));
     game.g.warnings=[{x:0,y:0,life:.01,radius:stats.explosionRadius,damage:stats.projectileDamage}];
     game.update(.02);assert.ok(game.g.particles.length<=650);
+    assert.ok(game.g.particles.some(p=>reduced?p.flakSmoke:p.flakFlash));
   }
   const low=createGame();await low.start();low.settings.effects=false;low.g.spawnRemaining=0;
   low.g.particles=Array.from({length:179},()=>({x:0,y:0,vx:0,vy:0,life:10,maxLife:10,size:1}));
