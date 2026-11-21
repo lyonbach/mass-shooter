@@ -33,6 +33,8 @@ Rockets accelerate after launch and recharge individually. The machine gun heats
 
 Choose Çaylak, Pilot, or As before a new run. Sound volume, music, screen shake, effects quality, difficulty, and your best score are saved locally when browser storage is available. Switching tabs automatically pauses the action. Reduced-motion preferences disable the tracking camera and screen shake by default.
 
+Smoke uses cached 64×64 gradient puffs (four palettes, three stable shapes). Missile exhaust is emitted from the nozzle every 12 world units, or 24 with low effects or reduced motion; player missiles leave no exhaust before ignition. Emission is capped at 24 puffs per missile update and shares the 650-particle (180 with low effects) budget, so exceptionally long steps or a full budget can leave gaps.
+
 ## Enemy tuning
 
 Edit `enemies.csv` in a spreadsheet or text editor, save it as comma-separated UTF-8, and run `npm run build`. The build validates the sheet and generates `enemy-data.js` and `blackout.js`; commit both generated files with the sheet. The game reads the built-in sheet data, so it also works when opening `index.html` directly offline. Editing the CSV alone does not change the game until it is rebuilt. Keep the header, row names, and column order unchanged; use non-negative numbers and `.` for decimals.

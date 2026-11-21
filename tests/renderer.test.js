@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Renderer } from '../renderer.js';
 
+const linearGradient={addColorStop(){}};
 function context() {
   const calls=[];
-  const c=new Proxy({calls,fillStyle:'',createRadialGradient:()=>({addColorStop(){}})},{
+  const c=new Proxy({calls,fillStyle:'',globalAlpha:1,createRadialGradient:(...args)=>{calls.push({name:'createRadialGradient',args});return {addColorStop(){}};},createLinearGradient:()=>linearGradient},{
     get(target,key) {
       if(key in target)return target[key];
       return (...args)=>calls.push({name:key,args,fillStyle:target.fillStyle});
@@ -13,6 +14,39 @@ function context() {
   return c;
 }
 
+test('smoke puffs use bounded offscreen gradients and stable variants across transforms',()=>{
+    const created=[],document={createElement:()=>{const pc=context(),canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
+    const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true}),c=context();
+    for(const flags of [{screenSmoke:true},{persistent:true},{},{exhaust:true}]){
+      for(let variant=0;variant<3;variant++){
+        const p={x:10,y:20,size:10,life:1,maxLife:2,smoke:true,smokeVariant:variant,...flags};
+        renderer.smoke(c,p);p.x=60;p.y=80;p.size=30;renderer.smoke(c,p);
+      }
+    }
+    assert.equal(created.length,12);
+    assert.ok(created.every(canvas=>canvas.width===64&&canvas.height===64&&canvas.pc.calls.filter(call=>call.name==='createRadialGradient').length===1));
+    const draws=c.calls.filter(call=>call.name==='drawImage');
+    assert.equal(draws.length,24);
+    for(let i=0;i<draws.length;i+=2){assert.equal(draws[i].args[0],draws[i+1].args[0]);assert.notDeepEqual(draws[i].args.slice(1),draws[i+1].args.slice(1));}
+    const p={x:1,y:2,size:10,life:1,maxLife:2,smoke:true};
+    renderer.smoke(c,p);const variant=p.smokeVariant;p.x=999;renderer.smoke(c,p);assert.equal(p.smokeVariant,variant);
+    assert.equal(created.length,12);
+    assert.equal(c.calls.filter(call=>call.name==='createRadialGradient').length,0);
+    assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+  });
+
+test('missile flame starts at ignition and both factions use procedural silhouettes',()=>{
+    const renderer=new Renderer({getContext:()=>context()},{effects:true});
+    for(const friendly of [true,false]){
+      const b={x:20,y:30,vx:0,vy:1,kind:friendly?'rocket':'enemyRocket',friendly,launchDelay:friendly?.3:0};
+      const c=context();renderer.missile(c,b);
+      assert.ok(c.calls.some(call=>call.name==='rotate'&&call.args[0]===Math.PI/2));
+      assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle===(friendly?'#e4dfb2':'#ee9875')));
+      assert.equal(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#fff1aa'),!friendly);
+      b.launchDelay=0;const lit=context();renderer.missile(lit,b);
+      assert.ok(lit.calls.some(call=>call.name==='fill'&&call.fillStyle==='#fff1aa'));
+    }
+  });
 test('helicopter movement changes the rendered pose',()=>{
   const renderer=new Renderer({getContext:()=>context()},{});
   const stationary=context(),moving=context();
@@ -89,6 +123,19 @@ test('tank tread marks visibly shift with track phase',()=>{
   assert.ok(treads(stationary).length>4);
   assert.notDeepEqual(treads(stationary),treads(moving));
   for(const [x,,width] of treads(moving))assert.ok(x>=-23&&x+width<=20);
+});
+
+test('tank uses reusable track, hull and turret layers with cached depth shading',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true}),c=context();
+  let gradients=0;c.createLinearGradient=()=>{gradients++;return linearGradient;};
+  const e={x:0,y:0,angle:0,turret:.4,type:'tank',health:4,maxHealth:4};
+  renderer.enemy(c,e,0);renderer.enemy(c,e,0);
+  assert.equal(gradients,1);
+  assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#8c8e69'));
+  assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle===linearGradient));
+  assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#5b694d'));
+  assert.ok(c.calls.some(call=>call.name==='rotate'&&call.args[0]===.4));
+  assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#d0c799'));
 });
 
 test('kamikaze drone is rendered at quarter scale',()=>{
