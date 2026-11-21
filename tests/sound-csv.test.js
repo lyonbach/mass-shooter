@@ -16,6 +16,7 @@ test('unmodified editor export preserves the full CSV exactly', async () => {
 
 test('multi-effect edits round trip with units and metadata intact', () => {
     const data = structuredClone(SOUND_DATA);
+    const originalDuration = SOUND_DATA.shot.noiseDuration.value;
     data.shot.noiseDuration.value = 0.17;
     data.shot.noiseDuration.spread = 0.23;
     data.shot.spatial = false;
@@ -26,8 +27,9 @@ test('multi-effect edits round trip with units and metadata intact', () => {
     assert.deepEqual(parsed, data);
     assert.equal(Object.keys(parsed).length, 18);
     assert.equal(csv.split('\n')[1], 'shot,noiseDuration,0.17,0.23,false,128,duration');
-    assert.match(csv, /shot,noiseGain,0.24,0,,,gain/);
-    assert.equal(SOUND_DATA.shot.noiseDuration.value, 0.09);
+    const { value, spread, unit } = SOUND_DATA.shot.noiseGain;
+    assert.ok(csv.split('\n').includes(`shot,noiseGain,${value},${spread},,,${unit}`));
+    assert.equal(SOUND_DATA.shot.noiseDuration.value, originalDuration);
 });
 
 test('parameter validator rejects unsafe values and invalid chance distributions', () => {
