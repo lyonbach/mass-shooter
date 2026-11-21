@@ -19,6 +19,20 @@ function canvasDocument(){
   return {created,stops,createElement:()=>{const pc=context();pc.createRadialGradient=(...args)=>{pc.calls.push({name:'createRadialGradient',args});return{addColorStop:(...stop)=>stops.push(stop)};};const canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
 }
 
+test('cannon tracers use a shared gradient aligned to velocity while ordinary rounds remain subdued',()=>{
+  const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
+  const ordinary={x:10,y:20,vx:0,vy:-5,tracer:false};
+  renderer.gunProjectile(c,ordinary);
+  assert.equal(document.created.length,0);
+  assert.equal(c.calls.find(call=>call.name==='rotate').args[0],-Math.PI/2);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,0);
+  for(let i=0;i<20;i++)renderer.gunProjectile(c,{...ordinary,tracer:true});
+  assert.equal(document.created.length,1);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,20);
+  assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+  assert.deepEqual(ordinary,{x:10,y:20,vx:0,vy:-5,tracer:false});
+});
+
 test('smoke puffs use bounded offscreen gradients and stable variants across transforms',()=>{
     const created=[],document={createElement:()=>{const pc=context(),canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
     const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true}),c=context();

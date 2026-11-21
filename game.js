@@ -17,6 +17,7 @@ runtime.initialize();
 
 // Read-only QA state, opt-in so normal play exposes no debugging interface.
 if(typeof location!=='undefined'&&new URLSearchParams(location.search).has('debug')){
+  window.setCannonTracersEnabled=enabled=>{if(typeof enabled==='boolean')runtime.g.cannonTracersEnabled=enabled;};
   window.render_game_to_text=()=>JSON.stringify({
     coordinates:'world units; origin top-left; x right; y down',
     state:runtime.g.state,wave:runtime.g.wave,score:runtime.g.score,

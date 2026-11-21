@@ -80,6 +80,16 @@ export class Renderer {
     }
     return this.launchFlame;
   }
+  gunProjectile(c,b){
+    c.save();c.translate(b.x,b.y);c.rotate(Math.atan2(b.vy,b.vx));
+    if(b.tracer){
+      c.drawImage(this.weaponFlameTexture(),-20,-3,23,6);
+      c.fillStyle='#fff3c4';c.fillRect(-3,-.6,4,1.2);
+    }else{
+      c.fillStyle='#aaa98a';c.fillRect(-3,-.6,4,1.2);
+    }
+    c.restore();
+  }
   muzzleEffect(c,life,tip,size,flashTime){
     if(!(life>0))return;
     const progress=clamp(1-life/WEAPON_MUZZLE_TIME,0,1);
@@ -465,6 +475,7 @@ export class Renderer {
     if(g.state==='ready'){this.enemy(c,{x:W*.7,y:H*.73,angle:-2.2,type:'tank',health:3,maxHealth:3},t);this.enemy(c,{x:W*.87,y:H*.57,angle:-2.5,type:'tank',health:3,maxHealth:3},t);}
     for(const b of g.bullets){
       if(b.kind==='rocket'||b.kind==='enemyRocket')this.missile(c,b);
+      else if(b.friendly&&b.kind==='gun')this.gunProjectile(c,b);
       else {c.strokeStyle=b.friendly?'#f4f1ab':'#ffac77';c.lineWidth=b.friendly?2:3;c.lineCap='round';c.beginPath();const len=b.friendly?20:13,sp=Math.hypot(b.vx,b.vy)||1;c.moveTo(b.x-b.vx/sp*len,b.y-b.vy/sp*len);c.lineTo(b.x,b.y);c.stroke();if(!b.friendly)ellipse(c,b.x,b.y,3,3,'#ffd2a5');}
     }
     for(const warning of g.warnings||[]){

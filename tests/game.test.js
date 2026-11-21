@@ -154,6 +154,31 @@ test('player cannon flash and smoke timers follow a real shot without changing t
   game.keys.delete('Space');game.pause();game.frame(1000);game.frame(2000);assert.equal(p.muzzleSmoke,.22);
   game.resume();game.update(.23);assert.equal(p.muzzleSmoke,0);
 });
+test('cannon tracer selection follows emitted shots across bursts and toggles and resets on a new run',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;
+  const shots=[],random=Math.random;let randomCalls=0;
+  Math.random=()=>{randomCalls++;return .5;};
+  const fire=()=>{
+    const p=game.g.player;
+    p.cooldown=0;p.heat=0;p.overheated=false;
+    game.keys.add('Space');game.update(.001);game.keys.delete('Space');
+    shots.push(game.g.bullets.at(-1));
+  };
+  try{
+    for(let i=0;i<5;i++)fire();
+    assert.deepEqual(shots.map(b=>b.tracer),[false,false,false,false,true]);
+    game.g.cannonTracersEnabled=false;
+    for(let i=0;i<5;i++)fire();
+    assert.equal(shots[4].tracer,true);
+    assert.deepEqual(shots.slice(5).map(b=>b.tracer),[false,false,false,false,false]);
+    game.g.cannonTracersEnabled=true;
+    for(let i=0;i<5;i++)fire();
+    assert.deepEqual(shots.slice(10).map(b=>b.tracer),[false,false,false,false,true]);
+    assert.equal(randomCalls,15);
+    await game.start();game.g.spawnRemaining=100;fire();
+    assert.equal(shots.at(-1).tracer,false);
+  }finally{Math.random=random;}
+});
 test('AA flak preserves detonation timing, radius, sound and bounded cosmetic lifetime',async()=>{
   for(const reduced of [false,true]){
     const game=createGame(reduced);await game.start();game.g.spawnRemaining=0;

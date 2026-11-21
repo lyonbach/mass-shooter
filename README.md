@@ -172,8 +172,11 @@ MP3 playback and the procedural fallback remain separate in `audio/music/`.
 The library continues to use the game's `ROCKET_IGNITION_DELAY` constant so audio
 and projectile ignition cannot drift apart. It is not an npm package.
 
-Open the game with `?debug` for a read-only `window.render_game_to_text()` QA
-snapshot. Browser DSP tests can be run from an HTTP-served game:
+Open the game with `?debug` for a `window.render_game_to_text()` QA
+snapshot. The developer hook `window.setCannonTracersEnabled(false)` disables
+cosmetic tracers for future cannon shots; pass `true` to re-enable them. The
+five-shot sequence continues while disabled and restarts on a new run.
+Browser DSP tests can be run from an HTTP-served game:
 `await (await import('./tests/audio-browser.js')).runAudioBrowserChecks()`.
 These render every effect in a real `OfflineAudioContext`, compare deterministic
 samples within floating-point tolerance, and check panning and live voice release.

@@ -1963,6 +1963,16 @@ class Renderer {
     }
     return this.launchFlame;
   }
+  gunProjectile(c,b){
+    c.save();c.translate(b.x,b.y);c.rotate(Math.atan2(b.vy,b.vx));
+    if(b.tracer){
+      c.drawImage(this.weaponFlameTexture(),-20,-3,23,6);
+      c.fillStyle='#fff3c4';c.fillRect(-3,-.6,4,1.2);
+    }else{
+      c.fillStyle='#aaa98a';c.fillRect(-3,-.6,4,1.2);
+    }
+    c.restore();
+  }
   muzzleEffect(c,life,tip,size,flashTime){
     if(!(life>0))return;
     const progress=clamp(1-life/WEAPON_MUZZLE_TIME,0,1);
@@ -2348,6 +2358,7 @@ class Renderer {
     if(g.state==='ready'){this.enemy(c,{x:W*.7,y:H*.73,angle:-2.2,type:'tank',health:3,maxHealth:3},t);this.enemy(c,{x:W*.87,y:H*.57,angle:-2.5,type:'tank',health:3,maxHealth:3},t);}
     for(const b of g.bullets){
       if(b.kind==='rocket'||b.kind==='enemyRocket')this.missile(c,b);
+      else if(b.friendly&&b.kind==='gun')this.gunProjectile(c,b);
       else {c.strokeStyle=b.friendly?'#f4f1ab':'#ffac77';c.lineWidth=b.friendly?2:3;c.lineCap='round';c.beginPath();const len=b.friendly?20:13,sp=Math.hypot(b.vx,b.vy)||1;c.moveTo(b.x-b.vx/sp*len,b.y-b.vy/sp*len);c.lineTo(b.x,b.y);c.stroke();if(!b.friendly)ellipse(c,b.x,b.y,3,3,'#ffd2a5');}
     }
     for(const warning of g.warnings||[]){
@@ -2406,9 +2417,9 @@ function createState(){
   const sound=new SoundEngine(settings),renderer=new Renderer(canvas,settings),keys=new Set();
   const pointer={x:600,y:230,screenX:null,screenY:null,down:false};
   const bestValue=read('blackout.best',0);
-  const g={world:{width:1600,height:900},state:'ready',pointer,touch:matchMedia('(pointer:coarse)').matches,enemies:[],bullets:[],particles:[],pickups:[],explosions:[],deathBursts:[],warnings:[],floaters:[],decals:[],treadMarks:[],wreckSmoke:[],time:0,visualTime:0,shake:0,wave:1,score:0,kills:0,best:typeof bestValue==='number'&&Number.isFinite(bestValue)?Math.max(0,bestValue):0,combo:0,comboTimer:0,spawnRemaining:0,spawnTimer:0,waveWait:-1,bannerTime:0,hudTimer:0,testRange:null,camera:{x:0,y:0,zoom:1},map:mapForWave(1)};
+  const g={world:{width:1600,height:900},state:'ready',pointer,touch:matchMedia('(pointer:coarse)').matches,enemies:[],bullets:[],particles:[],pickups:[],explosions:[],deathBursts:[],warnings:[],floaters:[],decals:[],treadMarks:[],wreckSmoke:[],cannonTracersEnabled:true,time:0,visualTime:0,shake:0,wave:1,score:0,kills:0,best:typeof bestValue==='number'&&Number.isFinite(bestValue)?Math.max(0,bestValue):0,combo:0,comboTimer:0,spawnRemaining:0,spawnTimer:0,waveWait:-1,bannerTime:0,hudTimer:0,testRange:null,camera:{x:0,y:0,zoom:1},map:mapForWave(1)};
   const runtime={$,canvas,arena,overlay,dialog,panels,settings,read,write,saveSettings:()=>write('blackout.settings',settings),sound,renderer,keys,pointer,g,pad:(n,length=6)=>String(Math.floor(n)).padStart(length,'0'),clock:value=>`${String(Math.floor(value/60)).padStart(2,'0')}:${String(Math.floor(value%60)).padStart(2,'0')}`,t,upgrades:{},choices:[],joystick:{x:0,y:0,id:null},firePointer:null,gamePointer:null,lastTime:0,settingsPaused:false,starting:false};
-  function newPlayer(){return{x:g.world.width*.43,y:g.world.height*.52,vx:0,vy:0,angle:-Math.PI/2,cannonAngle:-Math.PI/2,bank:0,pitch:0,health:100,maxHealth:100,cooldown:0,heat:0,overheated:false,invulnerable:0,dashTime:0,dashCooldown:0,flareCooldown:0,lowHealthAlarm:0,missileAlarm:0,rockets:3,maxRockets:3,rocketTimer:0,rocketCooldown:0,rocketSide:-1,muzzle:0};}
+  function newPlayer(){return{x:g.world.width*.43,y:g.world.height*.52,vx:0,vy:0,angle:-Math.PI/2,cannonAngle:-Math.PI/2,bank:0,pitch:0,health:100,maxHealth:100,cooldown:0,heat:0,overheated:false,invulnerable:0,dashTime:0,dashCooldown:0,flareCooldown:0,lowHealthAlarm:0,missileAlarm:0,rockets:3,maxRockets:3,rocketTimer:0,rocketCooldown:0,rocketSide:-1,muzzle:0,cannonShotIndex:0};}
   function readTestRange(){const enemy=$('test-enemy').value,validEnemy=Object.hasOwn(ENEMIES,enemy)?enemy:'tank';const number=(id,fallback,min,max)=>clamp(Number($(`test-${id}`).value)||fallback,min,max);return {enemy:validEnemy,interval:number('interval',1,.2,5),maxActive:number('max-active',3,1,20),health:number('health',1,.25,5),distance:number('distance',350,120,700),upgrades:{damage:number('damage',0,0,4),fireRate:number('fire-rate',0,0,4),armor:number('armor',0,0,4),engine:number('engine',0,0,3),rockets:number('rockets',0,0,3)}};}
   function applyStartingUpgrades(){const p=g.player;p.maxHealth+=25*(runtime.upgrades.armor||0);p.health=p.maxHealth;p.maxRockets+=runtime.upgrades.rockets||0;p.rockets=p.maxRockets;}
   g.player=newPlayer();
@@ -2631,7 +2642,8 @@ function createCombat(runtime){
   const positionalAudio=source=>{const p=g.player,distanceToSource=distance(source,p);return {pan:clamp((source.x-p.x)/(g.world.width*.35),-1,1),gain:clamp(1-distanceToSource/(g.world.width*.7),.15,1)};};
 function gun(){
   const p=g.player,w=WEAPONS.gun,a=p.cannonAngle+(Math.random()-.5)*w.spread,speed=w.speed;
-  g.bullets.push({x:p.x+Math.cos(a)*39,y:p.y+Math.sin(a)*39,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:w.life,friendly:true,damage:w.damage+(runtime.upgrades.damage||0)*w.damagePerUpgrade,kind:'gun'});
+  p.cannonShotIndex=((p.cannonShotIndex||0)+1)%5;
+  g.bullets.push({x:p.x+Math.cos(a)*39,y:p.y+Math.sin(a)*39,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:w.life,friendly:true,damage:w.damage+(runtime.upgrades.damage||0)*w.damagePerUpgrade,kind:'gun',tracer:g.cannonTracersEnabled!==false&&p.cannonShotIndex===0});
   p.cooldown=w.cooldown*Math.pow(w.cooldownUpgradeFactor,runtime.upgrades.fireRate||0);p.muzzle=w.muzzleTime;p.muzzleSmoke=WEAPON_MUZZLE_TIME;
   p.heat=Math.min(1,p.heat+w.heatPerShot);
   if(p.heat>=1){p.overheated=true;float(t('heat.cooling'),p.x,p.y-55,'#ffb586',true);}
@@ -3059,6 +3071,7 @@ runtime.initialize();
 
 // Read-only QA state, opt-in so normal play exposes no debugging interface.
 if(typeof location!=='undefined'&&new URLSearchParams(location.search).has('debug')){
+  window.setCannonTracersEnabled=enabled=>{if(typeof enabled==='boolean')runtime.g.cannonTracersEnabled=enabled;};
   window.render_game_to_text=()=>JSON.stringify({
     coordinates:'world units; origin top-left; x right; y down',
     state:runtime.g.state,wave:runtime.g.wave,score:runtime.g.score,
