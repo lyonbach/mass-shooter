@@ -2280,7 +2280,7 @@ class Renderer {
       const phase=seed*2+i*2.7,wave=reduced?0:Math.sin(age*2.2+phase),sway=reduced?0:Math.sin(age*1.7+phase)*1.5;
       const width=(5+8*strength)*(1+.12*wave),height=(8+22*strength)*(1+(reduced?0:.14*Math.sin(age*2.6+phase)));
       c.save();c.translate(x*Math.cos(d.angle)-y*Math.sin(d.angle),x*Math.sin(d.angle)+y*Math.cos(d.angle));
-      c.globalAlpha*=clamp(.3+strength*.65,0,1)*(reduced?1:.9+.1*Math.sin(age*1.9+phase));
+      c.globalAlpha*=Math.sqrt(strength)*.9*(reduced?1:.9+.1*Math.sin(age*1.9+phase));
       c.drawImage(texture,-width+sway,-height,width*2,height*1.25);
       if(this.settings.effects)c.drawImage(texture,-width*.55-sway*.25,-height*.7,width*1.1,height*.85);
       if(!reduced&&fire.level<.55){ellipse(c,sway+width*.35,-height*.8,1,1.4,'#ffc66d');}
