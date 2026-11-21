@@ -239,6 +239,34 @@ test('player rockets leave a thick enemy-style smoke trail after ignition',async
   game.g.player.cannonAngle=0;game.launchRocket();game.update(.4);
   assert.ok(game.g.particles.filter(p=>p.smoke&&p.color==='#c1b89b').length>=2);
 });
+test('rocket trails follow nozzle distance independently of frame partition',async()=>{
+  async function simulate(steps,reduced=false){
+    const game=createGame(reduced);await game.start();game.settings.difficulty='hard';game.g.spawnRemaining=100;
+    game.g.bullets=[{x:100,y:200,vx:120,vy:0,life:5,kind:'enemyRocket',turn:0,acceleration:0,maxSpeed:120}];
+    for(const dt of steps)game.update(dt);
+    return game.g.particles.filter(p=>p.exhaust);
+  }
+  const random=Math.random;Math.random=()=>.5;
+  try{
+    const one=await simulate([1]),many=await simulate(Array(10).fill(.1)),low=await simulate([1],true);
+    assert.deepEqual(one.map(p=>[p.x,p.y]),many.map(p=>[p.x,p.y]));
+    assert.equal(one.length,10);assert.equal(one[0].x,103);assert.equal(one.at(-1).x,211);
+    assert.equal(low.length,5);assert.equal(low[0].x,115);
+    assert.ok(one.every(p=>p.color==='#c1b89b'&&p.smoke));
+  }finally{Math.random=random;}
+});
+test('rocket trails suppress ejection and enforce per-step and particle budgets',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;
+  game.g.player.cannonAngle=0;game.launchRocket();game.update(.29);
+  assert.equal(game.g.particles.filter(p=>p.exhaust).length,0);
+  game.update(.11);assert.ok(game.g.particles.some(p=>p.exhaust));
+  game.g.particles=[];game.settings.difficulty='hard';
+  game.g.bullets=[{x:100,y:200,vx:10000,vy:0,life:5,kind:'enemyRocket',turn:0,acceleration:0,maxSpeed:10000}];
+  game.update(1);assert.equal(game.g.particles.filter(p=>p.exhaust).length,24);
+  game.g.particles=Array.from({length:649},()=>({}));
+  game.g.bullets=[{x:100,y:200,vx:1000,vy:0,life:5,kind:'enemyRocket',turn:0,acceleration:0,maxSpeed:1000}];
+  game.update(.5);assert.equal(game.g.particles.length,650);
+});
 test('rockets consume ammunition, deal area damage, and replenish over time',async()=>{
   const game=createGame();await game.start();const p=game.g.player;
   p.x=300;p.y=300;game.g.pointer.x=450;game.g.pointer.y=300;

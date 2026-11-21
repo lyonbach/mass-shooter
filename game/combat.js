@@ -1,5 +1,5 @@
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
-import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
+import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
 export function createCombat(runtime){
   const {g,settings,sound,keys,pointer,$,t}=runtime;
   const burst=(...args)=>runtime.burst(...args),explosion=(...args)=>runtime.explosion(...args),float=(...args)=>runtime.float(...args);
@@ -137,6 +137,20 @@ function deployFlares(){
   sound.play('flare');runtime.updateHud();
   return true;
 }
+function rocketTrail(b,ox,oy,oldAngle){
+  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const spacing=settings.effects&&!reduced?ROCKET_TRAIL_SPACING:ROCKET_TRAIL_LOW_SPACING;
+  const angle=Math.atan2(b.vy,b.vx),x0=ox-Math.cos(oldAngle)*ROCKET_NOZZLE_OFFSET,y0=oy-Math.sin(oldAngle)*ROCKET_NOZZLE_OFFSET;
+  const x1=b.x-Math.cos(angle)*ROCKET_NOZZLE_OFFSET,y1=b.y-Math.sin(angle)*ROCKET_NOZZLE_OFFSET;
+  const length=Math.hypot(x1-x0,y1-y0),previous=(b.trailDistance||0)%spacing,limit=settings.effects?650:180;
+  let emitted=0;
+  for(let at=spacing-previous;at<=length&&emitted<ROCKET_TRAIL_STEP_LIMIT&&g.particles.length<limit;at+=spacing){
+    const fraction=at/length,life=.8+Math.random()*.4;
+    g.particles.push({x:x0+(x1-x0)*fraction,y:y0+(y1-y0)*fraction,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,life,maxLife:life,smoke:true,exhaust:true,color:'#c1b89b',size:5+Math.random()*3});
+    emitted++;
+  }
+  b.trailDistance=(previous+length)%spacing;
+}
 function update(dt){
   const p=g.player,W=g.world.width,H=g.world.height;g.time+=dt;g.shake=Math.max(0,g.shake-dt*35);
   p.cooldown-=dt;p.invulnerable-=dt;p.dashTime-=dt;p.dashCooldown=Math.max(0,p.dashCooldown-dt);p.flareCooldown=Math.max(0,p.flareCooldown-dt);p.lowHealthAlarm-=dt;p.missileAlarm-=dt;p.rocketCooldown-=dt;p.muzzle-=dt;
@@ -214,22 +228,21 @@ function update(dt){
       stepDt-=ejectionDt;
       if(stepDt<=0)continue;
     }
-    const ox=b.x,oy=b.y;
+    const ox=b.x,oy=b.y,oldAngle=Math.atan2(b.vy,b.vx);
     if(b.kind==='rocket'){
       if(b.target?.health<=0)b.target=g.enemies.find(e=>e.health>0)||null;
       const speed=Math.min(WEAPONS.rocket.maxSpeed,Math.hypot(b.vx,b.vy)+WEAPONS.rocket.acceleration*stepDt);
       const a=b.target?turn(Math.atan2(b.vy,b.vx),Math.atan2(b.target.y-b.y,b.target.x-b.x),stepDt*WEAPONS.rocket.turnRate):Math.atan2(b.vy,b.vx);
       b.vx=Math.cos(a)*speed;b.vy=Math.sin(a)*speed;
-      b.trail-=stepDt;if(b.trail<=0){burst(b.x,b.y,'#c1b89b',2,.12,true);b.trail=.035;}
     }else if(b.kind==='enemyRocket'){
       const speed=Math.min(b.maxSpeed,Math.hypot(b.vx,b.vy)+b.acceleration*stepDt);
       if(b.decoyed){b.decoyTimer-=stepDt;if(b.decoyTimer<=0){b.life=0;burst(b.x,b.y,'#ffc866',5,.25);continue;}}
       const target=b.decoyed?{x:b.decoyX,y:b.decoyY}:p;
       const a=turn(Math.atan2(b.vy,b.vx),Math.atan2(target.y-b.y,target.x-b.x),stepDt*b.turn);
       b.vx=Math.cos(a)*speed;b.vy=Math.sin(a)*speed;
-      b.trail-=stepDt;if(b.trail<=0){burst(b.x,b.y,'#c1b89b',1,.12,true);b.trail=.035;}
     }
     b.x+=b.vx*stepDt;b.y+=b.vy*stepDt;b.life-=stepDt;
+    if(b.kind==='rocket'||b.kind==='enemyRocket')rocketTrail(b,ox,oy,oldAngle);
     if(b.friendly){
       let target=null,nearest=Infinity;
       for(const e of g.enemies)if(e.health>0&&segmentHitsCircle(ox,oy,b.x,b.y,e.x,e.y,e.radius+(b.kind==='rocket'?8:2))){const d=Math.hypot(e.x-ox,e.y-oy);if(d<nearest){target=e;nearest=d;}}
