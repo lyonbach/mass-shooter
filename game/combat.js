@@ -1,5 +1,16 @@
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
 import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
+export function updateDroneVisual(e,dt,reduced=false){
+  const vx=Number.isFinite(e.vx)?e.vx:0,vy=Number.isFinite(e.vy)?e.vy:0,speed=Math.hypot(vx,vy);
+  const fast=e.type==='kamikaze',rate=fast?6:3.5,response=1-Math.exp(-rate*Math.max(0,dt));
+  const heading=Number.isFinite(e.visualHeading)?e.visualHeading:(Number.isFinite(e.angle)?e.angle:0);
+  const delta=speed>3?Math.atan2(Math.sin(Math.atan2(vy,vx)-heading),Math.cos(Math.atan2(vy,vx)-heading)):0;
+  e.visualHeading=heading+delta*response;
+  const bank=reduced?0:clamp(delta,-1,1)*(fast?.18:.1);
+  const pitch=reduced?0:clamp(speed/(e.speed||1),0,1)*(fast?.12:.07);
+  e.visualBank=(Number.isFinite(e.visualBank)?e.visualBank:0)+(bank-(Number.isFinite(e.visualBank)?e.visualBank:0))*response;
+  e.visualPitch=(Number.isFinite(e.visualPitch)?e.visualPitch:0)+(pitch-(Number.isFinite(e.visualPitch)?e.visualPitch:0))*response;
+}
 export function createCombat(runtime){
   const {g,settings,sound,keys,pointer,$,t}=runtime;
   const burst=(...args)=>runtime.burst(...args),explosion=(...args)=>runtime.explosion(...args),float=(...args)=>runtime.float(...args);
@@ -186,6 +197,7 @@ function update(dt){
     // Gentle separation keeps armor from stacking into one unreadable target.
     for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
     e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
+    if(e.type==='drone'||e.type==='kamikaze')updateDroneVisual(e,dt,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
     const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
     e.angle=turn(e.angle,heading,dt*stats.turnRate);
     if(e.type!=='drone'&&e.type!=='kamikaze'){

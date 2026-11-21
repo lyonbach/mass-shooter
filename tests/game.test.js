@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as core from '../core.js';
 import * as i18n from '../i18n.js';
+import { updateDroneVisual } from '../game/combat.js';
 
 // Run the actual game module against a small browser adapter. Rendering and
 // sound are replaced; combat, input, progression, and persistence are unchanged.
@@ -30,6 +31,19 @@ function createGame(reducedMotion=false) {
   return{...game,elements,storage,windowEvents,documentEvents,sound:game.sound};
 }
 function enemy(overrides={}){return{x:600,y:300,type:'tank',health:4,maxHealth:4,speed:0,points:110,radius:25,angle:0,turret:0,cooldown:10,charge:0,hit:0,seed:0,...overrides};}
+
+test('drone visual response follows travel by the shortest arc and settles without changing aim',()=>{
+  const e=enemy({type:'drone',angle:2,turret:-1,speed:100,vx:-100,vy:-1,visualHeading:Math.PI-.02});
+  updateDroneVisual(e,.1);
+  assert.ok(e.visualHeading>Math.PI-.02&&e.visualHeading<Math.PI+.02);
+  assert.equal(e.angle,2);assert.equal(e.turret,-1);
+  e.vx=0;e.vy=100;updateDroneVisual(e,.2);
+  assert.notEqual(e.visualBank,0);assert.ok(e.visualPitch>0);
+  e.vx=undefined;e.vy=undefined;const heading=e.visualHeading;
+  for(let i=0;i<100;i++)updateDroneVisual(e,.1);
+  assert.equal(e.visualHeading,heading);assert.ok(Math.abs(e.visualBank)<1e-8);assert.ok(e.visualPitch<1e-8);
+  updateDroneVisual(e,.1,true);assert.ok(Number.isFinite(e.visualHeading));
+});
 
 test('kamikazes use quarter scale and double drone speed and explode for four shots',async()=>{
   const game=createGame();await game.start();

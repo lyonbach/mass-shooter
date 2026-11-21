@@ -145,6 +145,23 @@ test('kamikaze drone is rendered at quarter scale',()=>{
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.55&&call.args[1]===.55));
 });
 
+test('drone silhouettes have four phased rotors and independent, ground anchored shadows',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const poses=[];
+  for(const type of ['drone','kamikaze']){
+    const e={x:100,y:120,angle:.2,turret:2,visualHeading:1,visualBank:.1,visualPitch:.07,type,health:1,maxHealth:1,seed:1};
+    const before=structuredClone(e),c=context();renderer.enemy(c,e,2);
+    assert.deepEqual(e,before);
+    assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===105&&call.args[1]===128));
+    assert.ok(c.calls.some(call=>call.name==='rotate'&&call.args[0]===1));
+    assert.equal(c.calls.filter(call=>call.name==='arc'&&call.args[2]===7.5).length,8);
+    assert.equal(new Set(c.calls.filter(call=>call.name==='arc'&&call.args[2]===7.5).map(call=>call.args[3])).size,8);
+    assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+    poses.push(c.calls.filter(call=>call.name==='lineTo').map(call=>call.args));
+  }
+  assert.notDeepEqual(poses[0],poses[1]);
+});
+
 test('smoke screen selection does not change tank paint, tracks or hit feedback',()=>{
   const renderer=new Renderer({getContext:()=>context()},{effects:true});
   const tank={x:0,y:0,angle:0,type:'tank',health:3,maxHealth:4,smokeScreen:true,hit:.1};
