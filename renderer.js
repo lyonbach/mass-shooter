@@ -98,7 +98,7 @@ export class Renderer {
       c.save();c.translate(b.x,b.y);c.rotate(Math.atan2(b.vy,b.vx));
       c.drawImage(this.tracerGlowTexture(),-23,-3,26,6);c.restore();
     }
-    this.bullet(c,b,'#ffe0a1');
+    this.bullet(c,b,'#ff7043');
     c.restore();
   }
   bullet(c,b,color){
