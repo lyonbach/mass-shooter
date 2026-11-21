@@ -189,9 +189,10 @@ export class Renderer {
   tank(c,e,boss,char) {
     c.fillStyle='#14231655';c.fillRect(-22+6,-21+7,47,46);
     this.tankTracks(c,e,boss,char);
-    this.tankHull(c,boss,char);
+    if(boss)this.goliathHull(c,char);
+    else this.tankHull(c,boss,char);
     this.tankTurret(c,e,char);
-    c.strokeStyle='#c5b78866';c.lineWidth=1;c.beginPath();c.moveTo(-14,-12);c.lineTo(-18,-32);c.stroke();
+    if(!boss){c.strokeStyle='#c5b78866';c.lineWidth=1;c.beginPath();c.moveTo(-14,-12);c.lineTo(-18,-32);c.stroke();}
   }
   tankTracks(c,e,boss,char) {
     const trackLeft=boss?-30:-23,trackRight=boss?27:20,trackOuter=boss?27:22,trackInner=boss?13:11,trackHeight=trackOuter-trackInner;
@@ -217,6 +218,25 @@ export class Renderer {
     c.fillStyle=char?'#30392f':'#5b694d';c.fillRect(-10,9,10,4);c.fillStyle=char?'#626451':'#aab18b';c.fillRect(-10,9,10,1);
     c.strokeStyle=char?'#1f281e':'#546149';c.lineWidth=1;c.beginPath();c.moveTo(11,-12);c.lineTo(17,-8);c.moveTo(10,9);c.lineTo(15,6);c.stroke();
     c.fillStyle=char?'#74745a':'#c0bb91';c.fillRect(12,10,5,1);
+  }
+  goliathHull(c,char) {
+    const armor=char?'#3d4436':'#727356',dark=char?'#292f27':'#4c5d46',light=char?'#565b4a':'#a3a078';
+    path(c,[[-30,-12],[-24,-18],[15,-18],[27,-12],[29,0],[27,12],[15,18],[-24,18],[-30,12]],armor,'#18251c88');
+    path(c,[[-30,-12],[-24,-18],[15,-18],[27,-12],[29,0],[27,12],[15,18],[-24,18],[-30,12]],this.tankShade(c));
+    for(const side of [-1,1]){
+      path(c,[[-24,side*13],[16,side*13],[23,side*17],[17,side*20],[-23,side*20],[-28,side*17]],dark);
+      c.fillStyle=light;c.fillRect(-22,side<0?-19:18,37,2);
+      c.fillStyle=char?'#222b22':'#394b38';c.fillRect(-28,side<0?-12:7,5,5);
+    }
+    path(c,[[10,-12],[22,-11],[28,-7],[28,7],[22,11],[10,12]],char?'#4b503d':'#899074','#18251c88');
+    c.fillStyle=light;c.fillRect(19,-8,6,2);c.fillRect(19,6,6,2);
+    path(c,[[-13,-12],[7,-13],[14,-8],[14,8],[7,13],[-13,12],[-17,7],[-17,-7]],armor,'#18251c88');
+    c.fillStyle=char?'#222b22':'#394b38';c.fillRect(-27,-9,10,18);
+    c.fillStyle=light;for(let y=-7;y<=7;y+=3)c.fillRect(-26,y,8,1);
+    c.fillStyle=dark;c.fillRect(-29,-14,7,4);c.fillRect(-29,10,7,4);
+    ellipse(c,-18,0,4,4,dark);ellipse(c,-18,0,2.5,2.5,light);
+    c.strokeStyle=char?'#626451':'#c5b78899';c.lineWidth=1;c.beginPath();c.moveTo(-20,-4);c.lineTo(-23,-14);c.lineTo(-25,-20);c.moveTo(-16,4);c.lineTo(-18,12);c.stroke();
+    ellipse(c,-25,-20,1.5,1.5,char?'#565b4a':'#e2c482');
   }
   tankTurret(c,e,char) {
     c.save();c.rotate((e.turret??e.angle)-e.angle);
@@ -292,7 +312,7 @@ export class Renderer {
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
     const age=reduced?0:(d.age||0),seed=d.seed||0,scale=ENEMIES[d.type].scale;
     c.save();c.translate(d.x,d.y);c.scale(scale,scale);c.globalAlpha=intensity;
-    const points=d.type==='rocketSemi'?[[-20,0],[12,-3]]:[[-14,0],[0,-3],[12,3]];
+    const points=d.type==='rocketSemi'?[[-20,0],[12,-3]]:d.type==='boss'?[[-23,0],[-5,-4],[17,3]]:[[-14,0],[0,-3],[12,3]];
     const glow=c.createRadialGradient(0,0,0,0,0,32);glow.addColorStop(0,'#ff9b3138');glow.addColorStop(1,'#ff5b1700');c.fillStyle=glow;c.fillRect(-32,-32,64,64);
     for(let i=0;i<(this.settings.effects?points.length:1);i++){
       const [x,y]=points[i],phase=seed*2+i*2.7,flicker=reduced?1:.9+.12*Math.sin(age*5+phase)+.07*Math.sin(age*9+phase*1.7);

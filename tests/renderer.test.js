@@ -138,6 +138,23 @@ test('tank uses reusable track, hull and turret layers with cached depth shading
   assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#d0c799'));
 });
 
+test('Goliath uses its own command hull while retaining track phases and turret world aim in wrecks',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const e={x:50,y:70,angle:.4,turret:1.2,type:'boss',health:10,maxHealth:10,leftTrackPhase:1,rightTrackPhase:3};
+  const live=context(),char=context(),tank=context();
+  renderer.enemy(live,e,0);renderer.enemy(char,{...e,charred:true},0);renderer.enemy(tank,{...e,type:'tank'},0);
+  for(const c of [live,char]){
+    assert.ok(c.calls.some(call=>call.name==='lineTo'&&call.args[0]===29&&call.args[1]===0));
+    assert.ok(c.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.8)<1e-10));
+    assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+  }
+  assert.equal(tank.calls.some(call=>call.name==='lineTo'&&call.args[0]===29&&call.args[1]===0),false);
+  const treads=c=>c.calls.filter(call=>call.name==='fillRect'&&['#a1a582','#4b5041'].includes(call.fillStyle)).map(call=>call.args);
+  assert.deepEqual(treads(live),treads(char));
+  const wreck=context();renderer.wreck(wreck,{...e,wreck:true,transition:true,transitionAge:3,burnTime:0});
+  assert.equal(wreck.calls.filter(call=>call.name==='lineTo'&&call.args[0]===29&&call.args[1]===0).length,4);
+});
+
 test('kamikaze drone is rendered at quarter scale',()=>{
   const renderer=new Renderer({getContext:()=>context()},{});
   const c=context();
