@@ -97,3 +97,37 @@ test('kamikaze drone is rendered at quarter scale',()=>{
   renderer.enemy(c,{x:0,y:0,angle:0,type:'kamikaze',health:1,maxHealth:1},0);
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.55&&call.args[1]===.55));
 });
+
+test('pale tank palette is stable and retains tracks and hit feedback',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const tank={x:0,y:0,angle:0,type:'tank',health:3,maxHealth:4,pale:true,hit:.1};
+  const first=context(),second=context(),normal=context();
+  renderer.enemy(first,tank,0);renderer.enemy(second,tank,10);renderer.enemy(normal,{...tank,pale:false},0);
+  assert.deepEqual(first.calls,second.calls);
+  assert.ok(first.calls.some(call=>call.name==='fill'&&call.fillStyle==='#c6c9b9'));
+  assert.ok(first.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582'));
+  assert.ok(first.calls.some(call=>call.name==='fill'&&call.fillStyle==='#fff6c4'));
+  assert.ok(normal.calls.some(call=>call.name==='fill'&&call.fillStyle==='#8c8e69'));
+});
+
+test('wrecks blend matching poses into charred silhouettes with layered fire and balanced canvas state',()=>{
+  for(const type of ['tank','rocketSemi','boss']){
+    const renderer=new Renderer({getContext:()=>context()},{effects:true});
+    const wreck={x:50,y:70,angle:.4,turret:1.2,type,wreck:true,pale:true,transition:true,age:1.25,burnTime:12,seed:1};
+    const c=context();renderer.wreck(c,wreck);
+    const liveFill=type==='tank'?'#c6c9b9':type==='boss'?'#727356':'#6c7857';
+    const charFill=type==='rocketSemi'?'#353b31':'#3d4436';
+    assert.ok(c.calls.some(call=>call.fillStyle===liveFill));
+    assert.ok(c.calls.some(call=>call.fillStyle===charFill));
+    assert.ok(c.calls.some(call=>call.fillStyle==='#b83f20'));
+    assert.ok(c.calls.some(call=>call.fillStyle==='#ffe09a'));
+    assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+    assert.ok(c.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.8)<1e-10));
+    const final=context();renderer.wreck(final,{...wreck,age:20,burnTime:0});
+    assert.equal(final.calls.some(call=>call.fillStyle===liveFill),false);
+    assert.equal(final.calls.some(call=>call.fillStyle==='#ffe09a'),false);
+  }
+  const low=new Renderer({getContext:()=>context()},{effects:false}),c=context();
+  low.wreck(c,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:0,burnTime:14});
+  assert.equal(c.calls.filter(call=>call.name==='fill'&&call.fillStyle==='#b83f20').length,1);
+});

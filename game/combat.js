@@ -1,5 +1,5 @@
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
-import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING } from './constants.js';
+import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME } from './constants.js';
 export function createCombat(runtime){
   const {g,settings,sound,keys,pointer,$,t}=runtime;
   const burst=(...args)=>runtime.burst(...args),explosion=(...args)=>runtime.explosion(...args),float=(...args)=>runtime.float(...args);
@@ -16,7 +16,7 @@ const rocketRecharge=()=>WEAPONS.rocket.rechargeTime*Math.pow(WEAPONS.rocket.rec
 function launchRocket(){
   const p=g.player,w=WEAPONS.rocket;if(g.state!=='playing'||!p.rockets||p.rocketCooldown>0)return;
   let target=null,dist=Infinity;
-  for(const e of g.enemies){const d=distance(e,g.touch?p:pointer);if(d<dist){target=e;dist=d;}}
+  for(const e of g.enemies){if(e.health<=0)continue;const d=distance(e,g.touch?p:pointer);if(d<dist){target=e;dist=d;}}
   const a=target?Math.atan2(target.y-p.y,target.x-p.x):p.cannonAngle;
   const railAngle=a+Math.PI/2,side=p.rocketSide;
   p.rocketSide*=-1;
@@ -43,25 +43,33 @@ function updateCamera(dt,instant=false){
   camera.y=clamp(camera.y+(y-camera.y)*response,0,H-H/camera.zoom);
   if(pointer.screenX!==null){pointer.x=camera.x+pointer.screenX/camera.zoom;pointer.y=camera.y+pointer.screenY/camera.zoom;}
 }
-function hitEnemy(e,damage){
+function hitEnemy(e,damage,source='other'){
   if(e.health<=0)return;
-  e.health-=damage;e.hit=.12;burst(e.x,e.y,'#ebd99c',4,.5);
+  e.health-=damage;e.hit=.12;
+  const ground=e.type!=='drone'&&e.type!=='kamikaze',cannonWreck=ground&&source==='cannon'&&e.health<=0;
+  if(!cannonWreck)burst(e.x,e.y,'#ebd99c',4,.5);
   if(e.health<=0){
     g.kills++;g.combo=g.comboTimer>0?g.combo+1:1;g.comboTimer=4;
     const multiplier=Math.min(5,1+Math.floor(g.combo/3)),points=e.points*multiplier;g.score+=points;
     float(`+${points}${multiplier>1?' ×'+multiplier:''}`,e.x,e.y-35,'#e0efa6',multiplier>1);
     const stats=ENEMIES[e.type];
-    explosion(e.x,e.y,stats.deathExplosion);
-    if(e.type==='boss'){
+    if(cannonWreck)runtime.destructionSound(e.x,e.y);
+    else explosion(e.x,e.y,stats.deathExplosion);
+    if(e.type==='boss'&&!cannonWreck){
       for(let i=0;i<5;i++){
         const a=Math.random()*TAU,distance=10+Math.random()*38;
         g.deathBursts.push({x:e.x+Math.cos(a)*distance,y:e.y+Math.sin(a)*distance,size:58+Math.random()*28,delay:.1+i*.12+Math.random()*.05});
       }
     }
     if(e.type==='kamikaze'&&distance(e,g.player)<stats.explosionRadius+17)damagePlayer(stats.projectileDamage);
-    if(!['drone','kamikaze','boss'].includes(e.type))g.wreckSmoke.push({x:e.x,y:e.y,life:18,timer:0});
     if(e.type==='boss')sound.setMusicScene('waves');
-    if(e.type!=='drone'&&e.type!=='kamikaze'){g.decals.push({x:e.x,y:e.y,angle:e.angle,size:e.type==='boss'?48:26,wreck:true,type:e.type,scale:ENEMIES[e.type].scale,turretAngle:(e.turret??e.angle)-e.angle,burnTime:18});if(g.decals.length>55)g.decals.shift();}
+    if(ground){
+      const vx=cannonWreck?(e.vx||0):0,vy=cannonWreck?(e.vy||0):0;
+      const wreck={...e,wreck:true,age:0,burnTime:WRECK_FIRE_TIME,transition:cannonWreck,vx,vy,initialVx:vx,initialVy:vy};
+      g.decals.push(wreck);if(g.decals.length>55)g.decals.shift();
+      const smoke={x:e.x,y:e.y,life:WRECK_SMOKE_TIME,timer:0,wreck};
+      g.wreckSmoke.push(smoke);runtime.emitWreckSmoke(smoke);
+    }
     if(!g.testRange&&(g.kills%4===0||e.type==='boss'))g.pickups.push({x:clamp(e.x,40,g.world.width-40),y:clamp(e.y,120,g.world.height-60),life:25});
   }else sound.play('hit',{position:{x:e.x,y:e.y}});
 }
@@ -78,10 +86,11 @@ function damagePlayer(amount){
 }
 function detonate(b){
   explosion(b.x,b.y,135);
-  for(const e of g.enemies){const d=distance(e,b);if(d<135+e.radius)hitEnemy(e,b.damage*(1-clamp(d/230,0,.65)));}
+  for(const e of g.enemies){const d=distance(e,b);if(d<135+e.radius)hitEnemy(e,b.damage*(1-clamp(d/230,0,.65)),'rocket');}
   g.bullets.forEach(other=>{if(!other.friendly&&distance(other,b)<135)other.life=0;});
 }
 function fireEnemy(e){
+  if(e.health<=0)return;
   const a=e.turret,p=g.player,kind=e.type,stats=ENEMIES[kind];
   if(kind==='aa'){
     if(!e.burstRemaining)e.burstRemaining=stats.shotCount;
@@ -160,7 +169,7 @@ function update(dt){
     if(stats.strafeSpeed){vx+=Math.cos(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;vy+=Math.sin(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;}
     // Gentle separation keeps armor from stacking into one unreadable target.
     for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
-    e.x+=vx*dt;e.y+=vy*dt;
+    e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
     const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
     e.angle=turn(e.angle,heading,dt*stats.turnRate);
     if(e.type!=='drone'&&e.type!=='kamikaze'){
@@ -222,7 +231,7 @@ function update(dt){
     if(b.friendly){
       let target=null,nearest=Infinity;
       for(const e of g.enemies)if(e.health>0&&segmentHitsCircle(ox,oy,b.x,b.y,e.x,e.y,e.radius+(b.kind==='rocket'?8:2))){const d=Math.hypot(e.x-ox,e.y-oy);if(d<nearest){target=e;nearest=d;}}
-      if(target){b.life=0;if(b.kind==='rocket')detonate(b);else hitEnemy(target,b.damage);}
+      if(target){b.life=0;if(b.kind==='rocket')detonate(b);else hitEnemy(target,b.damage,b.kind==='gun'?'cannon':'other');}
       else if(b.kind==='rocket'&&b.life<=0)detonate(b);
     }else if(segmentHitsCircle(ox,oy,b.x,b.y,p.x,p.y,17)){b.life=0;damagePlayer(b.damage);if(g.state!=='playing')return;}
     if(b.x < -90 || b.x > W+90 || b.y < -90 || b.y > H+90)b.life=0;

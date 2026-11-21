@@ -21,7 +21,7 @@ function createGame(reducedMotion=false) {
   const document={hidden:false,fullscreenEnabled:false,documentElement:{},getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},querySelectorAll:()=>[],createElement:()=>new Element(),addEventListener:(event,fn)=>documentEvents.set(event,fn)};
   const window={addEventListener:(event,fn)=>windowEvents.set(event,fn)};
   const localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)};
-  class Audio{constructor(){this.scene='menu';this.initializations=0;this.plays=[];}async init(){this.initializations++;} configure(){} setActive(){} setMusicScene(scene){this.scene=scene;} play(name){this.plays.push(name);} update(){}}
+  class Audio{constructor(){this.scene='menu';this.initializations=0;this.plays=[];this.calls=[];}async init(){this.initializations++;} configure(){} setActive(){} setMusicScene(scene){this.scene=scene;} play(name,...args){this.plays.push(name);this.calls.push({name,args});} update(){}}
   class Renderer{resize(){} setMap(){} draw(){}}
   const moduleFiles=['game/constants.js','game/state.js','game/entities.js','game/waves.js','game/loop.js','game/combat.js','game/upgrades.js','game/input.js','game.js'];
   const source=moduleFiles.map(file=>readFileSync(new URL(`../${file}`,import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'')).join('\n');
@@ -357,4 +357,85 @@ test('next wave changes sector and clears persistent battlefield effects',async(
   game.g.decals.push({x:100,y:100});game.g.wreckSmoke.push({x:100,y:100,life:18});game.g.particles.push({smoke:true},{smoke:false});game.nextWave();
   assert.notEqual(game.g.map,first);assert.equal(game.g.map,core.mapForWave(2));
   assert.equal(game.g.decals.length,0);assert.equal(game.g.wreckSmoke.length,0);assert.equal(game.g.particles.length,1);assert.equal(game.elements.get('sector-name').textContent,game.g.map.name);
+});
+
+test('cannon projectiles create one immediate, silent-visual vehicle death and preserve wave clear',async()=>{
+  const game=createGame();await game.start();const {g}=game,p=g.player;
+  const tank=enemy({x:p.x+200,y:p.y,health:1,maxHealth:1,cooldown:0});
+  g.enemies=[tank];g.spawnRemaining=0;g.kills=3;
+  g.bullets=[{x:tank.x-80,y:tank.y,vx:1000,vy:0,life:1,friendly:true,damage:5,kind:'gun'}];
+  game.update(.1);
+  assert.equal(g.kills,4);assert.equal(g.combo,1);assert.equal(g.pickups.length,1);
+  assert.equal(g.enemies.length,0);assert.ok(g.waveWait>0);
+  assert.equal(g.explosions.length,0);assert.equal(g.deathBursts.length,0);assert.equal(g.shake,0);
+  assert.equal(g.decals.length,1);assert.equal(g.decals[0].transition,true);assert.ok(g.decals[0].burnTime>0);
+  assert.ok(g.particles.some(particle=>particle.persistent));
+  assert.deepEqual(game.sound.calls.filter(call=>call.name==='explode').map(call=>call.args),[[{position:{x:tank.x,y:tank.y}}]]);
+  const score=g.score;game.hitEnemy(tank,100,'cannon');game.fireEnemy(tank);
+  assert.equal(g.score,score);assert.equal(g.kills,4);assert.equal(g.pickups.length,1);
+  assert.equal(game.sound.plays.filter(name=>name==='explode').length,1);
+});
+
+test('rocket AOE and aircraft cannon kills retain explosions while cannon boss skips its chain',async()=>{
+  const game=createGame();await game.start();const {g}=game;
+  const tank=enemy({x:700,y:350,health:1,maxHealth:1});
+  g.enemies=[tank];g.spawnRemaining=100;
+  g.bullets=[{x:700,y:350,vx:0,vy:0,life:.01,friendly:true,damage:100,kind:'rocket',trail:1}];
+  game.update(.02);
+  assert.equal(g.decals[0].transition,false);assert.ok(g.explosions.length>=2);
+  const before=g.explosions.length,drone=enemy({type:'drone',health:1});
+  game.hitEnemy(drone,10,'cannon');assert.equal(g.explosions.length,before+1);
+  const boss=enemy({type:'boss',health:1,angle:1,turret:2});
+  game.sound.setMusicScene('boss');game.hitEnemy(boss,10,'cannon');
+  assert.equal(game.sound.scene,'waves');assert.equal(g.explosions.length,before+1);
+  assert.equal(g.deathBursts.length,0);assert.equal(g.decals.at(-1).type,'boss');
+});
+
+test('a lethally hit vehicle cannot fire, contact the player, or be selected by a rocket',async()=>{
+  const game=createGame();await game.start();const {g}=game,p=g.player;
+  const dead=enemy({x:p.x+1,y:p.y,health:1,cooldown:0}),live=enemy({x:p.x+250,y:p.y});
+  g.enemies=[dead,live];g.spawnRemaining=100;game.hitEnemy(dead,10,'cannon');
+  game.fireEnemy(dead);assert.equal(g.bullets.length,0);
+  g.pointer.x=dead.x;g.pointer.y=dead.y;game.launchRocket();
+  assert.equal(g.bullets[0].target,live);
+  game.update(.01);assert.equal(p.health,p.maxHealth);assert.equal(g.enemies.includes(dead),false);
+  assert.equal(g.bullets.filter(b=>!b.friendly).length,0);
+});
+
+test('coasting uses actual movement, keeps smoke aligned, stops, and freezes on pause',async()=>{
+  const game=createGame();await game.start();const {g}=game,p=g.player;
+  const tank=enemy({x:p.x+400,y:p.y+80,speed:80,seed:1,angle:.5,turret:1});
+  const neighbor=enemy({x:tank.x+30,y:tank.y+10,speed:0});
+  g.enemies=[tank,neighbor];g.spawnRemaining=100;game.update(.05);
+  const {vx,vy,angle,turret,x,y}=tank;
+  assert.ok(Math.hypot(vx,vy)>0);
+  game.hitEnemy(tank,100,'cannon');const wreck=g.decals[0],source=g.wreckSmoke[0];
+  assert.equal(wreck.vx,vx);assert.equal(wreck.vy,vy);assert.equal(wreck.angle,angle);assert.equal(wreck.turret,turret);
+  game.updateEffects(1);assert.ok(Math.abs(wreck.x-(x+vx*.8))<1e-8);assert.ok(Math.abs(wreck.y-(y+vy*.8))<1e-8);
+  assert.equal(source.x,wreck.x);assert.equal(source.y,wreck.y);assert.ok(Math.hypot(wreck.vx,wreck.vy)<Math.hypot(vx,vy));
+  game.pause();const age=wreck.age;game.frame(1000);game.frame(2000);assert.equal(wreck.age,age);
+  game.resume();game.updateEffects(2);const restX=wreck.x,restY=wreck.y;
+  assert.equal(wreck.vx,0);assert.equal(wreck.vy,0);game.updateEffects(1);assert.equal(wreck.x,restX);assert.equal(wreck.y,restY);
+  const stationary=enemy({x:200,y:200});game.hitEnemy(stationary,100,'cannon');const still=g.decals.at(-1);
+  game.updateEffects(3);assert.equal(still.x,200);assert.equal(still.y,200);
+});
+
+test('wreck effects are bounded, expire, and clear on wave and restart in low-effects mode',async()=>{
+  const game=createGame(true);await game.start();game.settings.effects=false;const {g}=game;
+  for(let i=0;i<80;i++)game.hitEnemy(enemy({x:300+i,y:300}),100,'cannon');
+  assert.equal(g.decals.length,55);assert.ok(g.particles.length<=180);
+  for(let i=0;i<250;i++)game.updateEffects(.1);
+  assert.equal(g.wreckSmoke.length,0);assert.equal(g.particles.length,0);assert.ok(g.decals.every(wreck=>wreck.burnTime===0));
+  game.nextWave();assert.equal(g.decals.length,0);assert.equal(g.wreckSmoke.length,0);
+  game.hitEnemy(enemy(),100,'cannon');await game.start();assert.equal(g.decals.length,0);assert.equal(g.particles.length,0);
+});
+
+test('tank camouflage is chosen once at spawn and copied to its wreck',async()=>{
+  const game=createGame();await game.start();const random=Math.random;
+  try{
+    Math.random=()=>0;const pale=game.spawnEnemy('tank');assert.equal(pale.pale,true);
+    Math.random=()=>.99;const normal=game.spawnEnemy('tank'),truck=game.spawnEnemy('rocketSemi');
+    assert.equal(normal.pale,false);assert.equal(truck.pale,undefined);
+    game.hitEnemy(pale,pale.health,'cannon');assert.equal(game.g.decals.at(-1).pale,true);
+  }finally{Math.random=random;}
 });
