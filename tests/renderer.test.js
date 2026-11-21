@@ -134,6 +134,63 @@ test('launcher wreck retains cab, rack, openings and hull-attached fire position
   assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
 });
 
+test('top-down launcher tires are paired and the rack housing matches its wreck',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{effects:false});
+  const truck={x:100,y:100,angle:.8,turret:1.6,type:'rocketSemi',health:8,maxHealth:8};
+  const live=context(),dead=context();renderer.enemy(live,truck,0);renderer.wreck(dead,{...truck,wreck:true,transition:false,burnTime:0});
+  const wheels=c=>c.calls.filter(call=>call.name==='roundRect').map(call=>call.args);
+  assert.deepEqual(wheels(live),wheels(dead));assert.equal(wheels(live).length,6);
+  assert.deepEqual(wheels(live).map(args=>args.slice(0,2)),[[-32,-16],[-32,13],[-20,-16],[-20,13],[16,-16],[16,13]]);
+  assert.ok(live.calls.some(call=>call.name==='fillRect'&&call.args.join(',')==='-23,-11,52,22'));
+  assert.equal(live.calls.some(call=>call.name==='ellipse'&&call.args[2]===3.2),false);
+  assert.ok(dead.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.8)<1e-10));
+});
+
+test('weapon effects use barrel-tip transforms and recoil smoothly without mutating state',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{effects:true});
+  for(const [type,tip,recoil,size] of [['tank',32,2.5,10],['artillery',42,5,18],['boss',32,4,17]]){
+    const e={x:100,y:120,angle:.7,turret:1.9,type,health:8,maxHealth:8,weaponMuzzle:.22};
+    const positions=[];
+    for(const life of [.22,.11,.001]){
+      const c=context(),original=structuredClone(e);renderer.enemy(c,{...e,weaponMuzzle:life},0);assert.deepEqual(e,original);
+      const move=c.calls.find(call=>call.name==='translate'&&call.args[1]===0&&call.args[0]<0);
+      positions.push(move.args[0]);
+      if(life===.22){
+        const flash=c.calls.find(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame);
+        assert.ok(flash);assert.equal(flash.args[1],tip-size*.2);
+      }
+    }
+    assert.equal(positions[0],-recoil);assert.ok(positions[0]<positions[1]&&positions[1]<positions[2]&&positions[2]<0);
+  }
+  const drone={x:100,y:120,angle:.5,visualHeading:.5,turret:1.1,type:'drone',health:3,maxHealth:3,weaponMuzzle:.22};
+  const firing=context(),idle=context();renderer.enemy(firing,drone,0);renderer.enemy(idle,{...drone,weaponMuzzle:0},0);
+  assert.ok(firing.calls.some(call=>call.name==='translate'&&call.args[0]===10.4));
+  assert.ok(firing.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.6)<1e-9));
+  assert.ok(firing.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame));
+  assert.equal(idle.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame),false);
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{const c=context();renderer.enemy(c,drone,0);assert.equal(c.calls.some(call=>call.name==='drawImage'),false);}
+  finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
+test('weapon muzzle follows rotated turret and recoiling tip in world coordinates',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{effects:false});
+  for(const [type,tip,recoil,size] of [['tank',32,2.5,10],['artillery',42,5,18],['boss',32,4,17]]){
+    const e={x:100,y:120,angle:.7,turret:1.9,type,health:8,maxHealth:8,weaponMuzzle:.22};
+    const c=context(),stack=[],draws=[];let matrix=[1,0,0,1,0,0];
+    const multiply=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+    c.save=()=>stack.push([...matrix]);c.restore=()=>{matrix=stack.pop();};
+    c.translate=(x,y)=>{matrix=multiply(matrix,[1,0,0,1,x,y]);};
+    c.rotate=a=>{matrix=multiply(matrix,[Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0]);};
+    c.scale=(x,y)=>{matrix=multiply(matrix,[x,0,0,y,0,0]);};
+    c.drawImage=(image,x)=>draws.push({image,x,matrix:[...matrix]});
+    renderer.enemy(c,e,0);const draw=draws.find(draw=>draw.image===renderer.launchFlame),m=draw.matrix;
+    assert.equal(draw.x,tip-size*.2);
+    assert.ok(Math.abs(m[0]*tip+m[4]-(e.x+ENEMIES[type].scale*(tip-recoil)*Math.cos(e.turret)))<1e-9);
+    assert.ok(Math.abs(m[1]*tip+m[5]-(e.y+ENEMIES[type].scale*(tip-recoil)*Math.sin(e.turret)))<1e-9);
+    assert.equal(stack.length,0);
+  }
+});
+
 test('missile flame starts at ignition and both factions use procedural silhouettes',()=>{
     const renderer=new Renderer({getContext:()=>context()},{effects:true});
     for(const friendly of [true,false]){
@@ -167,12 +224,12 @@ test('helicopter uses a projected hull silhouette and rotor blade shadow',()=>{
 });
 
 test('cannon is half-sized and fires from its barrel tip',()=>{
-  const renderer=new Renderer({getContext:()=>context()},{});
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{});
   const c=context();
   renderer.helicopter(c,{x:100,y:100,angle:0,cannonAngle:Math.PI/2,bank:0,pitch:0,muzzle:1},0);
   assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===20&&call.args[1]===0));
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.5&&call.args[1]===.5));
-  assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#fff2a8'));
+  assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame&&call.args[1]===42-18*.2));
 });
 
 test('helicopter strobe lights flash once every two seconds',()=>{

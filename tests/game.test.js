@@ -117,6 +117,43 @@ test('AA muzzle state alternates, expires, pauses, resets and is removed on deat
   game.fireEnemy(aa);assert.equal(game.g.warnings.length,warnings);
   await game.start();assert.equal(game.g.warnings.length,0);assert.equal(game.g.enemies.length,0);
 });
+test('weapon muzzle state follows firing events without changing projectile or audio behavior',async()=>{
+  for(const type of ['tank','artillery','boss','drone']){
+    const game=createGame();await game.start();game.g.spawnRemaining=100;
+    const e=enemy({type,x:300,y:300,turret:.7,health:100,maxHealth:100}),stats=core.ENEMIES[type];
+    game.g.enemies=[e];const random=Math.random;let calls=0;Math.random=()=>{calls++;return .5;};
+    const before=game.sound.plays.length;
+    try{game.fireEnemy(e);}finally{Math.random=random;}
+    assert.equal(calls,17);assert.equal(e.weaponMuzzle,.22);assert.equal(game.g.bullets.length,stats.shotCount);
+    for(let i=0;i<stats.shotCount;i++){
+      const b=game.g.bullets[i],angle=.7+(i-(stats.shotCount-1)/2)*stats.spread;
+      const speed=stats.projectileSpeed+Math.min(game.g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
+      assert.equal(b.x,300+Math.cos(.7)*30);assert.equal(b.y,300+Math.sin(.7)*30);
+      assert.equal(b.vx,Math.cos(angle)*speed);assert.equal(b.vy,Math.sin(angle)*speed);
+      assert.equal(b.damage,stats.projectileDamage);assert.equal(b.life,stats.projectileLife);
+    }
+    assert.equal(e.cooldown,stats.fireInterval-Math.min(game.g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+.5*stats.fireRandom);
+    assert.deepEqual(game.sound.plays.slice(before),['enemy']);
+    e.cooldown=100;game.update(.1);assert.ok(Math.abs(e.weaponMuzzle-.12)<1e-10);
+    game.pause();game.frame(1000);game.frame(2000);assert.ok(Math.abs(e.weaponMuzzle-.12)<1e-10);
+    game.resume();game.update(.13);assert.equal(e.weaponMuzzle,undefined);
+    game.fireEnemy(e);game.hitEnemy(e,1000,'cannon');assert.equal(e.weaponMuzzle,undefined);
+    if(type!=='drone')assert.equal(game.g.decals.at(-1).weaponMuzzle,undefined);
+  }
+});
+test('player cannon flash and smoke timers follow a real shot without changing the shot',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;
+  const p=game.g.player;game.keys.add('Space');const random=Math.random;Math.random=()=>.5;
+  const before=game.sound.plays.length;
+  try{game.update(.01);}finally{Math.random=random;}
+  const b=game.g.bullets.find(b=>b.kind==='gun');
+  assert.ok(b);assert.equal(p.muzzle,core.WEAPONS.gun.muzzleTime);assert.equal(p.muzzleSmoke,.22);
+  assert.equal(b.damage,core.WEAPONS.gun.damage);assert.equal(b.life,core.WEAPONS.gun.life-.01);
+  assert.ok(Math.abs(Math.hypot(b.vx,b.vy)-core.WEAPONS.gun.speed)<1e-8);
+  assert.deepEqual(game.sound.plays.slice(before),['shot']);
+  game.keys.delete('Space');game.pause();game.frame(1000);game.frame(2000);assert.equal(p.muzzleSmoke,.22);
+  game.resume();game.update(.23);assert.equal(p.muzzleSmoke,0);
+});
 test('AA flak preserves detonation timing, radius, sound and bounded cosmetic lifetime',async()=>{
   for(const reduced of [false,true]){
     const game=createGame(reduced);await game.start();game.g.spawnRemaining=0;
