@@ -249,19 +249,20 @@ export class Renderer {
     ellipse(c,-1,-1,5,5,'#5b674a');ellipse(c,-1,-1,3,3,char?'#383e32':'#87926b');c.fillStyle='#dc9a6c';c.fillRect(-4,-2,6,2);c.restore();
   }
   droneRotor(c,x,y,phase) {
-    ellipse(c,x,y,9,9,'#b9cbb31c');
+    ellipse(c,x,y,10.5,10.5,'#b9cbb31c');
     c.save();c.translate(x,y);
     c.strokeStyle='#d3e2c34a';c.lineWidth=1.5;
-    for(let i=0;i<2;i++){c.beginPath();c.arc(0,0,7.5,phase+i*Math.PI,phase+i*Math.PI+1.25);c.stroke();}
+    for(let i=0;i<2;i++){c.beginPath();c.arc(0,0,9,phase+i*Math.PI,phase+i*Math.PI+1.25);c.stroke();}
     ellipse(c,0,0,4.5,4.5,'#384a3c');ellipse(c,0,0,2.4,2.4,'#a9b394');ellipse(c,0,0,1,1,'#39483a');
     c.restore();
   }
   drone(c,e,t,reduced) {
     const dart=e.type==='kamikaze';
-    const motors=dart?[[9,-12],[9,12],[-12,-16],[-12,16]]:[[13,-14],[13,14],[-13,-14],[-13,14]];
-    c.strokeStyle='#455847';c.lineWidth=dart?4:6;c.lineCap='round';c.beginPath();
+    const motors=dart?[[10,-13],[10,13],[-13,-17],[-13,17]]:[[14,-15],[14,15],[-14,-15],[-14,15]];
+    c.strokeStyle='#455847';c.lineWidth=dart?3:4;c.lineCap='round';c.beginPath();
     for(const [x,y] of motors){c.moveTo(dart?(x>0?3:-5):x*.35,y*.3);c.lineTo(x,y);}c.stroke();
     for(let i=0;i<motors.length;i++)this.droneRotor(c,motors[i][0],motors[i][1],(reduced?0:t*18)+(e.seed||0)+i*1.3);
+    c.save();c.scale(dart?1:.8,dart?.75:.8);
     if(dart){
       path(c,[[-14,-5],[-8,-8],[4,-6],[17,0],[4,6],[-8,8],[-14,5]],'#7c876b','#c4c7a466');
       path(c,[[-10,-4],[3,-4],[12,0],[3,4],[-10,4]],'#a8ad89');
@@ -274,7 +275,7 @@ export class Renderer {
       c.fillStyle='#4c5d4b';for(let y=-4;y<=4;y+=4)c.fillRect(-10,y,5,1);
       c.strokeStyle='#5e7059';c.lineWidth=1;c.beginPath();c.moveTo(-2,-8);c.lineTo(-2,8);c.stroke();
     }
-    ellipse(c,dart?13:13,0,2.5,3,'#33483e');ellipse(c,dart?14:14,-.5,1,1.3,'#a6d9cd');
+    ellipse(c,13,0,2.5,3,'#33483e');ellipse(c,14,-.5,1,1.3,'#a6d9cd');c.restore();
     ellipse(c,motors[0][0],motors[0][1],1.2,1.2,'#e5bf7c');ellipse(c,motors[1][0],motors[1][1],1.2,1.2,'#d77b68');
   }
   enemy(c,e,t) {

@@ -185,8 +185,10 @@ test('drone silhouettes have four phased rotors and independent, ground anchored
     assert.deepEqual(e,before);
     assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===105&&call.args[1]===128));
     assert.ok(c.calls.some(call=>call.name==='rotate'&&call.args[0]===1));
-    assert.equal(c.calls.filter(call=>call.name==='arc'&&call.args[2]===7.5).length,8);
-    assert.equal(new Set(c.calls.filter(call=>call.name==='arc'&&call.args[2]===7.5).map(call=>call.args[3])).size,8);
+    assert.equal(c.calls.filter(call=>call.name==='arc'&&call.args[2]===9).length,8);
+    assert.equal(new Set(c.calls.filter(call=>call.name==='arc'&&call.args[2]===9).map(call=>call.args[3])).size,8);
+    assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===(type==='drone'?.8:1)&&call.args[1]===(type==='drone'?.8:.75)));
+    assert.equal(c.calls.filter(call=>call.name==='ellipse'&&call.args[2]===10.5&&call.args[3]===10.5).length,4);
     assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
     poses.push(c.calls.filter(call=>call.name==='lineTo').map(call=>call.args));
   }
