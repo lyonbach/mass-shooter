@@ -264,7 +264,15 @@ function update(dt){
       for(const e of g.enemies)if(e.health>0&&segmentHitsCircle(ox,oy,b.x,b.y,e.x,e.y,e.radius+(b.kind==='rocket'?8:2))){const d=Math.hypot(e.x-ox,e.y-oy);if(d<nearest){target=e;nearest=d;}}
       if(target){b.life=0;if(b.kind==='rocket')detonate(b);else hitEnemy(target,b.damage,b.kind==='gun'?'cannon':'other');}
       else if(b.kind==='rocket'&&b.life<=0)detonate(b);
-    }else if(segmentHitsCircle(ox,oy,b.x,b.y,p.x,p.y,17)){b.life=0;damagePlayer(b.damage);if(g.state!=='playing')return;}
+    }else if(segmentHitsCircle(ox,oy,b.x,b.y,p.x,p.y,17)){
+      if(b.kind==='enemyRocket'){
+        const dx=b.x-ox,dy=b.y-oy,fx=ox-p.x,fy=oy-p.y,a=dx*dx+dy*dy;
+        const projection=fx*dx+fy*dy,discriminant=projection*projection-a*(fx*fx+fy*fy-17*17);
+        const contact=a>0?clamp((-projection-Math.sqrt(Math.max(0,discriminant)))/a,0,1):0;
+        runtime.missileContact(ox+dx*contact,oy+dy*contact);
+      }
+      b.life=0;damagePlayer(b.damage);if(g.state!=='playing')return;
+    }
     if(b.x < -90 || b.x > W+90 || b.y < -90 || b.y > H+90)b.life=0;
   }
   g.bullets=g.bullets.filter(b=>b.life>0);g.enemies=g.enemies.filter(e=>e.health>0);

@@ -162,6 +162,39 @@ test('rocket semi homing rockets fire faster on harder difficulty',async()=>{
   game.g.bullets=[rocket];game.update(.1);
   assert.ok(rocket.vy>0);assert.ok(Math.hypot(rocket.vx,rocket.vy)>100);
 });
+test('enemy missile contact visuals use swept entry without changing damage or protection',async()=>{
+  for(const kind of ['enemyRocket','shell']){
+    for(const protectedHit of [false,true]){
+      const game=createGame();await game.start();game.settings.difficulty='hard';game.g.spawnRemaining=100;
+      const p=game.g.player;p.invulnerable=protectedHit?1:0;
+      const before=game.sound.plays.length;
+      game.g.bullets=[{x:p.x-100,y:p.y,vx:1000,vy:0,life:2,friendly:false,kind,damage:7,turn:0,acceleration:0,maxSpeed:1000,trail:10}];
+      game.update(.2);
+      const flashes=game.g.particles.filter(particle=>particle.contactFlash);
+      assert.equal(flashes.length,kind==='enemyRocket'?1:0);
+      if(flashes.length){assert.ok(Math.abs(flashes[0].x-(p.x-17))<1e-8);assert.equal(flashes[0].y,p.y);}
+      assert.equal(p.health,protectedHit?100:100-7*game.g.plan.damage);
+      assert.equal(game.g.bullets.length,0);
+      assert.equal(game.sound.plays.slice(before).filter(name=>name==='damage').length,protectedHit?0:1);
+      assert.equal(game.g.shake,protectedHit?0:10);
+    }
+  }
+});
+test('missile contact particles are bounded and consume no random values',()=>{
+  const g={particles:[],shake:0},settings={effects:true},sound={play(){throw Error('unexpected sound');}};
+  const {missileContact}=createEntities({g,settings,sound}),random=Math.random;
+  Math.random=()=>{throw Error('unexpected random value');};
+  try{
+    missileContact(5,6);
+    assert.equal(g.particles.length,7);
+    assert.equal(g.particles.filter(p=>p.contactFlash).length,1);
+    g.particles=Array.from({length:650},()=>({}));
+    missileContact(7,8);
+    assert.equal(g.particles.length,650);
+    assert.equal(g.particles.filter(p=>p.contactFlash).length,1);
+    assert.equal(g.shake,0);
+  }finally{Math.random=random;}
+});
 test('test range spawns only the configured enemy with selected upgrades',async()=>{
   const game=createGame();
   await game.start('test');
