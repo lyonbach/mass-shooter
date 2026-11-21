@@ -39,7 +39,7 @@ test('flare rendering has bounded cached layers and leaves particle state unchan
   const original={...p},random=Math.random;Math.random=()=>{throw new Error('rendering consumed gameplay randomness');};
   try{for(let i=0;i<30;i++)renderer.flare(c,p);}finally{Math.random=random;}
   assert.deepEqual(p,original);
-  assert.equal(document.created.length,4);
+  assert.equal(document.created.length,5);
   assert.equal(c.calls.filter(call=>call.name==='drawImage').length,30*5);
   assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
   const low=context();renderer.flare(low,p,true);
@@ -48,10 +48,30 @@ test('flare rendering has bounded cached layers and leaves particle state unchan
   assert.equal(expired.calls.length,0);
 });
 
-test('player muzzle uses layered cached flashes only while the shot timer is active',()=>{
+test('flare lifecycle and variation work for arbitrary particle counts with bounded texture allocation',()=>{
+  const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
+  for(let i=0;i<17;i++){
+    const p={x:i*3,y:i,vx:i-8,vy:40,life:.85,maxLife:.85,flarePhase:i};
+    for(const life of [.85,.81,.5,.1,0])renderer.flare(c,{...p,life});
+  }
+  assert.equal(document.created.length,5);
+  assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+  const low=context();renderer.settings.effects=false;
+  renderer.flare(low,{x:0,y:0,vx:1,vy:0,life:.5,maxLife:.85,flarePhase:0});
+  assert.equal(low.calls.filter(call=>call.name==='drawImage').length,2);
+});
+
+test('player muzzle preserves the original burst geometry in a cached gradient until the shot timer ends',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
   renderer.playerMuzzle(c,{muzzle:.04,muzzleSmoke:.22});
-  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,3);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,2);
+  const flash=renderer.playerFlash,geometry=flash.pc.calls.filter(call=>['moveTo','lineTo'].includes(call.name));
+  assert.deepEqual(geometry.slice(0,4).map(call=>call.args),[[42,-10],[88,0],[42,10],[56,0]]);
+  assert.deepEqual(c.calls.filter(call=>call.name==='drawImage').at(-1).args.slice(1),[40,-12,50,24]);
+  assert.ok(document.stops.some(([stop,color])=>stop===0&&color.startsWith('#fff')));
+  assert.ok(document.stops.some(([stop,color])=>stop===1&&color.endsWith('00')));
+  const firing=context();renderer.playerMuzzle(firing,{muzzle:.001,muzzleSmoke:0});
+  assert.equal(firing.calls.filter(call=>call.name==='drawImage').length,1);
   const cooling=context();renderer.playerMuzzle(cooling,{muzzle:0,muzzleSmoke:.1});
   assert.equal(cooling.calls.filter(call=>call.name==='drawImage').length,1);
   const settled=context();renderer.playerMuzzle(settled,{muzzle:0,muzzleSmoke:0});
@@ -269,7 +289,7 @@ test('cannon is half-sized and fires from its barrel tip',()=>{
   renderer.helicopter(c,{x:100,y:100,angle:0,cannonAngle:Math.PI/2,bank:0,pitch:0,muzzle:1},0);
   assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===20&&call.args[1]===0));
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.5&&call.args[1]===.5));
-  assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame&&call.args[1]===42-18*.2));
+  assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.playerFlash&&call.args[1]===40));
 });
 
 test('helicopter strobe lights flash once every two seconds',()=>{
