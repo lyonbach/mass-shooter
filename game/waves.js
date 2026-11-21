@@ -1,5 +1,5 @@
 import { TAU, enemyType, mapForWave, wavePlan, ENEMIES } from '../core.js';
-import { PALE_TANK_CHANCE } from './constants.js';
+import { SCREEN_SMOKE_CHANCE } from './constants.js';
 export function createWaves(runtime){
   const {g,settings,renderer,sound,$,pad,t}=runtime;
   const announce=(...args)=>runtime.announce(...args);
@@ -22,7 +22,10 @@ function spawnEnemy(forced){
   const type=forced||enemyType(g.wave,g.spawnIndex++);
   const stats=ENEMIES[type],health=(stats.health+stats.healthPerWave*g.wave)*g.plan.health;
   const enemy={x,y,type,health,maxHealth:health,speed:(stats.speed+Math.min(g.wave*stats.speedPerWave,stats.speedWaveCap))*stats.speedMultiplier,points:stats.points,radius:stats.radius,angle:Math.atan2(p.y-y,p.x-x),turret:0,cooldown:stats.initialCooldown+Math.random()*stats.initialRandom,charge:0,hit:0,seed:Math.random()*TAU};
-  if(type==='tank')enemy.pale=Math.random()<PALE_TANK_CHANCE;
+  if(type==='tank'){
+    enemy.smokeScreen=Math.random()<SCREEN_SMOKE_CHANCE;
+    if(enemy.smokeScreen){enemy.screenSmokeTimer=0;runtime.emitScreenSmoke(enemy);}
+  }
   if(g.testRange){enemy.health*=g.testRange.health;enemy.maxHealth=enemy.health;}
   g.enemies.push(enemy);return enemy;
 }

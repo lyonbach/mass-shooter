@@ -1,5 +1,5 @@
 import { TAU } from '../core.js';
-import { WRECK_COAST_TIME, WRECK_FIRE_TIME, WRECK_SMOKE_TIME } from './constants.js';
+import { WRECK_COAST_TIME, WRECK_FIRE_TIME, WRECK_SMOKE_TIME, SCREEN_SMOKE_INTERVAL, SCREEN_SMOKE_LOW_INTERVAL, SCREEN_SMOKE_LIFETIME, SCREEN_SMOKE_DRIFT, TREAD_MARK_SPACING, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT } from './constants.js';
 export function createEntities(runtime){
   const {g,settings,sound}=runtime;
 function burst(x,y,color,count=10,force=1,smoke=false){
@@ -30,6 +30,17 @@ function emitWreckSmoke(source){
   }
   source.timer=settings.effects?.32:.6;
 }
+function emitScreenSmoke(tank){
+  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const limit=settings.effects?650:180;
+  if(g.particles.length<limit){
+    const a=tank.angle,life=SCREEN_SMOKE_LIFETIME*(.85+Math.random()*.3);
+    g.particles.push({x:tank.x-Math.cos(a)*15+(Math.random()-.5)*18,y:tank.y-Math.sin(a)*15+(Math.random()-.5)*18,
+      vx:-Math.cos(a)*SCREEN_SMOKE_DRIFT,vy:-Math.sin(a)*SCREEN_SMOKE_DRIFT-3,
+      life,maxLife:life,smoke:true,screenSmoke:true,size:15+Math.random()*7});
+  }
+  tank.screenSmokeTimer=(settings.effects&&!reduced?SCREEN_SMOKE_INTERVAL:SCREEN_SMOKE_LOW_INTERVAL);
+}
 function updateEffects(dt){
   for(const burst of g.deathBursts)burst.delay-=dt;
   const pendingBursts=[];
@@ -38,13 +49,33 @@ function updateEffects(dt){
   for(const decal of g.decals){
     if(!decal.wreck)continue;
     const oldAge=decal.age||0,newAge=oldAge+dt;
-    if(decal.transition&&oldAge<WRECK_COAST_TIME){
+    if(decal.transition&&!decal.stopped){
       const start=Math.min(oldAge,WRECK_COAST_TIME),end=Math.min(newAge,WRECK_COAST_TIME);
       const travel=(end-start)-(end*end-start*start)/(2*WRECK_COAST_TIME);
-      decal.x+=decal.initialVx*travel;decal.y+=decal.initialVy*travel;
+      const dx=decal.initialVx*travel,dy=decal.initialVy*travel,x=decal.x,y=decal.y;
+      decal.x+=dx;decal.y+=dy;
+      const forward=dx*Math.cos(decal.angle)+dy*Math.sin(decal.angle),scale=decal.type==='boss'?1.8:1;
+      decal.leftTrackPhase=((decal.leftTrackPhase??decal.trackPhase??0)+forward/scale)%6;
+      decal.rightTrackPhase=((decal.rightTrackPhase??decal.trackPhase??0)+forward/scale)%6;
+      decal.trackPhase=((decal.trackPhase||0)+forward/scale)%6;
+      const distance=Math.abs(forward),previous=decal.treadDistance||0;
+      for(let at=TREAD_MARK_SPACING-previous;at<=distance;at+=TREAD_MARK_SPACING){
+        const boss=decal.type==='boss',fraction=at/distance;
+        g.treadMarks.push({x:x+dx*fraction,y:y+dy*fraction,angle:decal.angle,life:TREAD_MARK_LIFETIME,maxLife:TREAD_MARK_LIFETIME,trackOffset:boss?36:18,trackLength:boss?30:16,trackWidth:boss?24:6});
+        if(g.treadMarks.length>TREAD_MARK_LIMIT)g.treadMarks.shift();
+      }
+      decal.treadDistance=(previous+distance)%TREAD_MARK_SPACING;
       decal.vx=end===WRECK_COAST_TIME?0:decal.initialVx*(1-end/WRECK_COAST_TIME);decal.vy=end===WRECK_COAST_TIME?0:decal.initialVy*(1-end/WRECK_COAST_TIME);
+      if(end===WRECK_COAST_TIME){decal.stopped=true;decal.transitionAge=newAge-WRECK_COAST_TIME;}
+    }else if(decal.transition&&decal.stopped){
+      decal.transitionAge+=dt;
     }
     decal.age=newAge;decal.burnTime=Math.max(0,WRECK_FIRE_TIME-newAge);
+  }
+  for(const enemy of g.enemies){
+    if(!enemy.smokeScreen||enemy.health<=0)continue;
+    enemy.screenSmokeTimer-=dt;
+    if(enemy.screenSmokeTimer<=0)emitScreenSmoke(enemy);
   }
   for(const source of g.wreckSmoke){
     if(source.wreck&&!g.decals.includes(source.wreck)){source.life=0;continue;}
@@ -59,7 +90,7 @@ function updateEffects(dt){
   }
   g.wreckSmoke=g.wreckSmoke.filter(source=>source.life>0&&(!source.wreck||g.decals.includes(source.wreck)));
   for(const p of g.particles){
-    const drag=p.persistent?0.35:p.smoke?1.5:3;
+    const drag=p.screenSmoke?.12:p.persistent?0.35:p.smoke?1.5:3;
     const flareDrift=p.flare?Math.sin(g.time*15+p.flarePhase)*p.flareWobble:0;
     p.x+=(p.vx+flareDrift)*dt;p.y+=(p.vy+flareDrift*.55)*dt;p.vx*=Math.exp(-dt*drag);p.vy*=Math.exp(-dt*drag);p.life-=dt;
   }
@@ -67,5 +98,5 @@ function updateEffects(dt){
   for(const e of g.explosions)e.life-=dt;g.explosions=g.explosions.filter(e=>e.life>0);
   for(const f of g.floaters){f.y-=dt*30;f.life-=dt;}g.floaters=g.floaters.filter(f=>f.life>0);
 }
-  return {burst,fireSplinters,destructionSound,explosion,float,emitWreckSmoke,updateEffects};
+  return {burst,fireSplinters,destructionSound,explosion,float,emitWreckSmoke,emitScreenSmoke,updateEffects};
 }

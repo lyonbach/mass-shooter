@@ -1,5 +1,5 @@
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
-import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME } from './constants.js';
+import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
 export function createCombat(runtime){
   const {g,settings,sound,keys,pointer,$,t}=runtime;
   const burst=(...args)=>runtime.burst(...args),explosion=(...args)=>runtime.explosion(...args),float=(...args)=>runtime.float(...args);
@@ -64,8 +64,10 @@ function hitEnemy(e,damage,source='other'){
     if(e.type==='kamikaze'&&distance(e,g.player)<stats.explosionRadius+17)damagePlayer(stats.projectileDamage);
     if(e.type==='boss')sound.setMusicScene('waves');
     if(ground){
-      const vx=cannonWreck?(e.vx||0):0,vy=cannonWreck?(e.vy||0):0;
-      const wreck={...e,wreck:true,age:0,burnTime:WRECK_FIRE_TIME,transition:cannonWreck,vx,vy,initialVx:vx,initialVy:vy};
+      let vx=cannonWreck?(e.vx||0):0,vy=cannonWreck?(e.vy||0):0;
+      const stopped=Math.hypot(vx,vy)<=WRECK_STOP_SPEED;
+      if(stopped)vx=vy=0;
+      const wreck={...e,wreck:true,age:0,burnTime:WRECK_FIRE_TIME,transition:cannonWreck,stopped,transitionAge:0,vx,vy,initialVx:vx,initialVy:vy};
       g.decals.push(wreck);if(g.decals.length>55){const removed=g.decals.shift();g.wreckSmoke=g.wreckSmoke.filter(source=>source.wreck!==removed);}
       const smoke={x:e.x,y:e.y,life:WRECK_SMOKE_TIME,timer:0,wreck};
       g.wreckSmoke.push(smoke);runtime.emitWreckSmoke(smoke);

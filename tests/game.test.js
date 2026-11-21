@@ -430,12 +430,53 @@ test('wreck effects are bounded, expire, and clear on wave and restart in low-ef
   game.hitEnemy(enemy(),100,'cannon');await game.start();assert.equal(g.decals.length,0);assert.equal(g.particles.length,0);
 });
 
-test('tank camouflage is chosen once at spawn and copied to its wreck',async()=>{
+test('tank smoke screens are selected at spawn, cosmetic, and stop emitting on death',async()=>{
   const game=createGame();await game.start();const random=Math.random;
   try{
-    Math.random=()=>0;const pale=game.spawnEnemy('tank');assert.equal(pale.pale,true);
+    Math.random=()=>0;const screened=game.spawnEnemy('tank');assert.equal(screened.smokeScreen,true);
     Math.random=()=>.99;const normal=game.spawnEnemy('tank'),truck=game.spawnEnemy('rocketSemi');
-    assert.equal(normal.pale,false);assert.equal(truck.pale,undefined);
-    game.hitEnemy(pale,pale.health,'cannon');assert.equal(game.g.decals.at(-1).pale,true);
+    assert.equal(normal.smokeScreen,false);assert.equal(truck.smokeScreen,undefined);
+    assert.equal(screened.health,normal.health);assert.equal(screened.radius,normal.radius);assert.equal(screened.speed,normal.speed);
+    assert.ok(game.g.particles.some(p=>p.screenSmoke));
+    game.updateEffects(.5);assert.equal(screened.smokeScreen,true);
+    const particles=game.g.particles.filter(p=>p.screenSmoke);
+    game.hitEnemy(screened,screened.health,'cannon');
+    game.updateEffects(.5);
+    assert.ok(game.g.particles.filter(p=>p.screenSmoke).every(p=>particles.includes(p)));
+    game.g.enemies=[];game.updateEffects(5);
+    assert.equal(game.g.particles.filter(p=>p.screenSmoke).length,0);
+    Math.random=()=>0;
+    for(let i=0;i<200;i++)game.spawnEnemy('tank');
+    assert.ok(game.g.particles.length<=650);
+    game.nextWave();assert.equal(game.g.particles.filter(p=>p.screenSmoke).length,0);
+    game.spawnEnemy('tank');assert.ok(game.g.particles.some(p=>p.screenSmoke));
+    await game.start();assert.equal(game.g.particles.length,0);
   }finally{Math.random=random;}
+});
+
+test('coast tracks and stopped transition are independent of time partition',async()=>{
+  const game=createGame();await game.start();const {g}=game;
+  const simulate=steps=>{
+    g.decals=[];g.wreckSmoke=[];g.particles=[];g.treadMarks=[];
+    const tank=enemy({x:200,y:200,vx:-40,vy:0,angle:0,leftTrackPhase:2,rightTrackPhase:4,trackPhase:1});
+    game.hitEnemy(tank,100,'cannon');const wreck=g.decals[0];
+    for(const dt of steps)game.updateEffects(dt);
+    return {wreck,marks:g.treadMarks.map(({x,y})=>({x,y}))};
+  };
+  const coast=simulate([1]).wreck;
+  assert.equal(coast.stopped,false);assert.equal(coast.transitionAge,0);assert.ok(coast.burnTime>0);
+  assert.notEqual(coast.leftTrackPhase,2);assert.notEqual(coast.rightTrackPhase,4);
+  const one=simulate([2.5]),many=simulate([.25,.25,.25,.25,.25,.25,.25,.25,.25,.25]);
+  for(const key of ['x','y','leftTrackPhase','rightTrackPhase','trackPhase','transitionAge'])assert.ok(Math.abs(one.wreck[key]-many.wreck[key])<1e-8,key);
+  assert.deepEqual(one.marks,many.marks);assert.equal(one.wreck.stopped,true);
+  const crossing=simulate([3]).wreck;assert.equal(crossing.transitionAge,.5);assert.ok(crossing.burnTime>0);
+  g.decals=[many.wreck];
+  const phases=[many.wreck.leftTrackPhase,many.wreck.rightTrackPhase];
+  game.updateEffects(5.9);assert.ok(many.wreck.transitionAge<6);assert.ok(many.wreck.burnTime>0);
+  game.updateEffects(.1);assert.ok(Math.abs(many.wreck.transitionAge-6)<1e-8);assert.ok(many.wreck.burnTime>0);
+  assert.deepEqual([many.wreck.leftTrackPhase,many.wreck.rightTrackPhase],phases);
+  const still=enemy({vx:0,vy:0,leftTrackPhase:2,rightTrackPhase:4});
+  game.hitEnemy(still,100,'cannon');const wreck=g.decals.at(-1);
+  assert.equal(wreck.stopped,true);game.updateEffects(3);
+  assert.equal(wreck.transitionAge,3);assert.equal(wreck.leftTrackPhase,2);assert.equal(wreck.rightTrackPhase,4);
 });
