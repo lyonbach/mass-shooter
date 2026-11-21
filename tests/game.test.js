@@ -5,6 +5,7 @@ import * as core from '../core.js';
 import * as i18n from '../i18n.js';
 import { updateDroneVisual } from '../game/combat.js';
 import { createEntities } from '../game/entities.js';
+import { wreckFireState } from '../renderer.js';
 
 // Run the actual game module against a small browser adapter. Rendering and
 // sound are replaced; combat, input, progression, and persistence are unchanged.
@@ -116,6 +117,43 @@ test('AA muzzle state alternates, expires, pauses, resets and is removed on deat
   game.fireEnemy(aa);assert.equal(game.g.warnings.length,warnings);
   await game.start();assert.equal(game.g.warnings.length,0);assert.equal(game.g.enemies.length,0);
 });
+test('weapon muzzle state follows firing events without changing projectile or audio behavior',async()=>{
+  for(const type of ['tank','artillery','boss','drone']){
+    const game=createGame();await game.start();game.g.spawnRemaining=100;
+    const e=enemy({type,x:300,y:300,turret:.7,health:100,maxHealth:100}),stats=core.ENEMIES[type];
+    game.g.enemies=[e];const random=Math.random;let calls=0;Math.random=()=>{calls++;return .5;};
+    const before=game.sound.plays.length;
+    try{game.fireEnemy(e);}finally{Math.random=random;}
+    assert.equal(calls,17);assert.equal(e.weaponMuzzle,.22);assert.equal(game.g.bullets.length,stats.shotCount);
+    for(let i=0;i<stats.shotCount;i++){
+      const b=game.g.bullets[i],angle=.7+(i-(stats.shotCount-1)/2)*stats.spread;
+      const speed=stats.projectileSpeed+Math.min(game.g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
+      assert.equal(b.x,300+Math.cos(.7)*30);assert.equal(b.y,300+Math.sin(.7)*30);
+      assert.equal(b.vx,Math.cos(angle)*speed);assert.equal(b.vy,Math.sin(angle)*speed);
+      assert.equal(b.damage,stats.projectileDamage);assert.equal(b.life,stats.projectileLife);
+    }
+    assert.equal(e.cooldown,stats.fireInterval-Math.min(game.g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+.5*stats.fireRandom);
+    assert.deepEqual(game.sound.plays.slice(before),['enemy']);
+    e.cooldown=100;game.update(.1);assert.ok(Math.abs(e.weaponMuzzle-.12)<1e-10);
+    game.pause();game.frame(1000);game.frame(2000);assert.ok(Math.abs(e.weaponMuzzle-.12)<1e-10);
+    game.resume();game.update(.13);assert.equal(e.weaponMuzzle,undefined);
+    game.fireEnemy(e);game.hitEnemy(e,1000,'cannon');assert.equal(e.weaponMuzzle,undefined);
+    if(type!=='drone')assert.equal(game.g.decals.at(-1).weaponMuzzle,undefined);
+  }
+});
+test('player cannon flash and smoke timers follow a real shot without changing the shot',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;
+  const p=game.g.player;game.keys.add('Space');const random=Math.random;Math.random=()=>.5;
+  const before=game.sound.plays.length;
+  try{game.update(.01);}finally{Math.random=random;}
+  const b=game.g.bullets.find(b=>b.kind==='gun');
+  assert.ok(b);assert.equal(p.muzzle,core.WEAPONS.gun.muzzleTime);assert.equal(p.muzzleSmoke,.22);
+  assert.equal(b.damage,core.WEAPONS.gun.damage);assert.equal(b.life,core.WEAPONS.gun.life-.01);
+  assert.ok(Math.abs(Math.hypot(b.vx,b.vy)-core.WEAPONS.gun.speed)<1e-8);
+  assert.deepEqual(game.sound.plays.slice(before),['shot']);
+  game.keys.delete('Space');game.pause();game.frame(1000);game.frame(2000);assert.equal(p.muzzleSmoke,.22);
+  game.resume();game.update(.23);assert.equal(p.muzzleSmoke,0);
+});
 test('AA flak preserves detonation timing, radius, sound and bounded cosmetic lifetime',async()=>{
   for(const reduced of [false,true]){
     const game=createGame(reduced);await game.start();game.g.spawnRemaining=0;
@@ -161,6 +199,61 @@ test('rocket semi homing rockets fire faster on harder difficulty',async()=>{
   rocket.x=game.g.player.x-300;rocket.y=game.g.player.y-100;rocket.vx=100;rocket.vy=0;
   game.g.bullets=[rocket];game.update(.1);
   assert.ok(rocket.vy>0);assert.ok(Math.hypot(rocket.vx,rocket.vy)>100);
+});
+test('launcher ignition follows firing without changing projectile or combat timing',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;
+  const truck=game.spawnEnemy('rocketSemi'),stats=core.ENEMIES.rocketSemi;
+  Object.assign(truck,{x:300,y:300,turret:.7,speed:0});
+  const random=Math.random;let calls=0;Math.random=()=>{calls++;return .5;};
+  const audio=game.sound.plays.length;
+  try{game.fireEnemy(truck);}finally{Math.random=random;}
+  assert.equal(calls,17);assert.equal(truck.launchIgnition,.24);
+  assert.equal(game.g.bullets.length,stats.shotCount);
+  const rocket=game.g.bullets[0],speed=stats.projectileSpeed+Math.min(game.g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
+  assert.equal(rocket.x,truck.x+Math.cos(.7)*30);assert.equal(rocket.y,truck.y+Math.sin(.7)*30);
+  assert.equal(rocket.vx,Math.cos(.7)*speed);assert.equal(rocket.vy,Math.sin(.7)*speed);
+  assert.equal(rocket.damage,stats.projectileDamage);assert.equal(rocket.life,stats.projectileLife);
+  assert.equal(truck.cooldown,(stats.fireInterval-Math.min(game.g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+.5*stats.fireRandom)*stats.normalInterval);
+  assert.deepEqual(game.sound.plays.slice(audio),['missile']);
+  truck.cooldown=100;game.update(.1);assert.ok(Math.abs(truck.launchIgnition-.14)<1e-10);
+  game.pause();game.frame(1000);game.frame(2000);assert.ok(Math.abs(truck.launchIgnition-.14)<1e-10);
+  game.resume();game.update(.15);assert.equal(truck.launchIgnition,undefined);
+  game.fireEnemy(truck);game.hitEnemy(truck,truck.health,'cannon');
+  assert.equal(truck.launchIgnition,undefined);assert.equal(game.g.decals.at(-1).launchIgnition,undefined);
+  assert.equal(game.g.wreckSmoke.at(-1).wreck,game.g.decals.at(-1));
+});
+test('enemy missile contact visuals use swept entry without changing damage or protection',async()=>{
+  for(const kind of ['enemyRocket','shell']){
+    for(const protectedHit of [false,true]){
+      const game=createGame();await game.start();game.settings.difficulty='hard';game.g.spawnRemaining=100;
+      const p=game.g.player;p.invulnerable=protectedHit?1:0;
+      const before=game.sound.plays.length;
+      game.g.bullets=[{x:p.x-100,y:p.y,vx:1000,vy:0,life:2,friendly:false,kind,damage:7,turn:0,acceleration:0,maxSpeed:1000,trail:10}];
+      game.update(.2);
+      const flashes=game.g.particles.filter(particle=>particle.contactFlash);
+      assert.equal(flashes.length,kind==='enemyRocket'?1:0);
+      if(flashes.length){assert.ok(Math.abs(flashes[0].x-(p.x-17))<1e-8);assert.equal(flashes[0].y,p.y);}
+      assert.equal(p.health,protectedHit?100:100-7*game.g.plan.damage);
+      assert.equal(game.g.bullets.length,0);
+      assert.equal(game.sound.plays.slice(before).filter(name=>name==='damage').length,protectedHit?0:1);
+      assert.equal(game.g.shake,protectedHit?0:10);
+    }
+  }
+});
+test('missile contact particles are bounded and consume no random values',()=>{
+  const g={particles:[],shake:0},settings={effects:true},sound={play(){throw Error('unexpected sound');}};
+  const {missileContact}=createEntities({g,settings,sound}),random=Math.random;
+  Math.random=()=>{throw Error('unexpected random value');};
+  try{
+    missileContact(5,6);
+    assert.equal(g.particles.length,7);
+    assert.equal(g.particles.filter(p=>p.contactFlash).length,1);
+    g.particles=Array.from({length:650},()=>({}));
+    missileContact(7,8);
+    assert.equal(g.particles.length,650);
+    assert.equal(g.particles.filter(p=>p.contactFlash).length,1);
+    assert.equal(g.shake,0);
+  }finally{Math.random=random;}
 });
 test('test range spawns only the configured enemy with selected upgrades',async()=>{
   const game=createGame();
@@ -580,4 +673,33 @@ test('coast tracks and stopped transition are independent of time partition',asy
   game.hitEnemy(still,100,'cannon');const wreck=g.decals.at(-1);
   assert.equal(wreck.stopped,true);game.updateEffects(3);
   assert.equal(wreck.transitionAge,3);assert.equal(wreck.leftTrackPhase,2);assert.equal(wreck.rightTrackPhase,4);
+});
+
+test('moving and stationary cannon wrecks grow, peak and decline without changing death timing',async()=>{
+  for(const vx of [40,0]){
+    const game=createGame();await game.start();const {g}=game;g.spawnRemaining=100;
+    const tank=enemy({x:300,y:300,vx,vy:0,angle:0,health:1,points:110,leftTrackPhase:2});
+    const sounds=game.sound.plays.length;game.hitEnemy(tank,10,'cannon');
+    const wreck=g.decals[0],source=g.wreckSmoke[0],initial=wreckFireState(wreck),score=g.score,shake=g.shake;
+    assert.equal(g.kills,1);assert.equal(score,110);assert.equal(shake,0);
+    assert.deepEqual(game.sound.plays.slice(sounds),['explode']);
+    assert.ok(g.particles.some(p=>p.persistent));assert.equal(source.wreck,wreck);
+    assert.equal(initial.points.filter(p=>p.strength>0).length,1);
+    game.updateEffects(1);
+    const growth=wreckFireState(wreck);
+    assert.ok(growth.level>initial.level);assert.equal(source.x,wreck.x);assert.equal(source.y,wreck.y);
+    if(vx){assert.equal(wreck.stopped,false);assert.equal(wreck.transitionAge,0);assert.notEqual(wreck.leftTrackPhase,2);}
+    else {assert.equal(wreck.stopped,true);assert.equal(wreck.transitionAge,1);}
+    game.updateEffects(vx?5.5:3);
+    const peak=wreckFireState(wreck);assert.equal(wreck.stopped,true);
+    assert.ok(peak.level>growth.level);assert.equal(peak.points.filter(p=>p.strength>0).length,5);
+    assert.equal(wreck.transitionAge,4);
+    game.updateEffects(1.9);assert.ok(wreck.transitionAge<6);
+    game.updateEffects(.1);assert.equal(wreck.transitionAge,6);
+    game.updateEffects(vx?5.5:8);
+    assert.equal(wreck.burnTime,0);assert.equal(wreckFireState(wreck).points.length,0);
+    assert.equal(g.kills,1);assert.equal(g.score,score);assert.equal(g.shake,shake);
+    assert.deepEqual(game.sound.plays.slice(sounds),['explode']);
+    assert.equal(source.x,wreck.x);assert.equal(source.y,wreck.y);
+  }
 });

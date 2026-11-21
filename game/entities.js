@@ -39,6 +39,24 @@ function flakBurst(x,y){
   }
   g.shake=Math.max(g.shake,3);destructionSound(x,y);
 }
+function missileContact(x,y){
+  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const limit=settings.effects?650:180;
+  const flash={x,y,vx:0,vy:0,life:.18,maxLife:.18,contactFlash:true,size:reduced?10:15};
+  if(g.particles.length<limit)g.particles.push(flash);
+  else {
+    const index=g.particles.findIndex(p=>!p.screenSmoke&&!p.flakFlash&&!p.contactFlash&&!p.flare);
+    if(index>=0)g.particles[index]=flash;
+  }
+  if(!settings.effects||reduced)return;
+  for(let i=0;i<4&&g.particles.length<limit;i++){
+    const a=i*TAU/4+.4;
+    g.particles.push({x,y,vx:Math.cos(a)*70,vy:Math.sin(a)*70,life:.16,maxLife:.16,color:'#ffd28b',size:1.5});
+  }
+  for(let i=0;i<2&&g.particles.length<limit;i++){
+    g.particles.push({x,y,vx:(i?1:-1)*12,vy:-15,life:.55,maxLife:.55,smoke:true,smokeVariant:i,size:7});
+  }
+}
 function float(text,x,y,color='#e2eda9',big=false){g.floaters.push({text,x,y,life:1.2,color,big});}
 function emitWreckSmoke(source){
   const limit=settings.effects?650:180;
@@ -116,5 +134,5 @@ function updateEffects(dt){
   for(const e of g.explosions)e.life-=dt;g.explosions=g.explosions.filter(e=>e.life>0);
   for(const f of g.floaters){f.y-=dt*30;f.life-=dt;}g.floaters=g.floaters.filter(f=>f.life>0);
 }
-  return {burst,fireSplinters,destructionSound,explosion,flakBurst,float,emitWreckSmoke,emitScreenSmoke,updateEffects};
+  return {burst,fireSplinters,destructionSound,explosion,flakBurst,missileContact,float,emitWreckSmoke,emitScreenSmoke,updateEffects};
 }

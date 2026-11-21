@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Renderer } from '../renderer.js';
+import { Renderer, wreckFireState } from '../renderer.js';
 import { ENEMIES } from '../core.js';
 
 const linearGradient={addColorStop(){}};
@@ -13,6 +13,10 @@ function context() {
     }
   });
   return c;
+}
+function canvasDocument(){
+  const created=[],stops=[];
+  return {created,stops,createElement:()=>{const pc=context();pc.createRadialGradient=(...args)=>{pc.calls.push({name:'createRadialGradient',args});return{addColorStop:(...stop)=>stops.push(stop)};};const canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
 }
 
 test('smoke puffs use bounded offscreen gradients and stable variants across transforms',()=>{
@@ -93,6 +97,100 @@ test('AA recoil returns smoothly and reduced motion suppresses the muzzle flash'
   }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
 });
 
+test('launcher ignition is cached and anchored to the active tube without changing render state',()=>{
+  const created=[],document={createElement:()=>{const pc=context(),canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:false});
+  const e={x:100,y:120,angle:.7,turret:1.9,type:'rocketSemi',health:2,maxHealth:2,launchIgnition:.24};
+  const c=context(),stack=[],draws=[];let matrix=[1,0,0,1,0,0];
+  const multiply=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+  c.save=()=>stack.push([...matrix]);c.restore=()=>{matrix=stack.pop();};
+  c.translate=(x,y)=>{matrix=multiply(matrix,[1,0,0,1,x,y]);};
+  c.rotate=a=>{matrix=multiply(matrix,[Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0]);};
+  c.scale=(x,y)=>{matrix=multiply(matrix,[x,0,0,y,0,0]);};
+  c.drawImage=(image,x,y,w,h)=>draws.push({image,matrix:[...matrix],x,y,w,h});
+  const before=structuredClone(e),random=Math.random;Math.random=()=>{throw Error('renderer consumed RNG');};
+  try{for(let i=0;i<8;i++)renderer.enemy(c,e,0);}finally{Math.random=random;}
+  assert.deepEqual(e,before);assert.equal(stack.length,0);assert.equal(created.length,1);assert.equal(draws.length,16);
+  const first=draws[0],m=first.matrix;
+  assert.ok(Math.abs((m[0]*30+m[4])-(e.x+30*Math.cos(e.turret)))<1e-9);
+  assert.ok(Math.abs((m[1]*30+m[5])-(e.y+30*Math.sin(e.turret)))<1e-9);
+  assert.equal(first.image,created[0]);assert.equal(created[0].pc.calls.filter(call=>call.name==='createRadialGradient').length,1);
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{const reduced=context();renderer.enemy(reduced,e,0);assert.equal(reduced.calls.some(call=>call.name==='drawImage'),false);}
+  finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
+
+test('launcher wreck retains cab, rack, openings and hull-attached fire positions',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{effects:true});
+  const wreck={x:50,y:70,angle:.4,turret:1.2,type:'rocketSemi',wreck:true,transition:true,transitionAge:3,age:4,burnTime:12,seed:1};
+  const c=context();renderer.wreck(c,wreck);
+  assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582'&&call.args.join(',')==='12,-14,22,28'));
+  assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#484c3e'&&call.args.join(',')==='12,-14,22,28'));
+  assert.equal(c.calls.filter(call=>call.name==='ellipse'&&call.args[0]===30&&call.args[2]===1).length,6);
+  for(const [x,y] of [[-20,0],[12,-3]]){
+    const tx=x*Math.cos(wreck.angle)-y*Math.sin(wreck.angle),ty=x*Math.sin(wreck.angle)+y*Math.cos(wreck.angle);
+    assert.ok(c.calls.some(call=>call.name==='translate'&&Math.abs(call.args[0]-tx)<1e-9&&Math.abs(call.args[1]-ty)<1e-9));
+  }
+  assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+});
+
+test('top-down launcher tires are paired and the rack housing matches its wreck',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{effects:false});
+  const truck={x:100,y:100,angle:.8,turret:1.6,type:'rocketSemi',health:8,maxHealth:8};
+  const live=context(),dead=context();renderer.enemy(live,truck,0);renderer.wreck(dead,{...truck,wreck:true,transition:false,burnTime:0});
+  const wheels=c=>c.calls.filter(call=>call.name==='roundRect').map(call=>call.args);
+  assert.deepEqual(wheels(live),wheels(dead));assert.equal(wheels(live).length,6);
+  assert.deepEqual(wheels(live).map(args=>args.slice(0,2)),[[-32,-16],[-32,13],[-20,-16],[-20,13],[16,-16],[16,13]]);
+  assert.ok(live.calls.some(call=>call.name==='fillRect'&&call.args.join(',')==='-23,-11,52,22'));
+  assert.equal(live.calls.some(call=>call.name==='ellipse'&&call.args[2]===3.2),false);
+  assert.ok(dead.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.8)<1e-10));
+});
+
+test('weapon effects use barrel-tip transforms and recoil smoothly without mutating state',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{effects:true});
+  for(const [type,tip,recoil,size] of [['tank',32,2.5,10],['artillery',42,5,18],['boss',32,4,17]]){
+    const e={x:100,y:120,angle:.7,turret:1.9,type,health:8,maxHealth:8,weaponMuzzle:.22};
+    const positions=[];
+    for(const life of [.22,.11,.001]){
+      const c=context(),original=structuredClone(e);renderer.enemy(c,{...e,weaponMuzzle:life},0);assert.deepEqual(e,original);
+      const move=c.calls.find(call=>call.name==='translate'&&call.args[1]===0&&call.args[0]<0);
+      positions.push(move.args[0]);
+      if(life===.22){
+        const flash=c.calls.find(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame);
+        assert.ok(flash);assert.equal(flash.args[1],tip-size*.2);
+      }
+    }
+    assert.equal(positions[0],-recoil);assert.ok(positions[0]<positions[1]&&positions[1]<positions[2]&&positions[2]<0);
+  }
+  const drone={x:100,y:120,angle:.5,visualHeading:.5,turret:1.1,type:'drone',health:3,maxHealth:3,weaponMuzzle:.22};
+  const firing=context(),idle=context();renderer.enemy(firing,drone,0);renderer.enemy(idle,{...drone,weaponMuzzle:0},0);
+  assert.ok(firing.calls.some(call=>call.name==='translate'&&call.args[0]===10.4));
+  assert.ok(firing.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.6)<1e-9));
+  assert.ok(firing.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame));
+  assert.equal(idle.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame),false);
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{const c=context();renderer.enemy(c,drone,0);assert.equal(c.calls.some(call=>call.name==='drawImage'),false);}
+  finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
+test('weapon muzzle follows rotated turret and recoiling tip in world coordinates',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{effects:false});
+  for(const [type,tip,recoil,size] of [['tank',32,2.5,10],['artillery',42,5,18],['boss',32,4,17]]){
+    const e={x:100,y:120,angle:.7,turret:1.9,type,health:8,maxHealth:8,weaponMuzzle:.22};
+    const c=context(),stack=[],draws=[];let matrix=[1,0,0,1,0,0];
+    const multiply=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+    c.save=()=>stack.push([...matrix]);c.restore=()=>{matrix=stack.pop();};
+    c.translate=(x,y)=>{matrix=multiply(matrix,[1,0,0,1,x,y]);};
+    c.rotate=a=>{matrix=multiply(matrix,[Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0]);};
+    c.scale=(x,y)=>{matrix=multiply(matrix,[x,0,0,y,0,0]);};
+    c.drawImage=(image,x)=>draws.push({image,x,matrix:[...matrix]});
+    renderer.enemy(c,e,0);const draw=draws.find(draw=>draw.image===renderer.launchFlame),m=draw.matrix;
+    assert.equal(draw.x,tip-size*.2);
+    assert.ok(Math.abs(m[0]*tip+m[4]-(e.x+ENEMIES[type].scale*(tip-recoil)*Math.cos(e.turret)))<1e-9);
+    assert.ok(Math.abs(m[1]*tip+m[5]-(e.y+ENEMIES[type].scale*(tip-recoil)*Math.sin(e.turret)))<1e-9);
+    assert.equal(stack.length,0);
+  }
+});
+
 test('missile flame starts at ignition and both factions use procedural silhouettes',()=>{
     const renderer=new Renderer({getContext:()=>context()},{effects:true});
     for(const friendly of [true,false]){
@@ -126,12 +224,12 @@ test('helicopter uses a projected hull silhouette and rotor blade shadow',()=>{
 });
 
 test('cannon is half-sized and fires from its barrel tip',()=>{
-  const renderer=new Renderer({getContext:()=>context()},{});
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{});
   const c=context();
   renderer.helicopter(c,{x:100,y:100,angle:0,cannonAngle:Math.PI/2,bank:0,pitch:0,muzzle:1},0);
   assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===20&&call.args[1]===0));
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.5&&call.args[1]===.5));
-  assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#fff2a8'));
+  assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame&&call.args[1]===42-18*.2));
 });
 
 test('helicopter strobe lights flash once every two seconds',()=>{
@@ -264,31 +362,78 @@ test('smoke screen selection does not change tank paint, tracks or hit feedback'
 });
 
 test('wrecks blend matching poses into charred silhouettes with layered fire and balanced canvas state',()=>{
+  const document=canvasDocument();
   for(const type of ['tank','rocketSemi','boss']){
-    const renderer=new Renderer({getContext:()=>context()},{effects:true});
+    const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
     const wreck={x:50,y:70,angle:.4,turret:1.2,type,wreck:true,transition:true,transitionAge:3,age:4,burnTime:12,seed:1};
     const c=context();renderer.wreck(c,wreck);
     const liveFill=type==='tank'?'#8c8e69':type==='boss'?'#727356':'#6c7857';
     const charFill=type==='rocketSemi'?'#353b31':'#3d4436';
     assert.ok(c.calls.some(call=>call.fillStyle===liveFill));
     assert.ok(c.calls.some(call=>call.fillStyle===charFill));
-    assert.ok(c.calls.some(call=>call.fillStyle==='#b83f20'));
-    assert.ok(c.calls.some(call=>call.fillStyle==='#ffe09a'));
+    assert.ok(c.calls.filter(call=>call.name==='drawImage'&&call.args[0]===renderer.wreckFlame).length>=4);
     assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
     assert.ok(c.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.8)<1e-10));
     const coast=context();renderer.wreck(coast,{...wreck,transitionAge:0});
     assert.ok(coast.calls.some(call=>call.fillStyle===liveFill));
     assert.equal(coast.calls.some(call=>call.fillStyle===charFill),false);
-    assert.ok(coast.calls.some(call=>call.fillStyle==='#ffe09a'));
+    assert.ok(coast.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.wreckFlame));
     const final=context();renderer.wreck(final,{...wreck,transitionAge:6,age:20,burnTime:0});
     assert.equal(final.calls.some(call=>call.fillStyle===liveFill),false);
-    assert.equal(final.calls.some(call=>call.fillStyle==='#ffe09a'),false);
+    assert.equal(final.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.wreckFlame),false);
   }
-  const low=new Renderer({getContext:()=>context()},{effects:false}),c=context();
+  const low=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:false}),c=context();
   low.wreck(c,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:0,burnTime:14});
-  assert.equal(c.calls.filter(call=>call.name==='fill'&&call.fillStyle==='#b83f20').length,1);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage'&&call.args[0]===low.wreckFlame).length,1);
   const state=context(),stack=[];state.globalAlpha=.7;
   state.save=()=>stack.push(state.globalAlpha);state.restore=()=>{state.globalAlpha=stack.pop();};
   low.wreck(state,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:1,burnTime:10});
   assert.equal(state.globalAlpha,.7);assert.equal(stack.length,0);
+});
+
+test('wreck fire uses bounded cached soft gradients and independently evolving points',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  const base={x:100,y:120,angle:.6,turret:1.2,type:'boss',health:0,wreck:true,transition:true,seed:1};
+  const frames=[
+    {...base,age:0,transitionAge:0,burnTime:14},
+    {...base,age:2,transitionAge:0,burnTime:12},
+    {...base,age:6.5,transitionAge:4,burnTime:7.5},
+    {...base,age:12,transitionAge:9.5,burnTime:2}
+  ];
+  const states=frames.map(wreckFireState),active=s=>s.points.filter(p=>p.strength>0);
+  assert.deepEqual(states.map(s=>active(s).length),[1,2,5,1]);
+  assert.ok(states[0].level<states[1].level&&states[1].level<states[2].level&&states[3].level<states[2].level);
+  const random=Math.random;Math.random=()=>{throw Error('renderer consumed RNG');};
+  try{
+    for(let i=0;i<40;i++){const c=context(),frame=frames[i%frames.length],before=structuredClone(frame);renderer.wreck(c,frame);assert.deepEqual(frame,before);assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);}
+  }finally{Math.random=random;}
+  assert.equal(document.created.length,1);assert.equal(document.created[0].width,64);assert.equal(document.created[0].height,64);
+  assert.equal(document.created[0].pc.calls.filter(call=>call.name==='createRadialGradient').length,1);
+  assert.deepEqual(document.stops.map(stop=>stop[1]),['#fff6c9ed','#ffd77acb','#f77c38aa','#b7352066','#922b1a00']);
+  const initial=context(),peak=context(),late=context();
+  renderer.wreck(initial,frames[0]);renderer.wreck(peak,frames[2]);renderer.wreck(late,frames[3]);
+  const dimensions=c=>c.calls.filter(call=>call.name==='drawImage').map(call=>call.args.slice(1));
+  assert.equal(dimensions(initial).length,2);assert.equal(dimensions(peak).length,10);assert.equal(dimensions(late).length,2);
+  assert.ok(dimensions(peak)[0][3]>dimensions(initial)[0][3]);assert.ok(dimensions(late)[0][3]<dimensions(peak)[0][3]);
+  const changed=context();renderer.wreck(changed,{...frames[2],age:6.8,transitionAge:4.3,burnTime:7.2});
+  assert.notDeepEqual(dimensions(changed),dimensions(peak));
+  const fade=context(),alphas=[],stack=[];fade.save=()=>stack.push(fade.globalAlpha);fade.restore=()=>{fade.globalAlpha=stack.pop();};
+  fade.drawImage=()=>alphas.push(fade.globalAlpha);
+  renderer.wreck(fade,{...base,age:13.999,transitionAge:11.499,burnTime:.001});
+  assert.ok(alphas.length>0&&alphas.every(alpha=>alpha<.02));
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{
+    const first=context(),second=context();renderer.wreck(first,frames[0]);renderer.wreck(second,{...frames[0],age:.2});
+    assert.equal(first.calls.filter(call=>call.name==='drawImage').length,2);
+    assert.equal(second.calls.filter(call=>call.name==='drawImage').length,2);
+  }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
+
+test('fresh wreck smoke is visible and fades out using the shared cache',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  const c=context(),alphas=[],stack=[];c.save=()=>stack.push(c.globalAlpha);c.restore=()=>{c.globalAlpha=stack.pop();};
+  c.drawImage=()=>alphas.push(c.globalAlpha);
+  for(const life of [5,2.5,0])renderer.smoke(c,{x:0,y:0,size:10,life,maxLife:5,persistent:true,smokeVariant:0});
+  assert.ok(alphas[0]>0);assert.ok(alphas[1]>alphas[0]);assert.equal(alphas[2],0);
+  assert.equal(document.created.length,1);assert.equal(c.globalAlpha,1);
 });
