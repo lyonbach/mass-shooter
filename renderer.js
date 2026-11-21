@@ -311,8 +311,8 @@ export class Renderer {
     if(ghost)c.globalAlpha*=.3;
     if(!ghost&&!reduced&&this.settings.effects&&canCache){
       for(const side of [-1,1]){
-        c.save();c.translate(-27,side*9);c.scale(1.7,.45);
-        this.smoke(c,{x:-4-speed*1.5,y:Math.sin(t*2+side)*.3,size:2.6+speed*1.2,life:.5,maxLife:1,exhaust:true,smokeVariant:side<0?0:1},.1+speed*.12);
+        c.save();c.translate(-27,side*9);c.scale(1.8,.55);
+        this.smoke(c,{x:-4.5-speed,y:Math.sin(t*2+side)*.3,size:3.3+speed*1.1,life:.5,maxLife:1,exhaust:true,smokeVariant:side<0?0:1},.52+speed*.18);
         c.restore();
       }
     }

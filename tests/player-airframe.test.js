@@ -32,8 +32,11 @@ function context(){
   return c;
 }
 function document(){
-  const canvases=[];
-  return {canvases,createElement(){const canvas={getContext:()=>context()};canvases.push(canvas);return canvas;}};
+  const canvases=[],stops=[];
+  return {canvases,stops,createElement(){
+    const c=context();c.createRadialGradient=()=>({addColorStop:(...args)=>stops.push(args)});
+    const canvas={getContext:()=>c};canvases.push(canvas);return canvas;
+  }};
 }
 const point=(m,x,y)=>[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];
 function near(actual,expected){assert.ok(Math.abs(actual-expected)<1e-8,`${actual} != ${expected}`);}
@@ -73,6 +76,29 @@ test('engine exhaust responds to speed and hot barrels retain warmth and smoke',
   assert.equal(idle.calls.some(call=>call.name==='fillRect'&&call.style==='#e78955'),false);
   assert.equal(hot.calls.filter(call=>call.name==='stroke'&&call.style==='#dce8ca38').length,1);
   assert.equal(hot.stack.length,0);
+});
+
+test('engine plumes have visible bounded opacity and extend behind the outlets before the hull',()=>{
+  const doc=document(),renderer=new Renderer({getContext:()=>context(),ownerDocument:doc},{effects:true});
+  for(const [speed,alpha] of [[0,.52],[270,.70]]){
+    const c=context(),p={x:0,y:0,angle:0,vx:speed,vy:0},before=structuredClone(p);
+    c.globalAlpha=.8;
+    renderer.helicopter(c,p,.35);
+    const plumes=c.calls.filter(call=>call.name==='drawImage');
+    assert.equal(plumes.length,2);
+    for(const plume of plumes){
+      near(plume.alpha,alpha*.8);
+      const [,x,y,w,h]=plume.args;
+      const [left]=point(plume.matrix,x,y),[right]=point(plume.matrix,x+w,y+h);
+      assert.ok(left < -42 && left > -52);
+      assert.ok(right > -27 && right < -23);
+      assert.ok(h*plume.matrix[3] < 8);
+      assert.ok(c.calls.indexOf(plume)<c.calls.findIndex(call=>call.name==='fill'&&call.style==='#728471'));
+    }
+    assert.deepEqual(p,before);assert.equal(c.globalAlpha,.8);assert.equal(c.stack.length,0);
+  }
+  assert.deepEqual(doc.stops.slice(0,3),[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']]);
+  assert.equal(doc.canvases.length,2);
 });
 
 test('hull outline is unchanged with continuous glazing and paired engine covers',()=>{
