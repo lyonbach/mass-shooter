@@ -1898,6 +1898,24 @@ const SMOKE_STOPS={
   exhaust:[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']]
 };
 const SMOKE_SHAPES=[[1,1],[1,.78],[.78,1]],SMOKE_PUFF_SIZE=64;
+const WRECK_FIRE_PEAK_TRANSITION=4;
+const WRECK_FIRE_POINTS={
+  rocketSemi:[[-20,0],[12,-3],[-8,-5],[2,5],[20,3]],
+  boss:[[-23,0],[-5,-4],[17,3],[-15,8],[9,-8]],
+  default:[[-14,0],[0,-3],[12,3],[-7,7],[8,-7]]
+};
+
+function wreckFireState(d){
+  if(!(d.burnTime>0))return {level:0,points:[]};
+  const age=Math.max(0,d.age||0),transition=d.transition?Math.max(0,d.transitionAge||0):age;
+  const growth=.2+.3*clamp(age/WRECK_COAST_TIME,0,1)+.5*clamp(transition/WRECK_FIRE_PEAK_TRANSITION,0,1);
+  const sincePeak=Math.max(0,transition-WRECK_FIRE_PEAK_TRANSITION);
+  const peakAge=age-sincePeak;
+  const decline=clamp(1-sincePeak/Math.max(.001,WRECK_FIRE_TIME-peakAge),0,1);
+  const level=growth*decline,locations=WRECK_FIRE_POINTS[d.type]||WRECK_FIRE_POINTS.default;
+  const points=locations.map(([x,y],i)=>({x,y,strength:i===0?level:clamp((level-[0,.28,.46,.62,.75][i])/.2,0,1)*level}));
+  return {level,points};
+}
 
 class Renderer {
   constructor(canvas, settings) { this.canvas=canvas; this.ctx=canvas.getContext('2d',{alpha:false}); this.settings=settings; this.smokePuffs=new Map(); this.tankShades=new WeakMap(); }
@@ -1922,8 +1940,18 @@ class Renderer {
       pc.fillStyle=gradient;pc.fillRect(-half,-half,SMOKE_PUFF_SIZE,SMOKE_PUFF_SIZE);
       this.smokePuffs.set(key,puff);
     }
-    c.save();c.globalAlpha*=alpha*Math.sin(Math.PI*progress);
+    c.save();c.globalAlpha*=alpha*(p.persistent?Math.min(1,.2+progress*4)*Math.min(1,(1-progress)*2):Math.sin(Math.PI*progress));
     c.drawImage(puff,p.x-radius,p.y-radius,radius*2,radius*2);c.restore();
+  }
+  wreckFlameTexture(){
+    if(!this.wreckFlame){
+      const canvas=(this.canvas.ownerDocument||document).createElement('canvas');canvas.width=canvas.height=64;
+      const pc=canvas.getContext('2d'),gradient=pc.createRadialGradient(32,32,0,32,32,32);
+      gradient.addColorStop(0,'#fff6c9ed');gradient.addColorStop(.24,'#ffd77acb');
+      gradient.addColorStop(.52,'#f77c38aa');gradient.addColorStop(.78,'#b7352066');gradient.addColorStop(1,'#922b1a00');
+      pc.fillStyle=gradient;pc.fillRect(0,0,64,64);this.wreckFlame=canvas;
+    }
+    return this.wreckFlame;
   }
   launcherIgnition(c,life){
     if(!this.launchFlame){
@@ -2242,21 +2270,20 @@ class Renderer {
     if(progress<1){c.globalAlpha=1-progress;this.enemy(c,vehicle,0);}
     if(progress>0){c.globalAlpha=progress;this.enemy(c,{...vehicle,charred:true},0);}
     c.restore();
-    const intensity=clamp((d.burnTime||0)/WRECK_FIRE_TIME,0,1);
-    if(!intensity)return;
+    const fire=wreckFireState(d);
+    if(!fire.level)return;
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const age=reduced?0:(d.age||0),seed=d.seed||0,scale=ENEMIES[d.type].scale;
-    c.save();c.translate(d.x,d.y);c.scale(scale,scale);c.globalAlpha=intensity;
-    const points=d.type==='rocketSemi'?[[-20,0],[12,-3]]:d.type==='boss'?[[-23,0],[-5,-4],[17,3]]:[[-14,0],[0,-3],[12,3]];
-    const glow=c.createRadialGradient(0,0,0,0,0,32);glow.addColorStop(0,'#ff9b3138');glow.addColorStop(1,'#ff5b1700');c.fillStyle=glow;c.fillRect(-32,-32,64,64);
-    for(let i=0;i<(this.settings.effects?points.length:1);i++){
-      const [x,y]=points[i],phase=seed*2+i*2.7,flicker=reduced?1:.9+.12*Math.sin(age*5+phase)+.07*Math.sin(age*9+phase*1.7);
-      const sway=reduced?0:3*Math.sin(age*3+phase);
-      c.save();c.translate(x*Math.cos(d.angle)-y*Math.sin(d.angle),x*Math.sin(d.angle)+y*Math.cos(d.angle));c.scale(1,flicker);
-      path(c,[[-6,3],[-7,-3],[-4,-9],[sway-3,-17],[sway,-11],[sway+4,-23],[5,-9],[7,-3],[5,3]],'#b83f20');
-      path(c,[[-4,3],[-5,-3],[-2,-9],[sway+1,-16],[sway+2,-9],[4,-5],[4,2]],'#f48931');
-      path(c,[[-2,3],[-2,-3],[sway*.5,-9],[2,-5],[3,2]],'#ffe09a');
-      if(!reduced){ellipse(c,5+Math.sin(age*3+phase)*4,-16-(age*10+i*7)%12,1,1.5,'#ffc66d');}
+    const age=d.age||0,seed=d.seed||0,scale=ENEMIES[d.type].scale,texture=this.wreckFlameTexture();
+    c.save();c.translate(d.x,d.y);c.scale(scale,scale);
+    for(let i=0;i<(this.settings.effects?fire.points.length:2);i++){
+      const {x,y,strength}=fire.points[i];if(strength<=0)continue;
+      const phase=seed*2+i*2.7,wave=reduced?0:Math.sin(age*2.2+phase),sway=reduced?0:Math.sin(age*1.7+phase)*1.5;
+      const width=(5+8*strength)*(1+.12*wave),height=(8+22*strength)*(1+(reduced?0:.14*Math.sin(age*2.6+phase)));
+      c.save();c.translate(x*Math.cos(d.angle)-y*Math.sin(d.angle),x*Math.sin(d.angle)+y*Math.cos(d.angle));
+      c.globalAlpha*=clamp(.3+strength*.65,0,1)*(reduced?1:.9+.1*Math.sin(age*1.9+phase));
+      c.drawImage(texture,-width+sway,-height,width*2,height*1.25);
+      if(this.settings.effects)c.drawImage(texture,-width*.55-sway*.25,-height*.7,width*1.1,height*.85);
+      if(!reduced&&fire.level<.55){ellipse(c,sway+width*.35,-height*.8,1,1.4,'#ffc66d');}
       c.restore();
     }
     c.restore();

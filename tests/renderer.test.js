@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Renderer } from '../renderer.js';
+import { Renderer, wreckFireState } from '../renderer.js';
 import { ENEMIES } from '../core.js';
 
 const linearGradient={addColorStop(){}};
@@ -13,6 +13,10 @@ function context() {
     }
   });
   return c;
+}
+function canvasDocument(){
+  const created=[],stops=[];
+  return {created,stops,createElement:()=>{const pc=context();pc.createRadialGradient=(...args)=>{pc.calls.push({name:'createRadialGradient',args});return{addColorStop:(...stop)=>stops.push(stop)};};const canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
 }
 
 test('smoke puffs use bounded offscreen gradients and stable variants across transforms',()=>{
@@ -117,7 +121,7 @@ test('launcher ignition is cached and anchored to the active tube without changi
 });
 
 test('launcher wreck retains cab, rack, openings and hull-attached fire positions',()=>{
-  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:canvasDocument()},{effects:true});
   const wreck={x:50,y:70,angle:.4,turret:1.2,type:'rocketSemi',wreck:true,transition:true,transitionAge:3,age:4,burnTime:12,seed:1};
   const c=context();renderer.wreck(c,wreck);
   assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582'&&call.args.join(',')==='12,-14,22,28'));
@@ -301,31 +305,78 @@ test('smoke screen selection does not change tank paint, tracks or hit feedback'
 });
 
 test('wrecks blend matching poses into charred silhouettes with layered fire and balanced canvas state',()=>{
+  const document=canvasDocument();
   for(const type of ['tank','rocketSemi','boss']){
-    const renderer=new Renderer({getContext:()=>context()},{effects:true});
+    const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
     const wreck={x:50,y:70,angle:.4,turret:1.2,type,wreck:true,transition:true,transitionAge:3,age:4,burnTime:12,seed:1};
     const c=context();renderer.wreck(c,wreck);
     const liveFill=type==='tank'?'#8c8e69':type==='boss'?'#727356':'#6c7857';
     const charFill=type==='rocketSemi'?'#353b31':'#3d4436';
     assert.ok(c.calls.some(call=>call.fillStyle===liveFill));
     assert.ok(c.calls.some(call=>call.fillStyle===charFill));
-    assert.ok(c.calls.some(call=>call.fillStyle==='#b83f20'));
-    assert.ok(c.calls.some(call=>call.fillStyle==='#ffe09a'));
+    assert.ok(c.calls.filter(call=>call.name==='drawImage'&&call.args[0]===renderer.wreckFlame).length>=4);
     assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
     assert.ok(c.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.8)<1e-10));
     const coast=context();renderer.wreck(coast,{...wreck,transitionAge:0});
     assert.ok(coast.calls.some(call=>call.fillStyle===liveFill));
     assert.equal(coast.calls.some(call=>call.fillStyle===charFill),false);
-    assert.ok(coast.calls.some(call=>call.fillStyle==='#ffe09a'));
+    assert.ok(coast.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.wreckFlame));
     const final=context();renderer.wreck(final,{...wreck,transitionAge:6,age:20,burnTime:0});
     assert.equal(final.calls.some(call=>call.fillStyle===liveFill),false);
-    assert.equal(final.calls.some(call=>call.fillStyle==='#ffe09a'),false);
+    assert.equal(final.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.wreckFlame),false);
   }
-  const low=new Renderer({getContext:()=>context()},{effects:false}),c=context();
+  const low=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:false}),c=context();
   low.wreck(c,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:0,burnTime:14});
-  assert.equal(c.calls.filter(call=>call.name==='fill'&&call.fillStyle==='#b83f20').length,1);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage'&&call.args[0]===low.wreckFlame).length,1);
   const state=context(),stack=[];state.globalAlpha=.7;
   state.save=()=>stack.push(state.globalAlpha);state.restore=()=>{state.globalAlpha=stack.pop();};
   low.wreck(state,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:1,burnTime:10});
   assert.equal(state.globalAlpha,.7);assert.equal(stack.length,0);
+});
+
+test('wreck fire uses bounded cached soft gradients and independently evolving points',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  const base={x:100,y:120,angle:.6,turret:1.2,type:'boss',health:0,wreck:true,transition:true,seed:1};
+  const frames=[
+    {...base,age:0,transitionAge:0,burnTime:14},
+    {...base,age:2,transitionAge:0,burnTime:12},
+    {...base,age:6.5,transitionAge:4,burnTime:7.5},
+    {...base,age:12,transitionAge:9.5,burnTime:2}
+  ];
+  const states=frames.map(wreckFireState),active=s=>s.points.filter(p=>p.strength>0);
+  assert.deepEqual(states.map(s=>active(s).length),[1,2,5,1]);
+  assert.ok(states[0].level<states[1].level&&states[1].level<states[2].level&&states[3].level<states[2].level);
+  const random=Math.random;Math.random=()=>{throw Error('renderer consumed RNG');};
+  try{
+    for(let i=0;i<40;i++){const c=context(),frame=frames[i%frames.length],before=structuredClone(frame);renderer.wreck(c,frame);assert.deepEqual(frame,before);assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);}
+  }finally{Math.random=random;}
+  assert.equal(document.created.length,1);assert.equal(document.created[0].width,64);assert.equal(document.created[0].height,64);
+  assert.equal(document.created[0].pc.calls.filter(call=>call.name==='createRadialGradient').length,1);
+  assert.deepEqual(document.stops.map(stop=>stop[1]),['#fff6c9ed','#ffd77acb','#f77c38aa','#b7352066','#922b1a00']);
+  const initial=context(),peak=context(),late=context();
+  renderer.wreck(initial,frames[0]);renderer.wreck(peak,frames[2]);renderer.wreck(late,frames[3]);
+  const dimensions=c=>c.calls.filter(call=>call.name==='drawImage').map(call=>call.args.slice(1));
+  assert.equal(dimensions(initial).length,2);assert.equal(dimensions(peak).length,10);assert.equal(dimensions(late).length,2);
+  assert.ok(dimensions(peak)[0][3]>dimensions(initial)[0][3]);assert.ok(dimensions(late)[0][3]<dimensions(peak)[0][3]);
+  const changed=context();renderer.wreck(changed,{...frames[2],age:6.8,transitionAge:4.3,burnTime:7.2});
+  assert.notDeepEqual(dimensions(changed),dimensions(peak));
+  const fade=context(),alphas=[],stack=[];fade.save=()=>stack.push(fade.globalAlpha);fade.restore=()=>{fade.globalAlpha=stack.pop();};
+  fade.drawImage=()=>alphas.push(fade.globalAlpha);
+  renderer.wreck(fade,{...base,age:13.999,transitionAge:11.499,burnTime:.001});
+  assert.ok(alphas.length>0&&alphas.every(alpha=>alpha<.02));
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{
+    const first=context(),second=context();renderer.wreck(first,frames[0]);renderer.wreck(second,{...frames[0],age:.2});
+    assert.equal(first.calls.filter(call=>call.name==='drawImage').length,2);
+    assert.equal(second.calls.filter(call=>call.name==='drawImage').length,2);
+  }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
+
+test('fresh wreck smoke is visible and fades out using the shared cache',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  const c=context(),alphas=[],stack=[];c.save=()=>stack.push(c.globalAlpha);c.restore=()=>{c.globalAlpha=stack.pop();};
+  c.drawImage=()=>alphas.push(c.globalAlpha);
+  for(const life of [5,2.5,0])renderer.smoke(c,{x:0,y:0,size:10,life,maxLife:5,persistent:true,smokeVariant:0});
+  assert.ok(alphas[0]>0);assert.ok(alphas[1]>alphas[0]);assert.equal(alphas[2],0);
+  assert.equal(document.created.length,1);assert.equal(c.globalAlpha,1);
 });

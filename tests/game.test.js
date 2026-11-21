@@ -5,6 +5,7 @@ import * as core from '../core.js';
 import * as i18n from '../i18n.js';
 import { updateDroneVisual } from '../game/combat.js';
 import { createEntities } from '../game/entities.js';
+import { wreckFireState } from '../renderer.js';
 
 // Run the actual game module against a small browser adapter. Rendering and
 // sound are replaced; combat, input, progression, and persistence are unchanged.
@@ -635,4 +636,33 @@ test('coast tracks and stopped transition are independent of time partition',asy
   game.hitEnemy(still,100,'cannon');const wreck=g.decals.at(-1);
   assert.equal(wreck.stopped,true);game.updateEffects(3);
   assert.equal(wreck.transitionAge,3);assert.equal(wreck.leftTrackPhase,2);assert.equal(wreck.rightTrackPhase,4);
+});
+
+test('moving and stationary cannon wrecks grow, peak and decline without changing death timing',async()=>{
+  for(const vx of [40,0]){
+    const game=createGame();await game.start();const {g}=game;g.spawnRemaining=100;
+    const tank=enemy({x:300,y:300,vx,vy:0,angle:0,health:1,points:110,leftTrackPhase:2});
+    const sounds=game.sound.plays.length;game.hitEnemy(tank,10,'cannon');
+    const wreck=g.decals[0],source=g.wreckSmoke[0],initial=wreckFireState(wreck),score=g.score,shake=g.shake;
+    assert.equal(g.kills,1);assert.equal(score,110);assert.equal(shake,0);
+    assert.deepEqual(game.sound.plays.slice(sounds),['explode']);
+    assert.ok(g.particles.some(p=>p.persistent));assert.equal(source.wreck,wreck);
+    assert.equal(initial.points.filter(p=>p.strength>0).length,1);
+    game.updateEffects(1);
+    const growth=wreckFireState(wreck);
+    assert.ok(growth.level>initial.level);assert.equal(source.x,wreck.x);assert.equal(source.y,wreck.y);
+    if(vx){assert.equal(wreck.stopped,false);assert.equal(wreck.transitionAge,0);assert.notEqual(wreck.leftTrackPhase,2);}
+    else {assert.equal(wreck.stopped,true);assert.equal(wreck.transitionAge,1);}
+    game.updateEffects(vx?5.5:3);
+    const peak=wreckFireState(wreck);assert.equal(wreck.stopped,true);
+    assert.ok(peak.level>growth.level);assert.equal(peak.points.filter(p=>p.strength>0).length,5);
+    assert.equal(wreck.transitionAge,4);
+    game.updateEffects(1.9);assert.ok(wreck.transitionAge<6);
+    game.updateEffects(.1);assert.equal(wreck.transitionAge,6);
+    game.updateEffects(vx?5.5:8);
+    assert.equal(wreck.burnTime,0);assert.equal(wreckFireState(wreck).points.length,0);
+    assert.equal(g.kills,1);assert.equal(g.score,score);assert.equal(g.shake,shake);
+    assert.deepEqual(game.sound.plays.slice(sounds),['explode']);
+    assert.equal(source.x,wreck.x);assert.equal(source.y,wreck.y);
+  }
 });
