@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Renderer, wreckFireState } from '../renderer.js';
 import { ENEMIES } from '../core.js';
+import { DEFAULTS, makeScene } from '../visual-review.js';
 
 const linearGradient={addColorStop(){}};
 function context() {
@@ -9,7 +10,7 @@ function context() {
   const c=new Proxy({calls,fillStyle:'',globalAlpha:1,createRadialGradient:(...args)=>{calls.push({name:'createRadialGradient',args});return {addColorStop(){}};},createLinearGradient:()=>linearGradient},{
     get(target,key) {
       if(key in target)return target[key];
-      return (...args)=>calls.push({name:key,args,fillStyle:target.fillStyle});
+      return (...args)=>calls.push({name:key,args,fillStyle:target.fillStyle,strokeStyle:target.strokeStyle,lineWidth:target.lineWidth,lineCap:target.lineCap,alpha:target.globalAlpha});
     }
   });
   return c;
@@ -19,59 +20,84 @@ function canvasDocument(){
   return {created,stops,createElement:()=>{const pc=context();pc.createRadialGradient=(...args)=>{pc.calls.push({name:'createRadialGradient',args});return{addColorStop:(...stop)=>stops.push(stop)};};const canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
 }
 
-test('cannon tracers use a shared gradient aligned to velocity while ordinary rounds remain subdued',()=>{
+test('ordinary bullets retain base stroke geometry, color and width; tracers use a cached gradient',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
-  const ordinary={x:10,y:20,vx:0,vy:-5,tracer:false};
-  renderer.gunProjectile(c,ordinary);
-  assert.equal(document.created.length,0);
+  for(const [vx,vy] of [[0,-5],[3,4],[-5,0],[0,0]]){
+    const b={x:10,y:20,vx,vy,friendly:true,kind:'gun',tracer:false},round=context(),sp=Math.hypot(vx,vy)||1;
+    renderer.bullet(round,b);
+    assert.deepEqual(round.calls.map(call=>call.name),['beginPath','moveTo','lineTo','stroke']);
+    assert.deepEqual(round.calls[1].args,[10-vx/sp*20,20-vy/sp*20]);
+    assert.deepEqual(round.calls[2].args,[10,20]);
+    assert.equal(round.calls[3].strokeStyle,'#f4f1ab');assert.equal(round.calls[3].lineWidth,2);assert.equal(round.calls[3].lineCap,'round');
+  }
+  const tracer={x:10,y:20,vx:0,vy:-5,tracer:true};
+  for(let i=0;i<20;i++)renderer.gunProjectile(c,tracer);
   assert.equal(c.calls.find(call=>call.name==='rotate').args[0],-Math.PI/2);
-  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,0);
-  for(let i=0;i<20;i++)renderer.gunProjectile(c,{...ordinary,tracer:true});
   assert.equal(document.created.length,1);
   assert.equal(c.calls.filter(call=>call.name==='drawImage').length,20);
   assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
-  assert.deepEqual(ordinary,{x:10,y:20,vx:0,vy:-5,tracer:false});
+  assert.deepEqual(tracer,{x:10,y:20,vx:0,vy:-5,tracer:true});
 });
 
-test('flare rendering has bounded cached layers and leaves particle state unchanged',()=>{
+test('draw dispatches only tracer gun rounds to the special renderer',()=>{
+  const c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:canvasDocument()},{effects:false,shake:false});
+  renderer.scale=1;renderer.terrain={};renderer.helicopter=()=>{};
+  const ordinary=[],tracers=[];
+  renderer.bullet=(ctx,b)=>ordinary.push(b);renderer.gunProjectile=(ctx,b)=>tracers.push(b);
+  const scene=makeScene({...DEFAULTS,round:true});
+  scene.bullets.push({...scene.bullets[0],tracer:true},{...scene.bullets[0],friendly:false,tracer:true});
+  renderer.draw(scene,0);
+  assert.deepEqual(ordinary,[scene.bullets[0],scene.bullets[2]]);
+  assert.deepEqual(tracers,[scene.bullets[1]]);
+});
+
+test('flare preserves base stroke and circular footprint with one cached gradient',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
-  const p={x:10,y:20,vx:100,vy:-40,life:.5,maxLife:.85,flarePhase:1};
+  const p={x:10,y:20,vx:100,vy:-40,life:.5,maxLife:.85,size:5,color:'#ff9b59',flarePhase:1};
   const original={...p},random=Math.random;Math.random=()=>{throw new Error('rendering consumed gameplay randomness');};
   try{for(let i=0;i<30;i++)renderer.flare(c,p);}finally{Math.random=random;}
   assert.deepEqual(p,original);
-  assert.equal(document.created.length,5);
-  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,30*5);
+  assert.equal(document.created.length,1);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,30);
+  assert.deepEqual(c.calls.find(call=>call.name==='moveTo').args,[10,20]);
+  assert.deepEqual(c.calls.find(call=>call.name==='lineTo').args,[7.5,21]);
+  const stroke=c.calls.find(call=>call.name==='stroke');
+  assert.equal(stroke.strokeStyle,p.color);assert.equal(stroke.lineWidth,p.size);assert.equal(stroke.alpha,p.life/p.maxLife);
+  const glow=c.calls.find(call=>call.name==='drawImage');
+  assert.deepEqual(glow.args.slice(1),[-7,3,34,34]);assert.equal(glow.alpha,p.life/p.maxLife);
+  assert.ok(document.stops.some(([stop,color])=>stop===0&&color.startsWith('#fff')));
+  assert.ok(document.stops.some(([stop,color])=>stop===1&&color.endsWith('00')));
   assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
-  const low=context();renderer.flare(low,p,true);
-  assert.equal(low.calls.filter(call=>call.name==='drawImage').length,2);
+  const low=context();renderer.settings.effects=false;renderer.flare(low,p);
+  assert.equal(low.calls.filter(call=>call.name==='drawImage').length,1);
   const expired=context();renderer.flare(expired,{...p,life:0});
   assert.equal(expired.calls.length,0);
 });
 
-test('flare lifecycle and variation work for arbitrary particle counts with bounded texture allocation',()=>{
+test('flare lifetime and arbitrary particle counts use bounded texture allocation',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
   for(let i=0;i<17;i++){
-    const p={x:i*3,y:i,vx:i-8,vy:40,life:.85,maxLife:.85,flarePhase:i};
+    const p={x:i*3,y:i,vx:i-8,vy:40,life:.85,maxLife:.85,size:5,color:'#ff9b59',flarePhase:i};
     for(const life of [.85,.81,.5,.1,0])renderer.flare(c,{...p,life});
   }
-  assert.equal(document.created.length,5);
+  assert.equal(document.created.length,1);
   assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
   const low=context();renderer.settings.effects=false;
-  renderer.flare(low,{x:0,y:0,vx:1,vy:0,life:.5,maxLife:.85,flarePhase:0});
-  assert.equal(low.calls.filter(call=>call.name==='drawImage').length,2);
+  renderer.flare(low,{x:0,y:0,vx:1,vy:0,life:.5,maxLife:.85,size:5,color:'#ff9b59'});
+  assert.equal(low.calls.filter(call=>call.name==='drawImage').length,1);
 });
 
-test('player muzzle preserves the original burst geometry in a cached gradient until the shot timer ends',()=>{
+test('player muzzle matches the base oval bounds, timing and soft gradient',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
   renderer.playerMuzzle(c,{muzzle:.04,muzzleSmoke:.22});
   assert.equal(c.calls.filter(call=>call.name==='drawImage').length,2);
-  const flash=renderer.playerFlash,geometry=flash.pc.calls.filter(call=>['moveTo','lineTo'].includes(call.name));
-  assert.deepEqual(geometry.slice(0,4).map(call=>call.args),[[42,-10],[88,0],[42,10],[56,0]]);
-  assert.deepEqual(c.calls.filter(call=>call.name==='drawImage').at(-1).args.slice(1),[40,-12,50,24]);
+  const flash=renderer.launchFlame;
+  assert.deepEqual(flash.pc.calls.find(call=>call.name==='createRadialGradient').args,[32,32,0,32,32,32]);
+  assert.deepEqual(c.calls.filter(call=>call.name==='drawImage').at(-1).args.slice(1),[38.4,-9.9,28.8,19.8]);
   assert.ok(document.stops.some(([stop,color])=>stop===0&&color.startsWith('#fff')));
   assert.ok(document.stops.some(([stop,color])=>stop===1&&color.endsWith('00')));
   const firing=context();renderer.playerMuzzle(firing,{muzzle:.001,muzzleSmoke:0});
-  assert.equal(firing.calls.filter(call=>call.name==='drawImage').length,1);
+  assert.equal(firing.calls.filter(call=>call.name==='drawImage').length,2);
   const cooling=context();renderer.playerMuzzle(cooling,{muzzle:0,muzzleSmoke:.1});
   assert.equal(cooling.calls.filter(call=>call.name==='drawImage').length,1);
   const settled=context();renderer.playerMuzzle(settled,{muzzle:0,muzzleSmoke:0});
@@ -289,7 +315,7 @@ test('cannon is half-sized and fires from its barrel tip',()=>{
   renderer.helicopter(c,{x:100,y:100,angle:0,cannonAngle:Math.PI/2,bank:0,pitch:0,muzzle:1},0);
   assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===20&&call.args[1]===0));
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.5&&call.args[1]===.5));
-  assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.playerFlash&&call.args[1]===40));
+  assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame&&call.args[1]===38.4));
 });
 
 test('helicopter strobe lights flash once every two seconds',()=>{
