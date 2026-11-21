@@ -730,7 +730,7 @@ const SOUND_DATA = {
       "unit": "duration"
     },
     "noiseGain": {
-      "value": 3,
+      "value": 0.3,
       "spread": 0,
       "unit": "gain"
     },
@@ -740,17 +740,17 @@ const SOUND_DATA = {
       "unit": "hertz"
     },
     "sparkDuration": {
-      "value": 1,
+      "value": 0.035,
       "spread": 0,
       "unit": "duration"
     },
     "sparkGain": {
-      "value": 1,
+      "value": 0.08,
       "spread": 0,
       "unit": "gain"
     },
     "sparkCutoff": {
-      "value": 50,
+      "value": 4500,
       "spread": 0,
       "unit": "hertz"
     },
@@ -784,7 +784,7 @@ const SOUND_DATA = {
       "unit": "duration"
     },
     "noiseGain": {
-      "value": 40,
+      "value": 0.4,
       "spread": 0.1,
       "unit": "gain"
     },
@@ -809,7 +809,7 @@ const SOUND_DATA = {
       "unit": "duration"
     },
     "subGain": {
-      "value": 1,
+      "value": 0.15,
       "spread": 0,
       "unit": "gain"
     }
@@ -897,27 +897,27 @@ const SOUND_DATA = {
       "unit": "ratio"
     },
     "bodyGain": {
-      "value": 5,
+      "value": 0.5,
       "spread": 0.5,
       "unit": "gain"
     },
     "midGain": {
-      "value": 3,
+      "value": 0.3,
       "spread": 0.5,
       "unit": "gain"
     },
     "highGain": {
-      "value": 3,
+      "value": 0.3,
       "spread": 0.25,
       "unit": "gain"
     },
     "rumbleGain": {
-      "value": 3,
+      "value": 0.3,
       "spread": 0.5,
       "unit": "gain"
     },
     "tailGain": {
-      "value": 6,
+      "value": 0.6,
       "spread": 0,
       "unit": "gain"
     },
@@ -961,7 +961,7 @@ const SOUND_DATA = {
       "unit": "ratio"
     },
     "snapSubGain": {
-      "value": 1,
+      "value": 0.15,
       "spread": 0.5,
       "unit": "gain"
     },
@@ -1071,17 +1071,17 @@ const SOUND_DATA = {
     "spatial": false,
     "maxVoices": 1,
     "noiseGain": {
-      "value": 0.12,
+      "value": 0.025,
       "spread": 0,
       "unit": "gain"
     },
     "sawGain": {
-      "value": 0.2,
+      "value": 0.12,
       "spread": 0,
       "unit": "gain"
     },
     "squareGain": {
-      "value": 0.08,
+      "value": 0.055,
       "spread": 0,
       "unit": "gain"
     }
@@ -1463,6 +1463,7 @@ class EnemyShot extends SoundEffect {
     static key = 'enemy';
     render({ pan, gain, at, voice }) {
         new Noise(this.engine, { voice, duration: this.n('noiseDuration'), gain: gain * this.n('noiseGain'), frequency: this.n('noiseCutoff'), pan, time: at });
+        new Noise(this.engine, { voice, duration: this.n('sparkDuration'), gain: gain * this.n('sparkGain'), frequency: this.n('sparkCutoff'), pan, time: at });
         new Tone(this.engine, { voice, freq: this.n('subStart'), end: this.n('subEnd'), duration: this.n('subDuration'), gain: gain * this.n('subGain'), type: 'sine', time: at });
     }
 }
@@ -1596,10 +1597,11 @@ class UpgradeChime extends Arpeggio {
 class LowHealthAlarm extends SoundEffect {
     static key = 'lowHealth';
     render({ gain, at, voice }) {
-        for (const offset of [0, 0.62]) {
-            new Noise(this.engine, { voice, duration: 0.42, gain: gain * this.n('noiseGain'), frequency: 2400, time: at + offset });
-            new Tone(this.engine, { voice, freq: 240, end: 110, duration: 0.42, gain: gain * this.n('sawGain'), type: 'sawtooth', time: at + offset });
-            new Tone(this.engine, { voice, freq: 420, end: 190, duration: 0.35, gain: gain * this.n('squareGain'), type: 'square', time: at + offset });
+        const saw = gain * this.n('sawGain'), square = gain * this.n('squareGain'), noise = gain * this.n('noiseGain');
+        for (const offset of [0, 0.48, 0.96]) {
+            new Tone(this.engine, { voice, freq: 185, end: 175, duration: 0.32, gain: saw, type: 'sawtooth', time: at + offset });
+            new Tone(this.engine, { voice, freq: 277.5, end: 262.5, duration: 0.32, gain: square, type: 'square', time: at + offset });
+            new Noise(this.engine, { voice, duration: 0.12, gain: noise, frequency: 900, time: at + offset });
         }
     }
 }
@@ -1616,7 +1618,11 @@ class MissileWarning extends SoundEffect {
 class Alert extends SoundEffect {
     static key = 'alert';
     render({ gain, at, voice }) {
-        new Tone(this.engine, { voice, freq: 440, end: 330, duration: 0.25, gain: gain * this.n('toneGain'), type: 'square', time: at });
+        const level = gain * this.n('toneGain');
+        for (const offset of [0, 0.36]) {
+            new Tone(this.engine, { voice, freq: 330, end: 310, duration: 0.22, gain: level * 0.65, type: 'sawtooth', time: at + offset });
+            new Tone(this.engine, { voice, freq: 495, end: 465, duration: 0.22, gain: level * 0.35, type: 'square', time: at + offset });
+        }
     }
 }
 

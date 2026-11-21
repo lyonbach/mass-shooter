@@ -63,7 +63,7 @@ export const SOUND_DATA = {
       "unit": "duration"
     },
     "noiseGain": {
-      "value": 3,
+      "value": 0.3,
       "spread": 0,
       "unit": "gain"
     },
@@ -73,17 +73,17 @@ export const SOUND_DATA = {
       "unit": "hertz"
     },
     "sparkDuration": {
-      "value": 1,
+      "value": 0.035,
       "spread": 0,
       "unit": "duration"
     },
     "sparkGain": {
-      "value": 1,
+      "value": 0.08,
       "spread": 0,
       "unit": "gain"
     },
     "sparkCutoff": {
-      "value": 50,
+      "value": 4500,
       "spread": 0,
       "unit": "hertz"
     },
@@ -117,7 +117,7 @@ export const SOUND_DATA = {
       "unit": "duration"
     },
     "noiseGain": {
-      "value": 40,
+      "value": 0.4,
       "spread": 0.1,
       "unit": "gain"
     },
@@ -142,7 +142,7 @@ export const SOUND_DATA = {
       "unit": "duration"
     },
     "subGain": {
-      "value": 1,
+      "value": 0.15,
       "spread": 0,
       "unit": "gain"
     }
@@ -230,27 +230,27 @@ export const SOUND_DATA = {
       "unit": "ratio"
     },
     "bodyGain": {
-      "value": 5,
+      "value": 0.5,
       "spread": 0.5,
       "unit": "gain"
     },
     "midGain": {
-      "value": 3,
+      "value": 0.3,
       "spread": 0.5,
       "unit": "gain"
     },
     "highGain": {
-      "value": 3,
+      "value": 0.3,
       "spread": 0.25,
       "unit": "gain"
     },
     "rumbleGain": {
-      "value": 3,
+      "value": 0.3,
       "spread": 0.5,
       "unit": "gain"
     },
     "tailGain": {
-      "value": 6,
+      "value": 0.6,
       "spread": 0,
       "unit": "gain"
     },
@@ -294,7 +294,7 @@ export const SOUND_DATA = {
       "unit": "ratio"
     },
     "snapSubGain": {
-      "value": 1,
+      "value": 0.15,
       "spread": 0.5,
       "unit": "gain"
     },
@@ -404,17 +404,17 @@ export const SOUND_DATA = {
     "spatial": false,
     "maxVoices": 1,
     "noiseGain": {
-      "value": 0.12,
+      "value": 0.025,
       "spread": 0,
       "unit": "gain"
     },
     "sawGain": {
-      "value": 0.2,
+      "value": 0.12,
       "spread": 0,
       "unit": "gain"
     },
     "squareGain": {
-      "value": 0.08,
+      "value": 0.055,
       "spread": 0,
       "unit": "gain"
     }
