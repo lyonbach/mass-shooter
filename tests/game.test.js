@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as core from '../core.js';
 import * as i18n from '../i18n.js';
+import { updateDroneVisual } from '../game/combat.js';
+import { createEntities } from '../game/entities.js';
 
 // Run the actual game module against a small browser adapter. Rendering and
 // sound are replaced; combat, input, progression, and persistence are unchanged.
@@ -30,6 +32,30 @@ function createGame(reducedMotion=false) {
   return{...game,elements,storage,windowEvents,documentEvents,sound:game.sound};
 }
 function enemy(overrides={}){return{x:600,y:300,type:'tank',health:4,maxHealth:4,speed:0,points:110,radius:25,angle:0,turret:0,cooldown:10,charge:0,hit:0,seed:0,...overrides};}
+
+test('drone visual response follows travel by the shortest arc and settles without changing aim',()=>{
+  const e=enemy({type:'drone',angle:2,turret:-1,speed:100,vx:-100,vy:-1,visualHeading:Math.PI-.02});
+  updateDroneVisual(e,.1);
+  assert.ok(e.visualHeading>Math.PI-.02&&e.visualHeading<Math.PI+.02);
+  assert.equal(e.angle,2);assert.equal(e.turret,-1);
+  e.vx=0;e.vy=100;updateDroneVisual(e,.2);
+  assert.notEqual(e.visualBank,0);assert.ok(e.visualPitch>0);
+  e.vx=undefined;e.vy=undefined;const heading=e.visualHeading;
+  for(let i=0;i<100;i++)updateDroneVisual(e,.1);
+  assert.equal(e.visualHeading,heading);assert.ok(Math.abs(e.visualBank)<1e-8);assert.ok(e.visualPitch<1e-8);
+  updateDroneVisual(e,.1,true);assert.ok(Number.isFinite(e.visualHeading));
+});
+
+test('drone cosmetic state initializes on spawn, freezes in pause and is discarded on reset',async()=>{
+  const game=createGame(true);await game.start();const drone=game.spawnEnemy('drone');
+  drone.x=game.g.player.x+400;drone.y=game.g.player.y;drone.cooldown=100;
+  game.update(.1);assert.ok(Number.isFinite(drone.visualHeading));assert.equal(drone.visualBank,0);assert.equal(drone.visualPitch,0);
+  const pose=[drone.visualHeading,drone.visualBank,drone.visualPitch],time=game.g.visualTime;
+  game.pause();game.frame(1000);game.frame(1100);
+  assert.deepEqual([drone.visualHeading,drone.visualBank,drone.visualPitch],pose);assert.equal(game.g.visualTime,time);
+  game.resume();await game.start();assert.ok(!game.g.enemies.includes(drone));
+  const next=game.spawnEnemy('drone');assert.equal(next.visualHeading,undefined);
+});
 
 test('kamikazes use quarter scale and double drone speed and explode for four shots',async()=>{
   const game=createGame();await game.start();
@@ -76,6 +102,53 @@ test('AA automatically spaces one nine-shot burst and pause freezes warnings',as
   assert.equal(game.g.warnings[0].life,life);
   game.resume();await game.start();
   assert.equal(game.g.warnings.length,0);
+});
+test('AA muzzle state alternates, expires, pauses, resets and is removed on death',async()=>{
+  const game=createGame();await game.start();const aa=game.spawnEnemy('aa');
+  aa.x=game.g.player.x+300;aa.y=game.g.player.y;aa.speed=0;aa.cooldown=100;game.g.spawnRemaining=0;
+  game.fireEnemy(aa);assert.equal(aa.aaMuzzle.barrel,0);assert.equal(aa.aaMuzzle.life,.24);
+  game.fireEnemy(aa);assert.equal(aa.aaMuzzle.barrel,1);aa.cooldown=100;
+  game.update(.1);assert.ok(Math.abs(aa.aaMuzzle.life-.14)<1e-10);
+  game.pause();game.frame(1000);game.frame(2000);assert.ok(Math.abs(aa.aaMuzzle.life-.14)<1e-10);
+  game.resume();game.update(.15);assert.equal(aa.aaMuzzle,undefined);
+  game.fireEnemy(aa);const warnings=game.g.warnings.length;game.hitEnemy(aa,aa.health,'cannon');
+  assert.equal(aa.aaMuzzle,undefined);assert.equal(game.g.decals.at(-1).aaMuzzle,undefined);
+  game.fireEnemy(aa);assert.equal(game.g.warnings.length,warnings);
+  await game.start();assert.equal(game.g.warnings.length,0);assert.equal(game.g.enemies.length,0);
+});
+test('AA flak preserves detonation timing, radius, sound and bounded cosmetic lifetime',async()=>{
+  for(const reduced of [false,true]){
+    const game=createGame(reduced);await game.start();game.g.spawnRemaining=0;
+    const p=game.g.player,stats=core.ENEMIES.aa;
+    game.g.warnings=[{x:p.x+stats.explosionRadius+16,y:p.y,life:.2,radius:stats.explosionRadius,damage:stats.projectileDamage}];
+    game.update(.19);assert.equal(p.health,100);assert.equal(game.g.particles.filter(p=>p.flakSmoke).length,0);
+    const sounds=game.sound.plays.filter(name=>name==='explode').length;game.update(.02);
+    assert.equal(p.health,100-stats.projectileDamage);assert.equal(game.sound.plays.filter(name=>name==='explode').length,sounds+1);
+    assert.equal(game.g.explosions.length,0);assert.equal(game.g.decals.length,0);
+    assert.equal(game.g.particles.filter(p=>p.flakSmoke).length,reduced?2:4);
+    assert.equal(game.g.particles.filter(p=>p.flakFlash).length,reduced?0:1);
+    game.updateEffects(.11);assert.equal(game.g.particles.filter(p=>p.flakFlash).length,0);
+    assert.ok(game.g.particles.some(p=>p.flakSmoke));game.updateEffects(2);
+    assert.equal(game.g.particles.filter(p=>p.flakSmoke).length,0);
+    p.invulnerable=0;p.health=100;
+    game.g.warnings=[{x:p.x+stats.explosionRadius+17,y:p.y,life:.01,radius:stats.explosionRadius,damage:stats.projectileDamage}];
+    game.update(.02);assert.equal(p.health,100);
+    game.g.particles=Array.from({length:reduced?650:649},()=>({x:0,y:0,vx:0,vy:0,life:10,maxLife:10,size:1}));
+    game.g.warnings=[{x:0,y:0,life:.01,radius:stats.explosionRadius,damage:stats.projectileDamage}];
+    game.update(.02);assert.ok(game.g.particles.length<=650);
+    assert.ok(game.g.particles.some(p=>reduced?p.flakSmoke:p.flakFlash));
+  }
+  const low=createGame();await low.start();low.settings.effects=false;low.g.spawnRemaining=0;
+  low.g.particles=Array.from({length:179},()=>({x:0,y:0,vx:0,vy:0,life:10,maxLife:10,size:1}));
+  low.g.warnings=[{x:0,y:0,life:.01,radius:38,damage:11}];low.update(.02);
+  assert.equal(low.g.particles.length,180);
+});
+test('flak cosmetic creation does not consume gameplay random numbers',()=>{
+  const g={particles:[],shake:0},sounds=[];
+  const {flakBurst}=createEntities({g,settings:{effects:true},sound:{play:(...args)=>sounds.push(args)}});
+  const random=Math.random;Math.random=()=>{throw Error('flak consumed gameplay RNG');};
+  try{flakBurst(40,50);}finally{Math.random=random;}
+  assert.equal(g.particles.length,10);assert.equal(sounds.length,1);assert.equal(sounds[0][0],'explode');
 });
 test('rocket semi homing rockets fire faster on harder difficulty',async()=>{
   const game=createGame();await game.start();game.spawnEnemy('rocketSemi');

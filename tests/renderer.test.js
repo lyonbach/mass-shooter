@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Renderer } from '../renderer.js';
+import { ENEMIES } from '../core.js';
 
 const linearGradient={addColorStop(){}};
 function context() {
@@ -34,6 +35,63 @@ test('smoke puffs use bounded offscreen gradients and stable variants across tra
     assert.equal(c.calls.filter(call=>call.name==='createRadialGradient').length,0);
     assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
   });
+
+test('screen smoke alone has denser white gradients and wider coverage',()=>{
+  const gradients=[];
+  const document={createElement:()=>{const pc=context();pc.createRadialGradient=()=>{const stops=[];gradients.push(stops);return{addColorStop:(...args)=>stops.push(args)};};return{getContext:()=>pc};}};
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:false}),c=context();
+  for(const flags of [{screenSmoke:true},{persistent:true},{},{exhaust:true}]){
+    renderer.smoke(c,{x:10,y:20,size:10,life:1,maxLife:2,smokeVariant:0,...flags});
+  }
+  assert.deepEqual(gradients.map(stops=>stops[0][1]),['#f8f9f4f2','#202820cc','#606858cc','#e4d9bccc']);
+  assert.ok(gradients.every(stops=>stops.at(-1)[1].endsWith('00')));
+  const widths=c.calls.filter(call=>call.name==='drawImage').map(call=>call.args[3]);
+  assert.ok(widths[0]>widths[1]);assert.equal(widths[1],widths[2]);assert.equal(widths[2],widths[3]);
+  assert.equal(renderer.smokePuffs.size,4);
+});
+
+test('AA muzzle flashes follow the rotating turret and the recoiling barrel tip without state mutation',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:false});
+  for(const barrel of [0,1]){
+    const c=context(),stack=[],points=[];let matrix=[1,0,0,1,0,0],current=[];
+    const multiply=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+    c.save=()=>stack.push([...matrix]);c.restore=()=>{matrix=stack.pop();};
+    c.translate=(x,y)=>{matrix=multiply(matrix,[1,0,0,1,x,y]);};
+    c.rotate=a=>{matrix=multiply(matrix,[Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0]);};
+    c.scale=(x,y)=>{matrix=multiply(matrix,[x,0,0,y,0,0]);};
+    c.beginPath=()=>{current=[];};c.moveTo=(x,y)=>current.push([matrix[0]*x+matrix[2]*y+matrix[4],matrix[1]*x+matrix[3]*y+matrix[5]]);
+    c.lineTo=c.moveTo;c.fill=()=>{if(c.fillStyle==='#ffac58')points.push(current[0]);};
+    const e={x:100,y:120,angle:.7,turret:1.9,type:'aa',health:2,maxHealth:2,aaMuzzle:{barrel,life:.24}};
+    const before=structuredClone(e),random=Math.random;Math.random=()=>{throw Error('renderer consumed RNG');};
+    try{renderer.enemy(c,e,0);}finally{Math.random=random;}
+    assert.deepEqual(e,before);assert.equal(stack.length,0);assert.equal(points.length,1);
+    const y=(barrel?8:-8)-3,s=ENEMIES.aa.scale;
+    assert.ok(Math.abs(points[0][0]-(e.x+s*(29*Math.cos(e.turret)-y*Math.sin(e.turret))))<1e-9);
+    assert.ok(Math.abs(points[0][1]-(e.y+s*(29*Math.sin(e.turret)+y*Math.cos(e.turret))))<1e-9);
+  }
+});
+test('flak smoke uses its own bounded cached palette',()=>{
+  const stops=[],document={createElement:()=>{const pc=context();pc.createRadialGradient=()=>({addColorStop:(...args)=>stops.push(args)});return{getContext:()=>pc};}};
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true}),c=context();
+  for(let i=0;i<30;i++)renderer.smoke(c,{x:1,y:2,size:10,life:1,maxLife:2,flakSmoke:true,smokeVariant:i%3});
+  assert.equal(renderer.smokePuffs.size,3);assert.equal(stops[0][1],'#30342fd9');assert.ok(stops[2][1].endsWith('00'));
+  assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+});
+test('AA recoil returns smoothly and reduced motion suppresses the muzzle flash',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:false}),e={x:0,y:0,angle:0,turret:0,type:'aa',health:2,maxHealth:2,aaMuzzle:{barrel:0,life:.24}};
+  const positions=[];
+  for(const life of [.24,.12,.01]){
+    const c=context();renderer.enemy(c,{...e,aaMuzzle:{barrel:0,life}},0);
+    positions.push(c.calls.find(call=>call.name==='fillRect'&&call.args[1]===-10&&call.args[2]===27).args[0]);
+  }
+  assert.ok(positions[0]<positions[1]&&positions[1]<positions[2]&&positions[2]<5);
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{
+    const c=context();renderer.enemy(c,e,0);
+    assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.args[0]===5&&call.args[1]===-10&&call.args[2]===27));
+    assert.equal(c.calls.some(call=>call.fillStyle==='#ffac58'),false);
+  }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
 
 test('missile flame starts at ignition and both factions use procedural silhouettes',()=>{
     const renderer=new Renderer({getContext:()=>context()},{effects:true});
@@ -138,11 +196,59 @@ test('tank uses reusable track, hull and turret layers with cached depth shading
   assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#d0c799'));
 });
 
+test('Goliath uses its own command hull while retaining track phases and turret world aim in wrecks',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const e={x:50,y:70,angle:.4,turret:1.2,type:'boss',health:10,maxHealth:10,leftTrackPhase:1,rightTrackPhase:3};
+  const live=context(),char=context(),tank=context();
+  renderer.enemy(live,e,0);renderer.enemy(char,{...e,charred:true},0);renderer.enemy(tank,{...e,type:'tank'},0);
+  for(const c of [live,char]){
+    assert.ok(c.calls.some(call=>call.name==='lineTo'&&call.args[0]===29&&call.args[1]===0));
+    assert.ok(c.calls.some(call=>call.name==='rotate'&&Math.abs(call.args[0]-.8)<1e-10));
+    assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+  }
+  assert.equal(tank.calls.some(call=>call.name==='lineTo'&&call.args[0]===29&&call.args[1]===0),false);
+  const treads=c=>c.calls.filter(call=>call.name==='fillRect'&&['#a1a582','#4b5041'].includes(call.fillStyle)).map(call=>call.args);
+  assert.deepEqual(treads(live),treads(char));
+  const wreck=context();renderer.wreck(wreck,{...e,wreck:true,transition:true,transitionAge:3,burnTime:0});
+  assert.equal(wreck.calls.filter(call=>call.name==='lineTo'&&call.args[0]===29&&call.args[1]===0).length,4);
+});
+
 test('kamikaze drone is rendered at quarter scale',()=>{
   const renderer=new Renderer({getContext:()=>context()},{});
   const c=context();
   renderer.enemy(c,{x:0,y:0,angle:0,type:'kamikaze',health:1,maxHealth:1},0);
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.55&&call.args[1]===.55));
+});
+
+test('drone silhouettes have four phased rotors and independent, ground anchored shadows',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const poses=[];
+  for(const type of ['drone','kamikaze']){
+    const e={x:100,y:120,angle:.2,turret:2,visualHeading:1,visualBank:.1,visualPitch:.07,type,health:1,maxHealth:1,seed:1};
+    const before=structuredClone(e),c=context();renderer.enemy(c,e,2);
+    assert.deepEqual(e,before);
+    assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===105&&call.args[1]===128));
+    assert.ok(c.calls.some(call=>call.name==='rotate'&&call.args[0]===1));
+    assert.equal(c.calls.filter(call=>call.name==='arc'&&call.args[2]===9).length,8);
+    assert.equal(new Set(c.calls.filter(call=>call.name==='arc'&&call.args[2]===9).map(call=>call.args[3])).size,8);
+    assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===(type==='drone'?.8:1)&&call.args[1]===(type==='drone'?.8:.75)));
+    assert.equal(c.calls.filter(call=>call.name==='ellipse'&&call.args[2]===10.5&&call.args[3]===10.5).length,4);
+    assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+    poses.push(c.calls.filter(call=>call.name==='lineTo').map(call=>call.args));
+  }
+  assert.notDeepEqual(poses[0],poses[1]);
+});
+
+test('reduced motion freezes drone hover and rotor animation while retaining the shadow',()=>{
+  const old=globalThis.matchMedia;
+  globalThis.matchMedia=()=>({matches:true});
+  try{
+    const renderer=new Renderer({getContext:()=>context()},{effects:false}),e={x:50,y:60,type:'drone',angle:.5,visualHeading:1,visualBank:.2,visualPitch:.1,health:1,maxHealth:1};
+    const first=context(),second=context();renderer.enemy(first,e,0);renderer.enemy(second,e,10);
+    assert.deepEqual(first.calls,second.calls);
+    assert.ok(first.calls.some(call=>call.name==='translate'&&call.args[0]===55&&call.args[1]===68));
+    assert.equal(first.calls.filter(call=>call.name==='save').length,first.calls.filter(call=>call.name==='restore').length);
+  }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
 });
 
 test('smoke screen selection does not change tank paint, tracks or hit feedback',()=>{
