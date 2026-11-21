@@ -93,6 +93,43 @@ test('AA recoil returns smoothly and reduced motion suppresses the muzzle flash'
   }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
 });
 
+test('launcher ignition is cached and anchored to the active tube without changing render state',()=>{
+  const created=[],document={createElement:()=>{const pc=context(),canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:false});
+  const e={x:100,y:120,angle:.7,turret:1.9,type:'rocketSemi',health:2,maxHealth:2,launchIgnition:.24};
+  const c=context(),stack=[],draws=[];let matrix=[1,0,0,1,0,0];
+  const multiply=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+  c.save=()=>stack.push([...matrix]);c.restore=()=>{matrix=stack.pop();};
+  c.translate=(x,y)=>{matrix=multiply(matrix,[1,0,0,1,x,y]);};
+  c.rotate=a=>{matrix=multiply(matrix,[Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0]);};
+  c.scale=(x,y)=>{matrix=multiply(matrix,[x,0,0,y,0,0]);};
+  c.drawImage=(image,x,y,w,h)=>draws.push({image,matrix:[...matrix],x,y,w,h});
+  const before=structuredClone(e),random=Math.random;Math.random=()=>{throw Error('renderer consumed RNG');};
+  try{for(let i=0;i<8;i++)renderer.enemy(c,e,0);}finally{Math.random=random;}
+  assert.deepEqual(e,before);assert.equal(stack.length,0);assert.equal(created.length,1);assert.equal(draws.length,16);
+  const first=draws[0],m=first.matrix;
+  assert.ok(Math.abs((m[0]*30+m[4])-(e.x+30*Math.cos(e.turret)))<1e-9);
+  assert.ok(Math.abs((m[1]*30+m[5])-(e.y+30*Math.sin(e.turret)))<1e-9);
+  assert.equal(first.image,created[0]);assert.equal(created[0].pc.calls.filter(call=>call.name==='createRadialGradient').length,1);
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{const reduced=context();renderer.enemy(reduced,e,0);assert.equal(reduced.calls.some(call=>call.name==='drawImage'),false);}
+  finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
+
+test('launcher wreck retains cab, rack, openings and hull-attached fire positions',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const wreck={x:50,y:70,angle:.4,turret:1.2,type:'rocketSemi',wreck:true,transition:true,transitionAge:3,age:4,burnTime:12,seed:1};
+  const c=context();renderer.wreck(c,wreck);
+  assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582'&&call.args.join(',')==='12,-14,22,28'));
+  assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#484c3e'&&call.args.join(',')==='12,-14,22,28'));
+  assert.equal(c.calls.filter(call=>call.name==='ellipse'&&call.args[0]===30&&call.args[2]===1).length,6);
+  for(const [x,y] of [[-20,0],[12,-3]]){
+    const tx=x*Math.cos(wreck.angle)-y*Math.sin(wreck.angle),ty=x*Math.sin(wreck.angle)+y*Math.cos(wreck.angle);
+    assert.ok(c.calls.some(call=>call.name==='translate'&&Math.abs(call.args[0]-tx)<1e-9&&Math.abs(call.args[1]-ty)<1e-9));
+  }
+  assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+});
+
 test('missile flame starts at ignition and both factions use procedural silhouettes',()=>{
     const renderer=new Renderer({getContext:()=>context()},{effects:true});
     for(const friendly of [true,false]){

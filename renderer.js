@@ -1,5 +1,5 @@
 import { TAU, seededRandom, clamp, ENEMIES } from './core.js';
-import { WRECK_TRANSITION_TIME, WRECK_FIRE_TIME, ROCKET_NOZZLE_OFFSET, AA_MUZZLE_TIME, AA_FLASH_TIME } from './game/constants.js';
+import { WRECK_TRANSITION_TIME, WRECK_FIRE_TIME, ROCKET_NOZZLE_OFFSET, AA_MUZZLE_TIME, AA_FLASH_TIME, LAUNCHER_IGNITION_TIME } from './game/constants.js';
 
 const path = (c, points, fill, stroke) => {
   c.beginPath(); points.forEach(([x,y], i) => i ? c.lineTo(x,y) : c.moveTo(x,y)); c.closePath();
@@ -41,6 +41,21 @@ export class Renderer {
     }
     c.save();c.globalAlpha*=alpha*Math.sin(Math.PI*progress);
     c.drawImage(puff,p.x-radius,p.y-radius,radius*2,radius*2);c.restore();
+  }
+  launcherIgnition(c,life){
+    if(!this.launchFlame){
+      const canvas=(this.canvas.ownerDocument||document).createElement('canvas');canvas.width=canvas.height=64;
+      const pc=canvas.getContext('2d'),gradient=pc.createRadialGradient(32,32,0,32,32,32);
+      gradient.addColorStop(0,'#fff6c9ee');gradient.addColorStop(.24,'#ffd77acc');
+      gradient.addColorStop(.53,'#f77c38a0');gradient.addColorStop(.78,'#b7352060');gradient.addColorStop(1,'#a32a1a00');
+      pc.fillStyle=gradient;pc.fillRect(0,0,64,64);this.launchFlame=canvas;
+    }
+    const progress=clamp(1-life/LAUNCHER_IGNITION_TIME,0,1),alpha=Math.min(1,life/.08);
+    c.save();c.globalAlpha*=alpha;
+    c.drawImage(this.launchFlame,24,-7,22+progress*5,14);
+    c.drawImage(this.launchFlame,27,-4,12,8);
+    if(this.settings.effects)this.smoke(c,{x:30+progress*7,y:0,size:5,life,maxLife:LAUNCHER_IGNITION_TIME,exhaust:true,smokeVariant:0},.55);
+    c.restore();
   }
   missile(c,b){
     const powered=b.kind==='enemyRocket'||!(b.launchDelay>0);
@@ -306,10 +321,29 @@ export class Renderer {
       this.drone(c,e,t,reduced);
     }else if(e.type==='rocketSemi'){
       c.fillStyle='#182a1e77';c.fillRect(-34,-15,70,37);
-      c.fillStyle='#29392d';for(const x of [-25,-7,21]){ellipse(c,x,-16,6,5,'#29392d');ellipse(c,x,16,6,5,'#29392d');}
+      for(const x of [-25,-7,21])for(const y of [-16,16]){
+        ellipse(c,x,y,6,5,'#29392d');ellipse(c,x,y,3.2,3,char?'#44483b':'#758063');ellipse(c,x,y,1.3,1.3,'#354236');
+      }
       c.fillStyle=char?'#353b31':'#6c7857';c.fillRect(-34,-13,46,26);c.fillStyle=char?'#484c3e':'#a1a582';c.fillRect(12,-14,22,28);
+      c.fillStyle=char?'#252d25':'#4f6049';c.fillRect(-33,9,44,4);c.fillRect(-33,-13,44,3);
+      c.fillStyle=char?'#30382d':'#899276';c.fillRect(-30,-9,36,2);
+      c.fillStyle=char?'#272f27':'#53624c';for(const x of [-29,-11,17]){c.fillRect(x,-15,10,2);c.fillRect(x,13,10,2);}
       c.fillStyle=char?'#202820':'#485849';c.fillRect(23,-10,7,20);
-      c.save();c.rotate((e.turret??e.angle)-e.angle);c.fillStyle=char?'#30392f':'#4b5c45';c.fillRect(-21,-10,38,20);c.fillStyle=char?'#555648':'#c0b98b';for(const y of [-6,0,6])c.fillRect(-14,y-2,30,4);c.restore();
+      c.fillStyle=char?'#303a32':'#698a83';c.fillRect(24,-8,4,7);c.fillRect(24,1,4,7);
+      c.fillStyle=char?'#565a49':'#c3c39c';c.fillRect(13,-12,18,2);c.fillRect(32,-12,2,24);
+      c.fillStyle=char?'#242c24':'#43533f';c.fillRect(34,-11,2,22);
+      c.fillStyle=char?'#252d25':'#4a5942';c.fillRect(-16,-11,6,22);c.fillRect(3,-11,6,22);
+      c.save();c.rotate((e.turret??e.angle)-e.angle);
+      c.fillStyle=char?'#30392f':'#4b5c45';c.fillRect(-23,-11,43,22);
+      c.fillStyle=char?'#252d25':'#354936';c.fillRect(-20,-10,48,20);
+      for(const y of [-6,0,6]){
+        c.fillStyle=char?'#555648':'#9a9f7d';c.fillRect(-19,y-2,49,4);
+        c.fillStyle=char?'#363d30':'#c0b98b';c.fillRect(-18,y-2,46,1);
+        ellipse(c,30,y,2,2.4,char?'#747462':'#c4c49e');
+        ellipse(c,30,y,1,1.4,'#1c2820');
+      }
+      if(!e.wreck&&!char&&!reduced&&e.health>0&&e.launchIgnition>0)this.launcherIgnition(c,e.launchIgnition);
+      c.restore();
     }else{
       this.tank(c,e,boss,char);
     }

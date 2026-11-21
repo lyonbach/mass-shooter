@@ -162,6 +162,28 @@ test('rocket semi homing rockets fire faster on harder difficulty',async()=>{
   game.g.bullets=[rocket];game.update(.1);
   assert.ok(rocket.vy>0);assert.ok(Math.hypot(rocket.vx,rocket.vy)>100);
 });
+test('launcher ignition follows firing without changing projectile or combat timing',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;
+  const truck=game.spawnEnemy('rocketSemi'),stats=core.ENEMIES.rocketSemi;
+  Object.assign(truck,{x:300,y:300,turret:.7,speed:0});
+  const random=Math.random;let calls=0;Math.random=()=>{calls++;return .5;};
+  const audio=game.sound.plays.length;
+  try{game.fireEnemy(truck);}finally{Math.random=random;}
+  assert.equal(calls,17);assert.equal(truck.launchIgnition,.24);
+  assert.equal(game.g.bullets.length,stats.shotCount);
+  const rocket=game.g.bullets[0],speed=stats.projectileSpeed+Math.min(game.g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
+  assert.equal(rocket.x,truck.x+Math.cos(.7)*30);assert.equal(rocket.y,truck.y+Math.sin(.7)*30);
+  assert.equal(rocket.vx,Math.cos(.7)*speed);assert.equal(rocket.vy,Math.sin(.7)*speed);
+  assert.equal(rocket.damage,stats.projectileDamage);assert.equal(rocket.life,stats.projectileLife);
+  assert.equal(truck.cooldown,(stats.fireInterval-Math.min(game.g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+.5*stats.fireRandom)*stats.normalInterval);
+  assert.deepEqual(game.sound.plays.slice(audio),['missile']);
+  truck.cooldown=100;game.update(.1);assert.ok(Math.abs(truck.launchIgnition-.14)<1e-10);
+  game.pause();game.frame(1000);game.frame(2000);assert.ok(Math.abs(truck.launchIgnition-.14)<1e-10);
+  game.resume();game.update(.15);assert.equal(truck.launchIgnition,undefined);
+  game.fireEnemy(truck);game.hitEnemy(truck,truck.health,'cannon');
+  assert.equal(truck.launchIgnition,undefined);assert.equal(game.g.decals.at(-1).launchIgnition,undefined);
+  assert.equal(game.g.wreckSmoke.at(-1).wreck,game.g.decals.at(-1));
+});
 test('enemy missile contact visuals use swept entry without changing damage or protection',async()=>{
   for(const kind of ['enemyRocket','shell']){
     for(const protectedHit of [false,true]){
