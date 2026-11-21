@@ -1,5 +1,5 @@
 import { TAU, seededRandom, clamp, ENEMIES } from './core.js';
-import { WRECK_TRANSITION_TIME, WRECK_FIRE_TIME, ROCKET_NOZZLE_OFFSET } from './game/constants.js';
+import { WRECK_TRANSITION_TIME, WRECK_FIRE_TIME, ROCKET_NOZZLE_OFFSET, AA_MUZZLE_TIME, AA_FLASH_TIME } from './game/constants.js';
 
 const path = (c, points, fill, stroke) => {
   c.beginPath(); points.forEach(([x,y], i) => i ? c.lineTo(x,y) : c.moveTo(x,y)); c.closePath();
@@ -11,6 +11,7 @@ const SMOKE_STOPS={
   screen:SCREEN_SMOKE_RENDER.stops,
   wreck:[[0,'#202820cc'],[.45,'#171e18aa'],[1,'#11181200']],
   explosion:[[0,'#606858cc'],[.45,'#394539aa'],[1,'#28342a00']],
+  flak:[[0,'#30342fd9'],[.45,'#42463eb0'],[1,'#30383000']],
   exhaust:[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']]
 };
 const SMOKE_SHAPES=[[1,1],[1,.78],[.78,1]],SMOKE_PUFF_SIZE=64;
@@ -25,7 +26,7 @@ export class Renderer {
   smoke(c,p,alpha=1){
     const progress=clamp(1-p.life/p.maxLife,0,1),radius=p.size*(.8+progress*1.5)*(p.screenSmoke?SCREEN_SMOKE_RENDER.radius:1);
     if(!(radius>0))return;
-    const kind=p.screenSmoke?'screen':p.exhaust?'exhaust':p.persistent?'wreck':'explosion';
+    const kind=p.screenSmoke?'screen':p.exhaust?'exhaust':p.persistent?'wreck':p.flakSmoke?'flak':'explosion';
     if(p.smokeVariant===undefined)p.smokeVariant=Math.abs(Math.floor(p.x*13+p.y*7))%SMOKE_SHAPES.length;
     const variant=((p.smokeVariant%SMOKE_SHAPES.length)+SMOKE_SHAPES.length)%SMOKE_SHAPES.length,key=`${kind}:${variant}`;
     let puff=this.smokePuffs.get(key);
@@ -245,7 +246,22 @@ export class Renderer {
     path(c,[[-9,-10],[9,-10],[16,-5],[16,5],[8,10],[-9,10],[-13,4],[-13,-4]],this.tankShade(c));
     c.fillStyle=char?'#363d30':'#b5ac7b';c.fillRect(5,-3,e.type==='artillery'?37:27,6);c.fillStyle='#4c5940';c.fillRect(e.type==='artillery'?35:27,-4,5,8);
     c.fillStyle=char?'#666959':'#d0c799';c.fillRect(8,-3,e.type==='artillery'?25:15,1);c.fillStyle=char?'#242c23':'#6a7457';c.fillRect(22,-3,2,6);
-    if(e.type==='aa'){c.fillStyle='#b5ac7b';c.fillRect(5,-10,27,4);c.fillRect(5,6,27,4);}
+    if(e.type==='aa'){
+      const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const muzzle=!e.wreck&&!char&&e.health>0?e.aaMuzzle:null;
+      for(let i=0;i<2;i++){
+        const y=i?8:-8,active=muzzle?.barrel===i&&muzzle.life>0;
+        const recoil=active&&!reduced?3*clamp(muzzle.life/AA_MUZZLE_TIME,0,1):0,tip=32-recoil;
+        c.fillStyle=char?'#555648':'#b5ac7b';c.fillRect(5-recoil,y-2,27,4);
+        if(active&&!reduced){
+          if(this.settings.effects)this.smoke(c,{x:tip+4,y,size:5,life:muzzle.life,maxLife:AA_MUZZLE_TIME,exhaust:true,smokeVariant:i},.55);
+          if(AA_MUZZLE_TIME-muzzle.life<AA_FLASH_TIME){
+            path(c,[[tip,y-3],[tip+7,y-2],[tip+12,y],[tip+7,y+2],[tip,y+3]],'#ffac58');
+            path(c,[[tip,y-1.5],[tip+8,y],[tip,y+1.5]],'#fff4bd');
+          }
+        }
+      }
+    }
     ellipse(c,-1,-1,5,5,'#5b674a');ellipse(c,-1,-1,3,3,char?'#383e32':'#87926b');c.fillStyle='#dc9a6c';c.fillRect(-4,-2,6,2);c.restore();
   }
   droneRotor(c,x,y,phase) {
@@ -370,7 +386,7 @@ export class Renderer {
       c.globalAlpha=g.player.invulnerable>0&&Math.floor(t*18)%2===0?.55:1;this.helicopter(c,g.player,t);c.globalAlpha=1;
       if(g.player.invulnerable>0){c.strokeStyle='#dbea9b40';c.lineWidth=1;c.beginPath();c.arc(g.player.x,g.player.y,43,0,TAU);c.stroke();}
     }
-    for(const p of g.particles){if(p.screenSmoke)continue;if(p.smoke){this.smoke(c,p);}else{c.globalAlpha=clamp(p.life/p.maxLife,0,1);c.strokeStyle=p.color;c.lineWidth=p.size;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);c.stroke();if(p.flare){ellipse(c,p.x,p.y,p.size*3.4,p.size*3.4,'#ff9b59aa');ellipse(c,p.x,p.y,p.size*1.8,p.size*1.8,'#fff6c4');}c.globalAlpha=1;}}c.globalAlpha=1;
+    for(const p of g.particles){if(p.screenSmoke)continue;if(p.smoke){this.smoke(c,p);}else if(p.flakFlash){c.save();c.globalAlpha=clamp(p.life/p.maxLife,0,1);const glow=c.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);glow.addColorStop(0,'#fff6d0ee');glow.addColorStop(.4,'#ff9c4ca0');glow.addColorStop(1,'#ff792600');c.fillStyle=glow;c.fillRect(p.x-p.size,p.y-p.size,p.size*2,p.size*2);c.restore();}else{c.globalAlpha=clamp(p.life/p.maxLife,0,1);c.strokeStyle=p.color;c.lineWidth=p.size;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);c.stroke();if(p.flare){ellipse(c,p.x,p.y,p.size*3.4,p.size*3.4,'#ff9b59aa');ellipse(c,p.x,p.y,p.size*1.8,p.size*1.8,'#fff6c4');}c.globalAlpha=1;}}c.globalAlpha=1;
     for(const e of g.explosions){const progress=1-e.life/e.maxLife;c.globalAlpha=(1-progress)*.75;c.strokeStyle='#ffcf8b';c.lineWidth=3*(1-progress);c.beginPath();c.arc(e.x,e.y,e.size*progress,0,TAU);c.stroke();if(progress<.4){const flash=c.createRadialGradient(e.x,e.y,0,e.x,e.y,e.size*.6);flash.addColorStop(0,'#fff6c9aa');flash.addColorStop(1,'#ffc06b00');c.fillStyle=flash;c.fillRect(e.x-e.size,e.y-e.size,e.size*2,e.size*2);}}c.globalAlpha=1;
     for(const f of g.floaters){c.globalAlpha=clamp(f.life,0,1);c.font=`bold ${f.big?19:12}px monospace`;c.fillStyle=f.color;c.textAlign='center';c.fillText(f.text,f.x,f.y);}c.globalAlpha=1;
     // Enemy arrival indicators give the pilot time to react.

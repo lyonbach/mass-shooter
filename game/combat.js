@@ -1,5 +1,6 @@
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
 import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
+import { AA_MUZZLE_TIME } from './constants.js';
 export function updateDroneVisual(e,dt,reduced=false){
   const vx=Number.isFinite(e.vx)?e.vx:0,vy=Number.isFinite(e.vy)?e.vy:0,speed=Math.hypot(vx,vy);
   const fast=e.type==='kamikaze',rate=fast?6:3.5,response=1-Math.exp(-rate*Math.max(0,dt));
@@ -60,6 +61,7 @@ function hitEnemy(e,damage,source='other'){
   const ground=e.type!=='drone'&&e.type!=='kamikaze',cannonWreck=ground&&source==='cannon'&&e.health<=0;
   if(!cannonWreck)burst(e.x,e.y,'#ebd99c',4,.5);
   if(e.health<=0){
+    delete e.aaMuzzle;
     g.kills++;g.combo=g.comboTimer>0?g.combo+1:1;g.comboTimer=4;
     const multiplier=Math.min(5,1+Math.floor(g.combo/3)),points=e.points*multiplier;g.score+=points;
     float(`+${points}${multiplier>1?' ×'+multiplier:''}`,e.x,e.y-35,'#e0efa6',multiplier>1);
@@ -107,6 +109,7 @@ function fireEnemy(e){
   const a=e.turret,p=g.player,kind=e.type,stats=ENEMIES[kind];
   if(kind==='aa'){
     if(!e.burstRemaining)e.burstRemaining=stats.shotCount;
+    e.aaMuzzle={barrel:(stats.shotCount-e.burstRemaining)%2,life:AA_MUZZLE_TIME};
     const angle=Math.random()*TAU,range=e.burstRemaining===stats.shotCount?0:Math.sqrt(Math.random())*stats.warningSpread;
     g.warnings.push({x:clamp(p.x+Math.cos(angle)*range,0,g.world.width),y:clamp(p.y+Math.sin(angle)*range,0,g.world.height),life:stats.warningDelay,radius:stats.explosionRadius,damage:stats.projectileDamage});
     e.burstRemaining--;
@@ -190,6 +193,7 @@ function update(dt){
   }else if(g.spawnRemaining>0){g.spawnTimer-=dt;if(g.spawnTimer<=0){runtime.spawnEnemy();g.spawnRemaining--;g.spawnTimer=g.plan.interval;}}
   for(const e of g.enemies){
     if(e.health<=0)continue;e.hit=Math.max(0,e.hit-dt);
+    if(e.aaMuzzle){e.aaMuzzle.life-=dt;if(e.aaMuzzle.life<=0)delete e.aaMuzzle;}
     const stats=ENEMIES[e.type],a=Math.atan2(p.y-e.y,p.x-e.x),d=distance(e,p),stop=stats.stopDistance;
     let vx=0,vy=0;
     if(d>stop){vx=Math.cos(a)*e.speed;vy=Math.sin(a)*e.speed;}
@@ -267,7 +271,7 @@ function update(dt){
   for(const mark of g.treadMarks)mark.life-=dt;g.treadMarks=g.treadMarks.filter(mark=>mark.life>0);
   for(const warning of g.warnings){
     warning.life-=dt;
-    if(warning.life<=0){explosion(warning.x,warning.y,warning.radius);if(distance(warning,p)<warning.radius+17)damagePlayer(warning.damage);if(g.state!=='playing')return;}
+    if(warning.life<=0){runtime.flakBurst(warning.x,warning.y);if(distance(warning,p)<warning.radius+17)damagePlayer(warning.damage);if(g.state!=='playing')return;}
   }
   g.warnings=g.warnings.filter(warning=>warning.life>0);
   g.pickups=g.pickups.filter(item=>{

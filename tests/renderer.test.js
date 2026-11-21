@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Renderer } from '../renderer.js';
+import { ENEMIES } from '../core.js';
 
 const linearGradient={addColorStop(){}};
 function context() {
@@ -47,6 +48,49 @@ test('screen smoke alone has denser white gradients and wider coverage',()=>{
   const widths=c.calls.filter(call=>call.name==='drawImage').map(call=>call.args[3]);
   assert.ok(widths[0]>widths[1]);assert.equal(widths[1],widths[2]);assert.equal(widths[2],widths[3]);
   assert.equal(renderer.smokePuffs.size,4);
+});
+
+test('AA muzzle flashes follow the rotating turret and the recoiling barrel tip without state mutation',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:false});
+  for(const barrel of [0,1]){
+    const c=context(),stack=[],points=[];let matrix=[1,0,0,1,0,0],current=[];
+    const multiply=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+    c.save=()=>stack.push([...matrix]);c.restore=()=>{matrix=stack.pop();};
+    c.translate=(x,y)=>{matrix=multiply(matrix,[1,0,0,1,x,y]);};
+    c.rotate=a=>{matrix=multiply(matrix,[Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0]);};
+    c.scale=(x,y)=>{matrix=multiply(matrix,[x,0,0,y,0,0]);};
+    c.beginPath=()=>{current=[];};c.moveTo=(x,y)=>current.push([matrix[0]*x+matrix[2]*y+matrix[4],matrix[1]*x+matrix[3]*y+matrix[5]]);
+    c.lineTo=c.moveTo;c.fill=()=>{if(c.fillStyle==='#ffac58')points.push(current[0]);};
+    const e={x:100,y:120,angle:.7,turret:1.9,type:'aa',health:2,maxHealth:2,aaMuzzle:{barrel,life:.24}};
+    const before=structuredClone(e),random=Math.random;Math.random=()=>{throw Error('renderer consumed RNG');};
+    try{renderer.enemy(c,e,0);}finally{Math.random=random;}
+    assert.deepEqual(e,before);assert.equal(stack.length,0);assert.equal(points.length,1);
+    const y=(barrel?8:-8)-3,s=ENEMIES.aa.scale;
+    assert.ok(Math.abs(points[0][0]-(e.x+s*(29*Math.cos(e.turret)-y*Math.sin(e.turret))))<1e-9);
+    assert.ok(Math.abs(points[0][1]-(e.y+s*(29*Math.sin(e.turret)+y*Math.cos(e.turret))))<1e-9);
+  }
+});
+test('flak smoke uses its own bounded cached palette',()=>{
+  const stops=[],document={createElement:()=>{const pc=context();pc.createRadialGradient=()=>({addColorStop:(...args)=>stops.push(args)});return{getContext:()=>pc};}};
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true}),c=context();
+  for(let i=0;i<30;i++)renderer.smoke(c,{x:1,y:2,size:10,life:1,maxLife:2,flakSmoke:true,smokeVariant:i%3});
+  assert.equal(renderer.smokePuffs.size,3);assert.equal(stops[0][1],'#30342fd9');assert.ok(stops[2][1].endsWith('00'));
+  assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+});
+test('AA recoil returns smoothly and reduced motion suppresses the muzzle flash',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:false}),e={x:0,y:0,angle:0,turret:0,type:'aa',health:2,maxHealth:2,aaMuzzle:{barrel:0,life:.24}};
+  const positions=[];
+  for(const life of [.24,.12,.01]){
+    const c=context();renderer.enemy(c,{...e,aaMuzzle:{barrel:0,life}},0);
+    positions.push(c.calls.find(call=>call.name==='fillRect'&&call.args[1]===-10&&call.args[2]===27).args[0]);
+  }
+  assert.ok(positions[0]<positions[1]&&positions[1]<positions[2]&&positions[2]<5);
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{
+    const c=context();renderer.enemy(c,e,0);
+    assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.args[0]===5&&call.args[1]===-10&&call.args[2]===27));
+    assert.equal(c.calls.some(call=>call.fillStyle==='#ffac58'),false);
+  }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
 });
 
 test('missile flame starts at ignition and both factions use procedural silhouettes',()=>{
