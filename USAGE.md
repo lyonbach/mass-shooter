@@ -57,6 +57,9 @@ while scrolling through the parameter table.
 - **Chance parameters:** Values such as `heavyChance` and `debrisChance` range
   from `0` to `1`. For example, `0.25` means a 25% chance. Their variation is
   fixed at zero.
+- **Decay:** For low health and alert, this positive ratio scales the warning
+  sequence's layer durations and spacing; for flare it scales layer durations.
+  `1` preserves the default timing. It does not change gain or pitch.
 
 ## Playback controls
 

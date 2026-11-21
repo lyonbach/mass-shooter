@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { SOUND_DATA } from '../audio/sound-data.js';
-import { parseSounds, serializeSounds, validateParameter } from '../audio/sound-csv.js';
+import { SOUND_PARAMETERS, parseSounds, serializeSounds, validateParameter } from '../audio/sound-csv.js';
 import { buildSounds } from '../scripts/build-sounds.mjs';
 
 test('unmodified editor export preserves the full CSV exactly', async () => {
@@ -16,6 +16,7 @@ test('unmodified editor export preserves the full CSV exactly', async () => {
 
 test('multi-effect edits round trip with units and metadata intact', () => {
     const data = structuredClone(SOUND_DATA);
+    const originalDuration = SOUND_DATA.shot.noiseDuration.value;
     data.shot.noiseDuration.value = 0.17;
     data.shot.noiseDuration.spread = 0.23;
     data.shot.spatial = false;
@@ -26,8 +27,9 @@ test('multi-effect edits round trip with units and metadata intact', () => {
     assert.deepEqual(parsed, data);
     assert.equal(Object.keys(parsed).length, 18);
     assert.equal(csv.split('\n')[1], 'shot,noiseDuration,0.17,0.23,false,128,duration');
-    assert.match(csv, /shot,noiseGain,0.24,0,,,gain/);
-    assert.equal(SOUND_DATA.shot.noiseDuration.value, 0.09);
+    const { value, spread, unit } = SOUND_DATA.shot.noiseGain;
+    assert.ok(csv.split('\n').includes(`shot,noiseGain,${value},${spread},,,${unit}`));
+    assert.equal(SOUND_DATA.shot.noiseDuration.value, originalDuration);
 });
 
 test('parameter validator rejects unsafe values and invalid chance distributions', () => {
@@ -38,6 +40,28 @@ test('parameter validator rejects unsafe values and invalid chance distributions
     assert.ok(validateParameter('heavyChance', {value:0.5, spread:0.1, unit:'ratio'}));
     assert.equal(validateParameter('heavyChance', {value:1, spread:0, unit:'ratio'}), '');
     assert.equal(validateParameter('noiseGain', {value:0, spread:0.99, unit:'gain'}), '');
+});
+
+test('new decay controls round trip and reject zero only for the requested effects', async () => {
+    const text = await readFile(new URL('../sounds.csv', import.meta.url), 'utf8');
+    const data = structuredClone(SOUND_DATA);
+    for (const key of ['lowHealth','alert','flare']) {
+        assert.ok(SOUND_PARAMETERS[key].split(' ').includes('decay'));
+        assert.deepEqual(data[key].decay, {value:1,spread:0,unit:'ratio'});
+        assert.match(validateParameter('decay', {value:0,spread:0,unit:'ratio'}, key), /positive/);
+        const lines = text.split('\n'), index = lines.findIndex(line => line.startsWith(`${key},decay,`));
+        assert.ok(index > 0);
+        const cells = lines[index].split(',');
+        cells[2] = '0'; lines[index] = cells.join(',');
+        assert.throws(() => parseSounds(lines.join('\n')), /Decay must be positive/);
+        data[key].decay.value = 0;
+        assert.throws(() => serializeSounds(data), /Decay must be positive/);
+        data[key].decay.value = 2;
+        data[key].decay.spread = 0.25;
+    }
+    assert.deepEqual(parseSounds(serializeSounds(data)), data);
+    assert.equal(validateParameter('decay', {value:0,spread:0,unit:'ratio'}, 'rocket'), '');
+    assert.equal(validateParameter('pitch', {value:0,spread:0,unit:'ratio'}, 'flare'), '');
 });
 
 test('serializer rejects incomplete and invalid data instead of producing broken CSV', () => {
