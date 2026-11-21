@@ -20,23 +20,34 @@ function canvasDocument(){
   return {created,stops,createElement:()=>{const pc=context();pc.createRadialGradient=(...args)=>{pc.calls.push({name:'createRadialGradient',args});return{addColorStop:(...stop)=>stops.push(stop)};};const canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
 }
 
-test('ordinary bullets retain base stroke geometry, color and width; tracers use a cached gradient',()=>{
+test('ordinary bullets retain base stroke and tracers share its geometry with a bounded glow',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
   for(const [vx,vy] of [[0,-5],[3,4],[-5,0],[0,0]]){
-    const b={x:10,y:20,vx,vy,friendly:true,kind:'gun',tracer:false},round=context(),sp=Math.hypot(vx,vy)||1;
+    const b={x:10,y:20,vx,vy,friendly:true,kind:'gun',tracer:false},round=context(),traced=context(),sp=Math.hypot(vx,vy)||1;
     renderer.bullet(round,b);
+    renderer.gunProjectile(traced,{...b,tracer:true});
     assert.deepEqual(round.calls.map(call=>call.name),['beginPath','moveTo','lineTo','stroke']);
     assert.deepEqual(round.calls[1].args,[10-vx/sp*20,20-vy/sp*20]);
     assert.deepEqual(round.calls[2].args,[10,20]);
     assert.equal(round.calls[3].strokeStyle,'#f4f1ab');assert.equal(round.calls[3].lineWidth,2);assert.equal(round.calls[3].lineCap,'round');
+    for(const name of ['moveTo','lineTo']){
+      assert.deepEqual(traced.calls.filter(call=>call.name===name).at(-1).args,round.calls.find(call=>call.name===name).args);
+    }
+    const stroke=traced.calls.find(call=>call.name==='stroke');
+    assert.equal(stroke.strokeStyle,'#ffe0a1');assert.equal(stroke.lineWidth,2);assert.equal(stroke.lineCap,'round');
+    assert.deepEqual(traced.calls.find(call=>call.name==='drawImage').args.slice(1),[-23,-3,26,6]);
   }
-  const tracer={x:10,y:20,vx:0,vy:-5,tracer:true};
+  const tracer={x:10,y:20,vx:0,vy:-5,friendly:true,kind:'gun',tracer:true};
   for(let i=0;i<20;i++)renderer.gunProjectile(c,tracer);
   assert.equal(c.calls.find(call=>call.name==='rotate').args[0],-Math.PI/2);
   assert.equal(document.created.length,1);
   assert.equal(c.calls.filter(call=>call.name==='drawImage').length,20);
   assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
-  assert.deepEqual(tracer,{x:10,y:20,vx:0,vy:-5,tracer:true});
+  assert.deepEqual(tracer,{x:10,y:20,vx:0,vy:-5,friendly:true,kind:'gun',tracer:true});
+  renderer.settings.effects=false;
+  const low=context();renderer.gunProjectile(low,tracer);
+  assert.equal(low.calls.filter(call=>call.name==='drawImage').length,0);
+  assert.equal(low.calls.find(call=>call.name==='stroke').strokeStyle,'#ffe0a1');
 });
 
 test('draw dispatches only tracer gun rounds to the special renderer',()=>{
@@ -87,17 +98,19 @@ test('flare lifetime and arbitrary particle counts use bounded texture allocatio
   assert.equal(low.calls.filter(call=>call.name==='drawImage').length,1);
 });
 
-test('player muzzle matches the base oval bounds, timing and soft gradient',()=>{
+test('player muzzle matches 5678270 burst geometry, gradients, placement and timing',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
   renderer.playerMuzzle(c,{muzzle:.04,muzzleSmoke:.22});
   assert.equal(c.calls.filter(call=>call.name==='drawImage').length,2);
-  const flash=renderer.launchFlame;
-  assert.deepEqual(flash.pc.calls.find(call=>call.name==='createRadialGradient').args,[32,32,0,32,32,32]);
-  assert.deepEqual(c.calls.filter(call=>call.name==='drawImage').at(-1).args.slice(1),[38.4,-9.9,28.8,19.8]);
-  assert.ok(document.stops.some(([stop,color])=>stop===0&&color.startsWith('#fff')));
-  assert.ok(document.stops.some(([stop,color])=>stop===1&&color.endsWith('00')));
+  const flash=renderer.playerFlash;
+  assert.equal(flash.width,100);assert.equal(flash.height,48);
+  assert.deepEqual(flash.pc.calls.find(call=>call.name==='createRadialGradient').args,[57,0,1,57,0,34]);
+  assert.deepEqual(flash.pc.calls.filter(call=>['moveTo','lineTo'].includes(call.name)).slice(0,4).map(call=>call.args),[[42,-10],[88,0],[42,10],[56,0]]);
+  assert.deepEqual(flash.pc.calls.filter(call=>call.name==='translate').map(call=>call.args),[[-40,12],[-.6,0],[.6,0],[0,-.6],[0,.6]]);
+  assert.deepEqual(document.stops.slice(-4),[[0,'#fffbe0ff'],[.24,'#ffe9a6ed'],[.58,'#ff9b4ac0'],[1,'#b7392300']]);
+  assert.deepEqual(c.calls.filter(call=>call.name==='drawImage').at(-1).args.slice(1),[40,-12,50,24]);
   const firing=context();renderer.playerMuzzle(firing,{muzzle:.001,muzzleSmoke:0});
-  assert.equal(firing.calls.filter(call=>call.name==='drawImage').length,2);
+  assert.equal(firing.calls.filter(call=>call.name==='drawImage').length,1);
   const cooling=context();renderer.playerMuzzle(cooling,{muzzle:0,muzzleSmoke:.1});
   assert.equal(cooling.calls.filter(call=>call.name==='drawImage').length,1);
   const settled=context();renderer.playerMuzzle(settled,{muzzle:0,muzzleSmoke:0});
@@ -315,7 +328,7 @@ test('cannon is half-sized and fires from its barrel tip',()=>{
   renderer.helicopter(c,{x:100,y:100,angle:0,cannonAngle:Math.PI/2,bank:0,pitch:0,muzzle:1},0);
   assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===20&&call.args[1]===0));
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.5&&call.args[1]===.5));
-  assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame&&call.args[1]===38.4));
+  assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.playerFlash&&call.args[1]===40));
 });
 
 test('helicopter strobe lights flash once every two seconds',()=>{

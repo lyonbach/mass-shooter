@@ -29,23 +29,19 @@ function document(){
 const point=(m,x,y)=>[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];
 function near(actual,expected){assert.ok(Math.abs(actual-expected)<1e-8,`${actual} != ${expected}`);}
 
-test('gun barrel and muzzle preserve base hull-relative transform through bank, pitch and headings',()=>{
+test('gun barrel and muzzle preserve 5678270 firing-axis transform through bank, pitch and headings',()=>{
   const doc=document(),renderer=new Renderer({getContext:()=>context(),ownerDocument:doc},{effects:true});
   for(const angle of [0,.9,-2.1])for(const cannonAngle of [-2.4,.5,2.2])for(const bank of [-.3,0,.3]){
     const c=context(),p={x:170,y:80,angle,cannonAngle,bank,pitch:.2,muzzle:.04,muzzleSmoke:.1};
     const before=structuredClone(p);
     renderer.helicopter(c,p,.7);
     const tip=c.calls.find(call=>call.name==='fillRect'&&call.style==='#e0e5b9');
-    const flash=c.calls.find(call=>call.name==='drawImage'&&call.args[0]===renderer.launchFlame);
+    const flash=c.calls.find(call=>call.name==='drawImage'&&call.args[0]===renderer.playerFlash);
     assert.ok(tip&&flash);
-    const delta=cannonAngle-angle,pose=bank*.45;
-    const localX=(20+21*Math.cos(delta))*(1-Math.abs(p.pitch)*.3),localY=21*Math.sin(delta)*(1-Math.abs(bank)*.5);
-    const hullX=p.pitch*30+localX*Math.cos(pose)-localY*Math.sin(pose);
-    const hullY=bank*30+localX*Math.sin(pose)+localY*Math.cos(pose);
     for(const matrix of [tip.matrix,flash.matrix]){
       const [x,y]=point(matrix,42,0);
-      near(x,p.x+hullX*Math.cos(angle)-hullY*Math.sin(angle));
-      near(y,p.y+hullX*Math.sin(angle)+hullY*Math.cos(angle));
+      near(x,p.x+41*Math.cos(cannonAngle));
+      near(y,p.y+41*Math.sin(cannonAngle));
     }
     assert.deepEqual(flash.matrix,tip.matrix);
     assert.deepEqual(p,before);assert.equal(c.stack.length,0);

@@ -1963,26 +1963,29 @@ class Renderer {
     }
     return this.launchFlame;
   }
-  streakTexture(){
-    if(!this.streak){
+  tracerGlowTexture(){
+    if(!this.tracerGlow){
       const canvas=(this.canvas.ownerDocument||document).createElement('canvas');
-      canvas.width=64;canvas.height=16;
-      const pc=canvas.getContext('2d'),gradient=pc.createLinearGradient(0,0,64,0);
-      gradient.addColorStop(0,'#a32a1a00');gradient.addColorStop(.55,'#e75b2b66');
-      gradient.addColorStop(.85,'#ffb255c0');gradient.addColorStop(1,'#fff2c0e0');
-      path(pc,[[0,8],[60,3],[64,8],[60,13]],gradient);
-      this.streak=canvas;
+      canvas.width=78;canvas.height=18;
+      const pc=canvas.getContext('2d');
+      pc.strokeStyle='#ffae5960';pc.lineWidth=6;pc.lineCap='round';
+      pc.shadowColor='#ffae59';pc.shadowBlur=6;
+      pc.beginPath();pc.moveTo(9,9);pc.lineTo(69,9);pc.stroke();
+      this.tracerGlow=canvas;
     }
-    return this.streak;
+    return this.tracerGlow;
   }
   gunProjectile(c,b){
-    c.save();c.translate(b.x,b.y);c.rotate(Math.atan2(b.vy,b.vx));
-    c.drawImage(this.streakTexture(),-20,-3,23,6);
-    c.fillStyle='#fff3c4';c.fillRect(-3,-.6,4,1.2);
+    c.save();
+    if(this.settings.effects){
+      c.save();c.translate(b.x,b.y);c.rotate(Math.atan2(b.vy,b.vx));
+      c.drawImage(this.tracerGlowTexture(),-23,-3,26,6);c.restore();
+    }
+    this.bullet(c,b,'#ffe0a1');
     c.restore();
   }
-  bullet(c,b){
-    c.strokeStyle=b.friendly?'#f4f1ab':'#ffac77';c.lineWidth=b.friendly?2:3;c.lineCap='round';c.beginPath();const len=b.friendly?20:13,sp=Math.hypot(b.vx,b.vy)||1;c.moveTo(b.x-b.vx/sp*len,b.y-b.vy/sp*len);c.lineTo(b.x,b.y);c.stroke();if(!b.friendly)ellipse(c,b.x,b.y,3,3,'#ffd2a5');
+  bullet(c,b,color){
+    c.strokeStyle=color||(b.friendly?'#f4f1ab':'#ffac77');c.lineWidth=b.friendly?2:3;c.lineCap='round';c.beginPath();const len=b.friendly?20:13,sp=Math.hypot(b.vx,b.vy)||1;c.moveTo(b.x-b.vx/sp*len,b.y-b.vy/sp*len);c.lineTo(b.x,b.y);c.stroke();if(!b.friendly)ellipse(c,b.x,b.y,3,3,'#ffd2a5');
   }
   flareTexture(){
     if(!this.flareGlow){
@@ -2011,9 +2014,29 @@ class Renderer {
       c.drawImage(this.weaponFlameTexture(),tip-size*.2,-size*.55,size*1.6,size*1.1);c.restore();
     }
   }
+  playerMuzzleTexture(){
+    if(!this.playerFlash){
+      const canvas=(this.canvas.ownerDocument||document).createElement('canvas');
+      canvas.width=100;canvas.height=48;
+      const pc=canvas.getContext('2d');
+      pc.scale(2,2);pc.translate(-40,12);
+      const gradient=pc.createRadialGradient(57,0,1,57,0,34);
+      gradient.addColorStop(0,'#fffbe0ff');gradient.addColorStop(.24,'#ffe9a6ed');
+      gradient.addColorStop(.58,'#ff9b4ac0');gradient.addColorStop(1,'#b7392300');
+      const shape=[[42,-10],[88,0],[42,10],[56,0]];
+      for(const [x,y] of [[-.6,0],[.6,0],[0,-.6],[0,.6]]){
+        pc.save();pc.translate(x,y);pc.globalAlpha=.16;path(pc,shape,gradient);pc.restore();
+      }
+      path(pc,shape,gradient);
+      this.playerFlash=canvas;
+    }
+    return this.playerFlash;
+  }
   playerMuzzle(c,p){
-    const life=p.muzzleSmoke||((p.muzzle>0)?WEAPON_MUZZLE_TIME:0);
-    this.muzzleEffect(c,life,42,18,p.muzzle>0?WEAPON_MUZZLE_TIME:0);
+    const life=p.muzzleSmoke||0;
+    if(this.settings.effects&&life>0)this.smoke(c,{x:48,y:0,size:5,life,maxLife:WEAPON_MUZZLE_TIME,exhaust:true,smokeVariant:0},.4);
+    if(!(p.muzzle>0))return;
+    c.drawImage(this.playerMuzzleTexture(),40,-12,50,24);
   }
   launcherIgnition(c,life){
     const texture=this.weaponFlameTexture();
@@ -2147,6 +2170,17 @@ class Renderer {
       c.save();c.translate(-5,0);c.rotate(reduced?0:t*49);c.fillStyle='#0b170c24';c.fillRect(-48,-2,96,4);c.restore();
       c.restore();
     }
+    // The gun is anchored to the simulated firing axis, not the cosmetic hull pose.
+    c.save();c.rotate(p.cannonAngle??p.angle);c.translate(20,0);c.scale(.5,.5);
+    if(ghost)c.globalAlpha*=.3;
+    c.fillStyle='#4c5940';c.fillRect(-4,-5,26,10);c.fillStyle='#b5ac7b';c.fillRect(17,-2,25,4);c.fillStyle='#303d32';c.fillRect(-7,-3,8,6);c.fillStyle='#e0e5b9';c.fillRect(39,-1,3,2);
+    if(heat>0){c.save();c.globalAlpha*=heat*.75;c.fillStyle='#e78955';c.fillRect(27,-2,13,4);c.restore();}
+    if(!ghost&&!reduced&&this.settings.effects&&canCache&&heat>.1){
+      this.smoke(c,{x:46+heat*5,y:Math.sin(t*2)*2,size:2+heat*2,life:.5,maxLife:1,exhaust:true,smokeVariant:2},heat*.24);
+    }
+    if(!ghost&&!reduced&&canCache)this.playerMuzzle(c,p);
+    c.restore();
+
     c.save();
     c.rotate(p.angle);
     c.translate(pitch*30,bank*30);
@@ -2165,14 +2199,6 @@ class Renderer {
     path(c,[[-22,-4],[-61,-2],[-65,0],[-22,1]],'#9aa98b');
     path(c,[[-36,1],[-61,2],[-65,0],[-36,4]],'#526b59');
     path(c,[[-52,-3],[-61,-18],[-66,-18],[-63,0],[-62,17],[-55,17]],'#81947b');
-    c.save();c.translate(20,0);c.rotate((p.cannonAngle??p.angle)-p.angle);c.scale(.5,.5);
-    c.fillStyle='#4c5940';c.fillRect(-4,-5,26,10);c.fillStyle='#b5ac7b';c.fillRect(17,-2,25,4);c.fillStyle='#303d32';c.fillRect(-7,-3,8,6);c.fillStyle='#e0e5b9';c.fillRect(39,-1,3,2);
-    if(heat>0){c.save();c.globalAlpha*=heat*.75;c.fillStyle='#e78955';c.fillRect(27,-2,13,4);c.restore();}
-    if(!ghost&&!reduced&&this.settings.effects&&canCache&&heat>.1){
-      this.smoke(c,{x:46+heat*5,y:Math.sin(t*2)*2,size:2+heat*2,life:.5,maxLife:1,exhaust:true,smokeVariant:2},heat*.24);
-    }
-    if(!ghost&&!reduced&&canCache)this.playerMuzzle(c,p);
-    c.restore();
     for(const side of [-1,1]){
       c.save();c.scale(1,side);
       path(c,[[-18,10],[5,11],[17,20],[13,24],[-18,23],[-22,17]],'#334b3c','#bfca9e99');
