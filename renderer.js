@@ -35,10 +35,15 @@ export function wreckFireState(d){
 }
 
 export class Renderer {
-  constructor(canvas, settings) { this.canvas=canvas; this.ctx=canvas.getContext('2d',{alpha:false}); this.settings=settings; this.smokePuffs=new Map(); this.tankShades=new WeakMap(); }
+  constructor(canvas, settings) { this.canvas=canvas; this.ctx=canvas.getContext('2d',{alpha:false}); this.settings=settings; this.smokePuffs=new Map(); this.tankShades=new WeakMap(); this.cockpitShades=new WeakMap(); }
   tankShade(c){
     let shade=this.tankShades.get(c);
     if(!shade){shade=c.createLinearGradient(0,-16,0,16);shade.addColorStop(0,'#ffffff25');shade.addColorStop(.5,'#ffffff00');shade.addColorStop(1,'#10181055');this.tankShades.set(c,shade);}
+    return shade;
+  }
+  cockpitShade(c){
+    let shade=this.cockpitShades.get(c);
+    if(!shade){shade=c.createLinearGradient(10,-10,26,8);shade.addColorStop(0,'#83a79555');shade.addColorStop(.55,'#52796a18');shade.addColorStop(1,'#263e3500');this.cockpitShades.set(c,shade);}
     return shade;
   }
   smoke(c,p,alpha=1){
@@ -306,9 +311,9 @@ export class Renderer {
     if(ghost)c.globalAlpha*=.3;
     if(!ghost&&!reduced&&this.settings.effects&&canCache){
       for(const side of [-1,1]){
-        this.smoke(c,{x:-34-speed*8-2*Math.sin(t*2+side),y:side*8,size:3+speed*3,life:.5,maxLife:1,exhaust:true,smokeVariant:side<0?0:1},.08+speed*.16);
-        c.strokeStyle='#e2bc8944';c.lineWidth=.8;c.beginPath();c.moveTo(-27,side*9);
-        c.bezierCurveTo(-31,side*9+Math.sin(t*3+side),-35,side*8-Math.sin(t*3+side),-40,side*8);c.stroke();
+        c.save();c.translate(-27,side*9);c.scale(1.7,.45);
+        this.smoke(c,{x:-4-speed*1.5,y:Math.sin(t*2+side)*.3,size:2.6+speed*1.2,life:.5,maxLife:1,exhaust:true,smokeVariant:side<0?0:1},.1+speed*.12);
+        c.restore();
       }
     }
     // Tail boom, stabilizers, armored pylons and engine housings.
@@ -318,7 +323,7 @@ export class Renderer {
     path(c,[[-52,-3],[-61,-18],[-66,-18],[-63,0],[-62,17],[-55,17]],'#81947b');
     for(const side of [-1,1]){
       c.save();c.scale(1,side);
-      path(c,[[-18,10],[5,11],[17,20],[13,24],[-18,23],[-22,17]],'#334b3c','#bfca9e99');
+      path(c,[[-18,10],[5,11],[17,20],[13,24],[-18,23],[-22,17]],'#334b3c','#70896e77');
       path(c,[[-17,13],[4,13],[13,19],[-15,20]],'#9ba985');
       path(c,[[-15,20],[13,20],[11,23],[-17,22]],'#61795e');
       c.fillStyle='#283d33';c.fillRect(-16,15,36,4);
@@ -327,39 +332,37 @@ export class Renderer {
       c.fillStyle='#364b3c';c.fillRect(10,18,3,5);
       c.restore();
     }
-    for(const side of [-1,1]){
-      c.fillStyle='#303f32';c.fillRect(-27,side<0?-8:5,5,3);
-      c.fillStyle='#b1b797';c.fillRect(-26,side<0?-7:6,1,1);c.fillRect(-24,side<0?-7:6,1,1);
-    }
     path(c,[[-25,-9],[-17,-15],[12,-14],[30,-7],[35,0],[28,9],[11,14],[-18,13],[-26,6]],'#8b9a78','#c1cba460');
     path(c,[[-24,0],[-19,10],[-13,12],[10,12],[26,7],[31,2]],'#687e62');
+    path(c,[[-21,-9],[-14,-13],[9,-12],[21,-8],[9,-6],[-12,-6]],'#b4c29b33');
+    path(c,[[-23,7],[-17,12],[10,12],[25,7],[12,14],[-18,13]],'#3e594855');
     path(c,[[-21,-8],[-11,-11],[4,-10],[4,10],[-13,11],[-21,5]],'#657b61','#b4c39c55');
     path(c,[[-20,-8],[-12,-11],[3,-10],[5,-4],[-16,-3]],'#a4b18b');
     path(c,[[-19,2],[4,3],[2,9],[-14,10],[-20,6]],'#4f6b55');
     for(const side of [-1,1]){
       c.save();c.scale(1,side);
-      path(c,[[-26,7],[-22,14],[-8,16],[1,12],[1,9],[-5,7]],'#344c3e','#bcc99f99');
-      path(c,[[-23,8],[-20,12],[-9,13],[-4,10],[-6,8]],'#9aa987');
-      path(c,[[-21,13],[-9,14],[-5,13],[-8,16],[-20,15]],'#61795e');
-      c.fillStyle='#273b31';c.fillRect(-26,8,4,4);
-      c.fillStyle='#b78053';c.globalAlpha*=.6;c.fillRect(-27,9,2,2);
+      path(c,[[-19,10],[4,10],[7,13],[-17,13]],'#263d3155');
+      path(c,[[-26,8],[-22,15],[-8,17],[2,13],[2,10],[-5,7]],'#253d3055');
+      path(c,[[-26,7],[-22,14],[-8,16],[1,12],[1,9],[-5,7]],'#526b56','#3b5342');
+      path(c,[[-23,8],[-20,12],[-9,13],[-3,10],[-6,8]],'#9aa987');
+      path(c,[[-21,12],[-9,13],[-3,10],[-8,15],[-20,14]],'#657d63');
+      path(c,[[-21,9],[-17,9],[-16,11],[-20,11]],'#2c4235');
+      path(c,[[-26,8],[-23,8],[-22,11],[-25,12]],'#283b30');
       c.restore();
     }
     c.fillStyle='#435a46';for(let x=-18;x<=-12;x+=3)c.fillRect(x,3,1,4);
-    path(c,[[7,-12],[24,-9],[32,-4],[35,0],[32,4],[24,9],[7,12],[9,0]],'#435b4c','#b9c9a477');
-    path(c,[[10,-10],[24,-7],[30,-2],[11,-2]],'#263e35','#bbd9b144');
-    path(c,[[11,2],[30,2],[24,7],[10,10]],'#2e4c3d','#bbd9b144');
-    path(c,[[12,-9],[21,-7],[25,-4],[13,-4]],'#7aa18a66');
-    path(c,[[12,4],[24,4],[20,6],[12,8]],'#7aa18a44');
+    path(c,[[7,-12],[24,-9],[32,-4],[35,0],[32,4],[24,9],[7,12],[9,0]],'#344e40');
+    path(c,[[9,-10],[23,-8],[30,-4],[33,0],[30,4],[23,8],[9,10],[10,0]],'#263e35');
+    path(c,[[9,-10],[23,-8],[30,-4],[33,0],[30,4],[23,8],[9,10],[10,0]],this.cockpitShade(c));
     c.fillStyle='#b5c096';c.fillRect(-8,-10,3,20);c.fillStyle='#3c503f';c.fillRect(-14,-7,5,14);
     c.fillStyle='#d2d7ad';c.fillRect(4,-12,1,2);c.fillRect(4,10,1,2);
     c.save();c.translate(-62,0);const rotorPhase=reduced?0:Math.abs(Math.sin(t*42));ellipse(c,0,0,15+4*rotorPhase,2+rotorPhase,'#d8dfb699');c.save();c.rotate(reduced?0:Math.sin(t*42)*.12);ellipse(c,0,0,13+3*rotorPhase,1,'#aebd9a88');c.restore();c.fillStyle='#455240';c.fillRect(-3,-2,6,4);c.restore();
     c.save();c.translate(-5,0);c.rotate(reduced?0:t*49);
-    c.strokeStyle='#e7eed92c';c.lineWidth=2;c.beginPath();c.arc(0,0,45,0,TAU);c.stroke();
-    c.strokeStyle='#dce8ca55';c.lineWidth=3;c.beginPath();
+    c.strokeStyle='#e7eed914';c.lineWidth=2;c.beginPath();c.arc(0,0,45,0,TAU);c.stroke();
+    c.strokeStyle='#dce8ca38';c.lineWidth=3;c.beginPath();
     for(let i=0;i<4;i++){const a=i*Math.PI/2+.1;c.moveTo(42*Math.cos(a),42*Math.sin(a));c.arc(0,0,42,a,a+.55);}
     c.stroke();
-    for(let i=0;i<4;i++){c.rotate(Math.PI/2);path(c,[[0,-2],[46,-3],[44,0],[0,2]],'#e2e7cc99');}
+    for(let i=0;i<4;i++){c.rotate(Math.PI/2);path(c,[[0,-2],[46,-3],[44,0],[0,2]],'#e2e7cc70');}
     ellipse(c,0,0,5,5,'#374e3e');ellipse(c,-1,-1,2,2,'#c3caa9');c.restore();
     if(reduced||Math.sin(t*5)>0)ellipse(c,-51,0,2,2,'#f7a26d');ellipse(c,1,-19,1.5,1.5,'#c1ed95');
     if(!ghost&&!reduced&&t%2<.12){ellipse(c,18,-18,3,3,'#ffffff');ellipse(c,18,18,3,3,'#ff5d52');}
