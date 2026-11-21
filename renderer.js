@@ -206,6 +206,7 @@ export class Renderer {
       path(c,[[-4,3],[-4,-4],[-1,-12],[1,-6],[4,-13],[5,1]],'#f48931');
       path(c,[[-2,3],[-2,-3],[0,-8],[2,-3],[3,2]],'#ffe09a');
       if(!reduced){ellipse(c,5+Math.sin(age*3+seed+i)*4,-16-(age*10+i*7)%12,1.3,1.8,'#ffc66d');}
+      if(!reduced&&this.settings.effects&&i===0&&d.sparkTimer>1.5+(seed||0)*.25-.12)ellipse(c,2,-5,5,4,'#fff0ad');
       c.restore();
     }
     c.restore();

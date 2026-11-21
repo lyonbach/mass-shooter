@@ -66,7 +66,7 @@ function hitEnemy(e,damage,source='other'){
     if(ground){
       const vx=cannonWreck?(e.vx||0):0,vy=cannonWreck?(e.vy||0):0;
       const wreck={...e,wreck:true,age:0,burnTime:WRECK_FIRE_TIME,transition:cannonWreck,vx,vy,initialVx:vx,initialVy:vy};
-      g.decals.push(wreck);if(g.decals.length>55)g.decals.shift();
+      g.decals.push(wreck);if(g.decals.length>55){const removed=g.decals.shift();g.wreckSmoke=g.wreckSmoke.filter(source=>source.wreck!==removed);}
       const smoke={x:e.x,y:e.y,life:WRECK_SMOKE_TIME,timer:0,wreck};
       g.wreckSmoke.push(smoke);runtime.emitWreckSmoke(smoke);
     }

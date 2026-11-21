@@ -130,4 +130,8 @@ test('wrecks blend matching poses into charred silhouettes with layered fire and
   const low=new Renderer({getContext:()=>context()},{effects:false}),c=context();
   low.wreck(c,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:0,burnTime:14});
   assert.equal(c.calls.filter(call=>call.name==='fill'&&call.fillStyle==='#b83f20').length,1);
+  const state=context(),stack=[];state.globalAlpha=.7;
+  state.save=()=>stack.push(state.globalAlpha);state.restore=()=>{state.globalAlpha=stack.pop();};
+  low.wreck(state,{x:0,y:0,angle:0,type:'tank',wreck:true,transition:true,age:1,burnTime:10});
+  assert.equal(state.globalAlpha,.7);assert.equal(stack.length,0);
 });
