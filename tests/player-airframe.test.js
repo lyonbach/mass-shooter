@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Renderer } from '../renderer.js';
+import { ENEMIES } from '../core.js';
 
 const linearGradient={addColorStop(){}};
 function context(){
@@ -11,8 +12,8 @@ function context(){
     matrix=[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
   };
   const c=new Proxy({calls,stack,globalAlpha:1,fillStyle:'',strokeStyle:'',
-    save(){stack.push({matrix:[...matrix],alpha:c.globalAlpha});},
-    restore(){const state=stack.pop();assert.ok(state);matrix=state.matrix;c.globalAlpha=state.alpha;},
+    save(){stack.push({matrix:[...matrix],alpha:c.globalAlpha,fillStyle:c.fillStyle,strokeStyle:c.strokeStyle,lineWidth:c.lineWidth,lineJoin:c.lineJoin});},
+    restore(){const state=stack.pop();assert.ok(state);matrix=state.matrix;c.globalAlpha=state.alpha;c.fillStyle=state.fillStyle;c.strokeStyle=state.strokeStyle;c.lineWidth=state.lineWidth;c.lineJoin=state.lineJoin;},
     translate(x,y){multiply([1,0,0,1,x,y]);},
     rotate(a){multiply([Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0]);},
     scale(x,y){multiply([x,0,0,y,0,0]);},
@@ -21,6 +22,7 @@ function context(){
     lineTo(...args){path.push(args);},
     closePath(){},
     fill(){calls.push({name:'fill',path:[...path],matrix:[...matrix],style:c.fillStyle});},
+    ellipse(...args){calls.push({name:'ellipse',args,matrix:[...matrix],style:c.fillStyle});},
     fillRect(...args){calls.push({name:'fillRect',args,matrix:[...matrix],style:c.fillStyle});},
     drawImage(...args){calls.push({name:'drawImage',args,matrix:[...matrix],alpha:c.globalAlpha});},
     stroke(){calls.push({name:'stroke',style:c.strokeStyle});},
@@ -101,6 +103,66 @@ test('approved ordinary and tracer round colors remain unchanged',()=>{
   assert.equal(tracer.calls.find(call=>call.name==='stroke').style,'#ff7043');
   assert.deepEqual(tracer.calls.find(call=>call.name==='drawImage').args.slice(1),[-23,-3,26,6]);
   assert.equal(ordinary.stack.length,0);assert.equal(tracer.stack.length,0);
+});
+
+test('ground vehicle shadows keep a fixed world offset and projection at every heading',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:false});
+  const random=Math.random;Math.random=()=>{throw Error('renderer used gameplay RNG');};
+  try{
+    for(const type of ['tank','artillery','aa','rocketSemi','boss'])for(const angle of [0,Math.PI/2,-2.1]){
+      const e={x:170,y:80,angle,turret:angle,type,health:1,maxHealth:1},before=structuredClone(e),c=context();
+      renderer.enemy(c,e,.4);
+      const shadow=c.calls.filter(call=>call.name==='fillRect'&&call.style==='#14231655');
+      assert.equal(shadow.length,1);
+      const m=shadow[0].matrix,s=ENEMIES[type].scale;
+      near(m[4],173);near(m[5],84);
+      near(m[0],s*Math.cos(angle));near(m[1],s*.9*Math.sin(angle));
+      near(m[2],-s*Math.sin(angle));near(m[3],s*.9*Math.cos(angle));
+      assert.deepEqual(e,before);assert.equal(c.stack.length,0);
+    }
+  }finally{Math.random=random;}
+});
+
+test('aircraft shadows keep world projection axes and follow visible helicopter pose without flicker',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:false});
+  for(const angle of [0,Math.PI/2,-2.1])for(const [bank,pitch] of [[0,0],[.3,.2],[-.3,-.2]]){
+    const p={x:170,y:80,angle,bank,pitch},before=structuredClone(p),a=context(),b=context();
+    renderer.helicopter(a,p,.4);renderer.helicopter(b,p,1.2);
+    const shadow=c=>c.calls.find(call=>call.name==='fill'&&call.style==='#0b170c30');
+    const m=shadow(a).matrix,theta=angle+bank*.45,sx=1-Math.abs(pitch)*.3,sy=1-Math.abs(bank)*.5;
+    near(m[4],183+1.12*(Math.cos(angle)*pitch*30-Math.sin(angle)*bank*30));
+    near(m[5],99+.72*(Math.sin(angle)*pitch*30+Math.cos(angle)*bank*30));
+    near(m[0],1.12*Math.cos(theta)*sx);near(m[1],.72*Math.sin(theta)*sx);
+    near(m[2],-1.12*Math.sin(theta)*sy);near(m[3],.72*Math.cos(theta)*sy);
+    assert.deepEqual(shadow(a),shadow(b));assert.deepEqual(p,before);
+    assert.equal(a.stack.length,0);assert.equal(b.stack.length,0);
+  }
+  for(const type of ['drone','kamikaze'])for(const angle of [0,Math.PI/2,-2.1]){
+    const e={x:170,y:80,angle,visualHeading:angle,type,health:1,maxHealth:1},before=structuredClone(e),c=context();
+    renderer.enemy(c,e,.4);
+    const shadow=c.calls.find(call=>call.name==='ellipse'&&call.style==='#10231638'),m=shadow.matrix,s=ENEMIES[type].scale;
+    near(m[4],175);near(m[5],88);
+    near(m[0],s*Math.cos(angle));near(m[1],s*.8*Math.sin(angle));
+    near(m[2],-s*Math.sin(angle));near(m[3],s*.8*Math.cos(angle));
+    assert.deepEqual(e,before);assert.equal(c.stack.length,0);
+  }
+});
+
+test('shadow rendering preserves canvas state and suppresses cosmetic pose in reduced motion',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:false}),old=globalThis.matchMedia;
+  const p={x:170,y:80,angle:.9,bank:.3,pitch:.2},a=context(),b=context();
+  a.fillStyle='initial fill';a.strokeStyle='initial stroke';a.lineWidth=7;a.lineJoin='bevel';a.globalAlpha=.6;
+  globalThis.matchMedia=()=>({matches:true});
+  try{
+    renderer.helicopter(a,p,.4);renderer.helicopter(b,{...p,bank:0,pitch:0},2);
+    const shadow=c=>c.calls.find(call=>call.name==='fill'&&call.style==='#0b170c30');
+    assert.deepEqual(shadow(a),shadow(b));
+    assert.equal(a.fillStyle,'initial fill');assert.equal(a.strokeStyle,'initial stroke');
+    assert.equal(a.lineWidth,7);assert.equal(a.lineJoin,'bevel');assert.equal(a.globalAlpha,.6);
+    const ghost=context();renderer.helicopter(ghost,p,.4,true);
+    assert.equal(shadow(ghost),undefined);assert.equal(ghost.stack.length,0);
+    assert.equal(a.stack.length,0);assert.equal(b.stack.length,0);
+  }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
 });
 
 test('exhaust remains attached to both outlets through hull headings and banks',()=>{

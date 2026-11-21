@@ -314,12 +314,13 @@ test('helicopter movement changes the rendered pose',()=>{
   assert.ok(moving.calls.some(call=>call.name==='scale'&&call.args[1]<.9));
 });
 
-test('helicopter uses a projected hull silhouette and rotor blade shadow',()=>{
+test('helicopter uses a single softened projected silhouette without a spinning blade shadow',()=>{
   const renderer=new Renderer({getContext:()=>context()},{});
   const c=context();
   renderer.helicopter(c,{x:100,y:100,angle:0,bank:0,pitch:0},0);
-  assert.equal(c.calls.filter(call=>call.name==='fill'&&call.fillStyle==='#0b170c4d').length,2);
-  assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#0b170c24'&&call.args[0]===-48&&call.args[2]===96));
+  assert.equal(c.calls.filter(call=>call.name==='fill'&&call.fillStyle==='#0b170c30').length,1);
+  assert.equal(c.calls.filter(call=>call.name==='stroke'&&call.strokeStyle==='#0b170c12').length,1);
+  assert.equal(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#0b170c24'),false);
 });
 
 test('cannon is half-sized and fires from its barrel tip',()=>{
