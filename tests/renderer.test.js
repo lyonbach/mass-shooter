@@ -193,6 +193,18 @@ test('drone silhouettes have four phased rotors and independent, ground anchored
   assert.notDeepEqual(poses[0],poses[1]);
 });
 
+test('reduced motion freezes drone hover and rotor animation while retaining the shadow',()=>{
+  const old=globalThis.matchMedia;
+  globalThis.matchMedia=()=>({matches:true});
+  try{
+    const renderer=new Renderer({getContext:()=>context()},{effects:false}),e={x:50,y:60,type:'drone',angle:.5,visualHeading:1,visualBank:.2,visualPitch:.1,health:1,maxHealth:1};
+    const first=context(),second=context();renderer.enemy(first,e,0);renderer.enemy(second,e,10);
+    assert.deepEqual(first.calls,second.calls);
+    assert.ok(first.calls.some(call=>call.name==='translate'&&call.args[0]===55&&call.args[1]===68));
+    assert.equal(first.calls.filter(call=>call.name==='save').length,first.calls.filter(call=>call.name==='restore').length);
+  }finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
+
 test('smoke screen selection does not change tank paint, tracks or hit feedback',()=>{
   const renderer=new Renderer({getContext:()=>context()},{effects:true});
   const tank={x:0,y:0,angle:0,type:'tank',health:3,maxHealth:4,smokeScreen:true,hit:.1};

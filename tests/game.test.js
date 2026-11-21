@@ -45,6 +45,17 @@ test('drone visual response follows travel by the shortest arc and settles witho
   updateDroneVisual(e,.1,true);assert.ok(Number.isFinite(e.visualHeading));
 });
 
+test('drone cosmetic state initializes on spawn, freezes in pause and is discarded on reset',async()=>{
+  const game=createGame(true);await game.start();const drone=game.spawnEnemy('drone');
+  drone.x=game.g.player.x+400;drone.y=game.g.player.y;drone.cooldown=100;
+  game.update(.1);assert.ok(Number.isFinite(drone.visualHeading));assert.equal(drone.visualBank,0);assert.equal(drone.visualPitch,0);
+  const pose=[drone.visualHeading,drone.visualBank,drone.visualPitch],time=game.g.visualTime;
+  game.pause();game.frame(1000);game.frame(1100);
+  assert.deepEqual([drone.visualHeading,drone.visualBank,drone.visualPitch],pose);assert.equal(game.g.visualTime,time);
+  game.resume();await game.start();assert.ok(!game.g.enemies.includes(drone));
+  const next=game.spawnEnemy('drone');assert.equal(next.visualHeading,undefined);
+});
+
 test('kamikazes use quarter scale and double drone speed and explode for four shots',async()=>{
   const game=createGame();await game.start();
   game.spawnEnemy('drone');game.spawnEnemy('kamikaze');
