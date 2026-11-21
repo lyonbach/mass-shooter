@@ -106,7 +106,7 @@ function renderParameters() {
                 // Cancel pending layers/bursts before applying a new recipe.
                 stopAll(false);
                 const value = input.value === '' ? NaN : Number(input.value) / (field === 'spread' ? 100 : 1);
-                const message = validateParameter(name, { ...param, [field]: value });
+                const message = validateParameter(name, { ...param, [field]: value }, selected);
                 if (message) invalidDrafts.set(id, { raw: input.value, message });
                 else { invalidDrafts.delete(id); param[field] = value; }
                 error.textContent = message; error.hidden = !message;

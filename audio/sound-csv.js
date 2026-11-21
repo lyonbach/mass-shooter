@@ -8,19 +8,20 @@ export const SOUND_PARAMETERS = {
     explode: 'debrisChance pitch decay crack bodyGain midGain highGain rumbleGain tailGain sparkGain dustGain debrisGain crackGain',
     rocket: 'snapGain pitch decay snapSubGain whooshGain whooshTailGain',
     missile: 'snapGain pitch decay snapSubGain whooshGain whooshTailGain',
-    flare: 'snapGain pitch snapSubGain whooshGain tailGain',
+    flare: 'snapGain pitch decay snapSubGain whooshGain tailGain',
     dash: 'noiseGain subGain', damage: 'noiseGain subGain',
-    lowHealth: 'noiseGain sawGain squareGain',
+    lowHealth: 'noiseGain sawGain squareGain decay',
     missileAlert: 'toneGain', pickup: 'noteGain', upgrade: 'noteGain',
-    wave: 'noteGain', alert: 'toneGain', ui: 'toneGain',
+    wave: 'noteGain', alert: 'toneGain decay', ui: 'toneGain',
     rotor: 'bladePulseHz bladeAirHz noiseCutoff bodyGain pulseGain airQ airGain airPulseGain motorHz motorGain'
 };
 
-export function validateParameter(name, { value, spread, unit }) {
+export function validateParameter(name, { value, spread, unit }, effect) {
     if (!Number.isFinite(value) || value < 0) return 'Value must be a nonnegative finite number';
     if (!Number.isFinite(spread) || spread < 0 || spread >= 1) return 'Variation must be at least 0% and less than 100%';
     if (!['gain', 'hertz', 'duration', 'ratio'].includes(unit)) return 'Invalid unit';
     if (['hertz', 'duration'].includes(unit) && value <= 0) return 'Frequency and duration must be positive';
+    if (name === 'decay' && ['lowHealth', 'alert', 'flare'].includes(effect) && value <= 0) return 'Decay must be positive';
     if (name.endsWith('Chance') && (value > 1 || spread !== 0)) return 'Chance must be between 0 and 1, with zero variation';
     return '';
 }
@@ -38,7 +39,7 @@ export function parseSounds(text) {
         if (!SOUND_PARAMETERS[effect].split(' ').includes(param)) fail(`Unknown parameter ${effect}.${param}`);
         const value = Number(raw), spread = Number(spreadRaw || 0), maxVoices = Number(voicesRaw);
         if (!raw) fail('Value must be a nonnegative finite number');
-        const error = validateParameter(param, { value, spread, unit });
+        const error = validateParameter(param, { value, spread, unit }, effect);
         if (error) fail(error);
         if (spatialRaw && !['true', 'false'].includes(spatialRaw)) fail('Spatial must be true or false');
         if (voicesRaw && (!Number.isInteger(maxVoices) || maxVoices < 1 || maxVoices > 128)) fail('maxVoices must be an integer in [1, 128]');
@@ -69,7 +70,7 @@ export function serializeSounds(data) {
         if (!Number.isInteger(maxVoices) || maxVoices < 1 || maxVoices > 128) throw new Error(`Invalid voice limit for ${effect}`);
         let first = true;
         for (const [name, param] of Object.entries(params)) {
-            const error = validateParameter(name, param);
+            const error = validateParameter(name, param, effect);
             if (error) throw new Error(`${effect}.${name}: ${error}`);
             rows.push([effect, name, param.value, param.spread, first ? spatial : '', first ? maxVoices : '', param.unit].join(','));
             first = false;

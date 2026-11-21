@@ -356,6 +356,11 @@ export const SOUND_DATA = {
       "spread": 0.1,
       "unit": "ratio"
     },
+    "decay": {
+      "value": 1,
+      "spread": 0,
+      "unit": "ratio"
+    },
     "snapSubGain": {
       "value": 0.06,
       "spread": 0,
@@ -417,6 +422,11 @@ export const SOUND_DATA = {
       "value": 0.055,
       "spread": 0,
       "unit": "gain"
+    },
+    "decay": {
+      "value": 1,
+      "spread": 0,
+      "unit": "ratio"
     }
   },
   "missileAlert": {
@@ -462,6 +472,11 @@ export const SOUND_DATA = {
       "value": 0.1,
       "spread": 0,
       "unit": "gain"
+    },
+    "decay": {
+      "value": 1,
+      "spread": 0,
+      "unit": "ratio"
     }
   },
   "ui": {

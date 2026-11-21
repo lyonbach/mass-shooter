@@ -64,6 +64,7 @@ missile,whooshGain,1,0,,,gain
 missile,whooshTailGain,0.28,0,,,gain
 flare,snapGain,0.13,0,true,4,gain
 flare,pitch,1,0.1,,,ratio
+flare,decay,1,0,,,ratio
 flare,snapSubGain,0.06,0,,,gain
 flare,whooshGain,0.25,0,,,gain
 flare,tailGain,0.1,0,,,gain
@@ -74,11 +75,13 @@ damage,subGain,0.4,0,,,gain
 lowHealth,noiseGain,0.025,0,false,1,gain
 lowHealth,sawGain,0.12,0,,,gain
 lowHealth,squareGain,0.055,0,,,gain
+lowHealth,decay,1,0,,,ratio
 missileAlert,toneGain,0.4,0,false,1,gain
 pickup,noteGain,0.1,0,false,4,gain
 upgrade,noteGain,0.1,0,false,4,gain
 wave,noteGain,0.1,0,false,2,gain
 alert,toneGain,0.1,0,false,2,gain
+alert,decay,1,0,,,ratio
 ui,toneGain,0.1,0,false,8,gain
 rotor,bladePulseHz,18,0,false,1,hertz
 rotor,bladeAirHz,1550,0,,,hertz

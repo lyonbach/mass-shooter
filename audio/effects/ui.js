@@ -26,11 +26,11 @@ export class UpgradeChime extends Arpeggio {
 export class LowHealthAlarm extends SoundEffect {
     static key = 'lowHealth';
     render({ gain, at, voice }) {
-        const saw = gain * this.n('sawGain'), square = gain * this.n('squareGain'), noise = gain * this.n('noiseGain');
+        const saw = gain * this.n('sawGain'), square = gain * this.n('squareGain'), noise = gain * this.n('noiseGain'), decay = this.n('decay');
         for (const offset of [0, 0.48, 0.96]) {
-            new Tone(this.engine, { voice, freq: 185, end: 175, duration: 0.32, gain: saw, type: 'sawtooth', time: at + offset });
-            new Tone(this.engine, { voice, freq: 277.5, end: 262.5, duration: 0.32, gain: square, type: 'square', time: at + offset });
-            new Noise(this.engine, { voice, duration: 0.12, gain: noise, frequency: 900, time: at + offset });
+            new Tone(this.engine, { voice, freq: 185, end: 175, duration: 0.32 * decay, gain: saw, type: 'sawtooth', time: at + offset * decay });
+            new Tone(this.engine, { voice, freq: 277.5, end: 262.5, duration: 0.32 * decay, gain: square, type: 'square', time: at + offset * decay });
+            new Noise(this.engine, { voice, duration: 0.12 * decay, gain: noise, frequency: 900, time: at + offset * decay });
         }
     }
 }
@@ -47,10 +47,10 @@ export class MissileWarning extends SoundEffect {
 export class Alert extends SoundEffect {
     static key = 'alert';
     render({ gain, at, voice }) {
-        const level = gain * this.n('toneGain');
+        const level = gain * this.n('toneGain'), decay = this.n('decay');
         for (const offset of [0, 0.36]) {
-            new Tone(this.engine, { voice, freq: 330, end: 310, duration: 0.22, gain: level * 0.65, type: 'sawtooth', time: at + offset });
-            new Tone(this.engine, { voice, freq: 495, end: 465, duration: 0.22, gain: level * 0.35, type: 'square', time: at + offset });
+            new Tone(this.engine, { voice, freq: 330, end: 310, duration: 0.22 * decay, gain: level * 0.65, type: 'sawtooth', time: at + offset * decay });
+            new Tone(this.engine, { voice, freq: 495, end: 465, duration: 0.22 * decay, gain: level * 0.35, type: 'square', time: at + offset * decay });
         }
     }
 }

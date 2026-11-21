@@ -1,5 +1,7 @@
 // Run from a browser console/module harness, not Node's test runner.
 import { createAudioEngine, EFFECT_CLASSES } from '../audio/index.js';
+import { SOUND_DATA } from '../audio/sound-data.js';
+import { ROCKET_IGNITION_DELAY } from '../core.js';
 
 function seeded() {
     let state = 123456789;
@@ -8,7 +10,10 @@ function seeded() {
 function check(condition, message) { if (!condition) throw new Error(message); }
 
 async function renderEffect(name, options = {}) {
-    const ctx = new OfflineAudioContext(2, 16000, 8000);
+    const decay = SOUND_DATA[name].decay;
+    const launchTail = name === 'rocket' ? 1.05 : name === 'missile' ? 1.15 : 0;
+    const seconds = launchTail ? Math.max(2, ROCKET_IGNITION_DELAY + launchTail * decay.value * (1 + decay.spread) + 0.1) : 2;
+    const ctx = new OfflineAudioContext(2, Math.ceil(seconds * 8000), 8000);
     const { engine } = createAudioEngine({ random: seeded() });
     engine.init(ctx);
     const voice = engine.play(name, options);
@@ -57,4 +62,23 @@ export async function runAudioBrowserChecks() {
     check(engine.play('shot')===null,'Muted engine allocated a voice');
     await engine.dispose(); await ctx.close();
     return {effects,deterministicPCM:true,maxDelta,randomizedPCM:true,stereo:true,liveDelayedRelease:true,muted:true};
+}
+
+export function runAudioEditorChecks() {
+    const selected = document.querySelector('#effect-list button[aria-pressed="true"]');
+    for (const key of ['lowHealth','alert','flare']) {
+        document.querySelector(`#effect-list button[data-effect="${key}"]`).click();
+        const input = document.querySelector('input[data-param="decay"][data-field="value"]');
+        check(Boolean(input), `${key} decay control missing`);
+        const original = input.value;
+        input.value = '0'; input.dispatchEvent(new Event('input', {bubbles:true}));
+        check(input.getAttribute('aria-invalid') === 'true', `${key} accepted zero decay`);
+        check(document.querySelector('#play').disabled && document.querySelector('#download-csv').disabled, `${key} invalid decay did not block play and export`);
+        input.value = '2'; input.dispatchEvent(new Event('input', {bubbles:true}));
+        check(input.getAttribute('aria-invalid') === 'false' && window.audioLabSnapshot().parameters.decay.value === 2, `${key} rejected valid decay`);
+        check(!document.querySelector('#play').disabled && !document.querySelector('#download-csv').disabled, `${key} valid decay did not unblock play and export`);
+        input.value = original; input.dispatchEvent(new Event('input', {bubbles:true}));
+    }
+    selected.click();
+    return {decayControls:3,zeroRejected:true,validAccepted:true};
 }
