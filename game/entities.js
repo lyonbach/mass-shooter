@@ -34,9 +34,9 @@ function emitScreenSmoke(tank){
   const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const limit=settings.effects?650:180;
   if(g.particles.length<limit){
-    const a=tank.angle,life=SCREEN_SMOKE_LIFETIME*(.85+Math.random()*.3);
-    g.particles.push({x:tank.x-Math.cos(a)*15+(Math.random()-.5)*18,y:tank.y-Math.sin(a)*15+(Math.random()-.5)*18,
-      vx:-Math.cos(a)*SCREEN_SMOKE_DRIFT,vy:-Math.sin(a)*SCREEN_SMOKE_DRIFT-3,
+    const a=tank.angle,life=SCREEN_SMOKE_LIFETIME*(.85+Math.random()*.3),side=(Math.random()-.5)*28,spread=(Math.random()-.5)*8;
+    g.particles.push({x:tank.x-Math.cos(a)*15-Math.sin(a)*side,y:tank.y-Math.sin(a)*15+Math.cos(a)*side,
+      vx:-Math.cos(a)*SCREEN_SMOKE_DRIFT-Math.sin(a)*spread,vy:-Math.sin(a)*SCREEN_SMOKE_DRIFT+Math.cos(a)*spread-3,
       life,maxLife:life,smoke:true,screenSmoke:true,size:15+Math.random()*7});
   }
   tank.screenSmokeTimer=(settings.effects&&!reduced?SCREEN_SMOKE_INTERVAL:SCREEN_SMOKE_LOW_INTERVAL);

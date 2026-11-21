@@ -197,13 +197,13 @@ export class Renderer {
     if(!intensity)return;
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
     const age=reduced?0:(d.age||0),seed=d.seed||0,scale=ENEMIES[d.type].scale;
-    c.save();c.translate(d.x,d.y);c.rotate(d.angle);c.scale(scale,scale);c.globalAlpha=intensity;
+    c.save();c.translate(d.x,d.y);c.scale(scale,scale);c.globalAlpha=intensity;
     const points=d.type==='rocketSemi'?[[-20,0],[12,-3]]:[[-14,0],[0,-3],[12,3]];
     const glow=c.createRadialGradient(0,0,0,0,0,32);glow.addColorStop(0,'#ff9b3138');glow.addColorStop(1,'#ff5b1700');c.fillStyle=glow;c.fillRect(-32,-32,64,64);
     for(let i=0;i<(this.settings.effects?points.length:1);i++){
       const [x,y]=points[i],phase=seed*2+i*2.7,flicker=reduced?1:.9+.12*Math.sin(age*5+phase)+.07*Math.sin(age*9+phase*1.7);
       const sway=reduced?0:3*Math.sin(age*3+phase);
-      c.save();c.translate(x,y);c.scale(1,flicker);
+      c.save();c.translate(x*Math.cos(d.angle)-y*Math.sin(d.angle),x*Math.sin(d.angle)+y*Math.cos(d.angle));c.scale(1,flicker);
       path(c,[[-6,3],[-7,-3],[-4,-9],[sway-3,-17],[sway,-11],[sway+4,-23],[5,-9],[7,-3],[5,3]],'#b83f20');
       path(c,[[-4,3],[-5,-3],[-2,-9],[sway+1,-16],[sway+2,-9],[4,-5],[4,2]],'#f48931');
       path(c,[[-2,3],[-2,-3],[sway*.5,-9],[2,-5],[3,2]],'#ffe09a');
@@ -241,9 +241,9 @@ export class Renderer {
       c.save();c.translate(p.x,p.y+bob);c.rotate(Math.PI/4);c.fillStyle='#1c321d';c.fillRect(-12,-12,24,24);c.strokeStyle='#d4e89a';c.strokeRect(-12,-12,24,24);c.rotate(-Math.PI/4);
       c.fillStyle='#dbea9b';c.fillRect(-3,-8,6,16);c.fillRect(-8,-3,16,6);c.restore();
     }
-    for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,.7);
+    for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,.45);
     for(const e of g.enemies)this.enemy(c,e,t);
-    for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,.48);
+    for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,.25);
     if(g.state==='ready'){this.enemy(c,{x:W*.7,y:H*.73,angle:-2.2,type:'tank',health:3,maxHealth:3},t);this.enemy(c,{x:W*.87,y:H*.57,angle:-2.5,type:'tank',health:3,maxHealth:3},t);}
     for(const b of g.bullets){
       if(b.kind==='rocket'||b.kind==='enemyRocket'){c.save();c.translate(b.x,b.y);c.rotate(Math.atan2(b.vy,b.vx));c.fillStyle=b.friendly?'#e4dfb2':'#ee9875';c.fillRect(-9,-2,15,4);c.fillStyle='#ffcc79';c.fillRect(-19,-2,10,4);c.restore();}
