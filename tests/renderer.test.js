@@ -35,6 +35,20 @@ test('smoke puffs use bounded offscreen gradients and stable variants across tra
     assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
   });
 
+test('screen smoke alone has denser white gradients and wider coverage',()=>{
+  const gradients=[];
+  const document={createElement:()=>{const pc=context();pc.createRadialGradient=()=>{const stops=[];gradients.push(stops);return{addColorStop:(...args)=>stops.push(args)};};return{getContext:()=>pc};}};
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:false}),c=context();
+  for(const flags of [{screenSmoke:true},{persistent:true},{},{exhaust:true}]){
+    renderer.smoke(c,{x:10,y:20,size:10,life:1,maxLife:2,smokeVariant:0,...flags});
+  }
+  assert.deepEqual(gradients.map(stops=>stops[0][1]),['#f8f9f4f2','#202820cc','#606858cc','#e4d9bccc']);
+  assert.ok(gradients.every(stops=>stops.at(-1)[1].endsWith('00')));
+  const widths=c.calls.filter(call=>call.name==='drawImage').map(call=>call.args[3]);
+  assert.ok(widths[0]>widths[1]);assert.equal(widths[1],widths[2]);assert.equal(widths[2],widths[3]);
+  assert.equal(renderer.smokePuffs.size,4);
+});
+
 test('missile flame starts at ignition and both factions use procedural silhouettes',()=>{
     const renderer=new Renderer({getContext:()=>context()},{effects:true});
     for(const friendly of [true,false]){

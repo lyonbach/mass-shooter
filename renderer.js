@@ -6,8 +6,9 @@ const path = (c, points, fill, stroke) => {
   if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.stroke(); }
 };
 function ellipse(c,x,y,rx,ry,color) { c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,TAU);c.fill(); }
+const SCREEN_SMOKE_RENDER={radius:1.15,behind:.65,front:.45,stops:[[0,'#f8f9f4f2'],[.45,'#e8ebe6d0'],[1,'#d7dedb00']]};
 const SMOKE_STOPS={
-  screen:[[0,'#f5f6efcc'],[.45,'#e1e4df99'],[1,'#d7dedb00']],
+  screen:SCREEN_SMOKE_RENDER.stops,
   wreck:[[0,'#202820cc'],[.45,'#171e18aa'],[1,'#11181200']],
   explosion:[[0,'#606858cc'],[.45,'#394539aa'],[1,'#28342a00']],
   exhaust:[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']]
@@ -22,7 +23,7 @@ export class Renderer {
     return shade;
   }
   smoke(c,p,alpha=1){
-    const progress=clamp(1-p.life/p.maxLife,0,1),radius=p.size*(.8+progress*1.5);
+    const progress=clamp(1-p.life/p.maxLife,0,1),radius=p.size*(.8+progress*1.5)*(p.screenSmoke?SCREEN_SMOKE_RENDER.radius:1);
     if(!(radius>0))return;
     const kind=p.screenSmoke?'screen':p.exhaust?'exhaust':p.persistent?'wreck':'explosion';
     if(p.smokeVariant===undefined)p.smokeVariant=Math.abs(Math.floor(p.x*13+p.y*7))%SMOKE_SHAPES.length;
@@ -351,9 +352,9 @@ export class Renderer {
       c.save();c.translate(p.x,p.y+bob);c.rotate(Math.PI/4);c.fillStyle='#1c321d';c.fillRect(-12,-12,24,24);c.strokeStyle='#d4e89a';c.strokeRect(-12,-12,24,24);c.rotate(-Math.PI/4);
       c.fillStyle='#dbea9b';c.fillRect(-3,-8,6,16);c.fillRect(-8,-3,16,6);c.restore();
     }
-    for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,.45);
+    for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,SCREEN_SMOKE_RENDER.behind);
     for(const e of g.enemies)this.enemy(c,e,t);
-    for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,.25);
+    for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,SCREEN_SMOKE_RENDER.front);
     if(g.state==='ready'){this.enemy(c,{x:W*.7,y:H*.73,angle:-2.2,type:'tank',health:3,maxHealth:3},t);this.enemy(c,{x:W*.87,y:H*.57,angle:-2.5,type:'tank',health:3,maxHealth:3},t);}
     for(const b of g.bullets){
       if(b.kind==='rocket'||b.kind==='enemyRocket')this.missile(c,b);
