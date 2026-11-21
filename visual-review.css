@@ -1,0 +1,19 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #111b16; color: #e0ead3; }
+body { margin: 0; }
+main { max-width: 1500px; margin: auto; padding: 1rem; }
+h1 { margin-bottom: .3rem; }
+p { line-height: 1.5; }
+button { font: inherit; padding: .45rem .8rem; cursor: pointer; }
+.actions { display: flex; gap: .5rem; margin-bottom: 1rem; }
+.panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.panel { background: #1d2b20; border: 1px solid #536a4c; border-radius: .4rem; padding: .75rem; min-width: 0; }
+.panel h2 { margin: 0 0 .5rem; }
+canvas { display: block; width: 400px; max-width: 100%; height: auto; background: #354431; }
+canvas.enlarged { width: 800px; }
+.controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem 1rem; margin-top: .8rem; }
+label:not(.check) { display: grid; grid-template-columns: 1fr auto; gap: .2rem; }
+input[type="range"] { grid-column: 1 / -1; width: 100%; margin: 0; }
+output { font-variant-numeric: tabular-nums; }
+.check { display: flex; align-items: center; gap: .4rem; }
+.note { color: #bdcbb7; }
+@media (max-width: 800px) { .panels { grid-template-columns: 1fr; } }

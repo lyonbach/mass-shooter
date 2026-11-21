@@ -16,6 +16,22 @@ Open http://localhost:8080.
 
 No dependency installation or API keys are needed. All visuals are rendered in Canvas. Music and effects use Web Audio; the game has synthesized music scores when custom tracks are not present. The Turkish interface scales to desktop, tablet, and phone screens.
 
+### Renderer visual review
+
+With the static server running, open http://localhost:8080/visual-review.html.
+This developer-only fixture renders two independent, frozen states with the actual
+`Renderer`. Adjust heading, cannon aim, bank, pitch, velocity, heat, visual time,
+muzzle, multiple flares, dash, hit, explosion, gun round/tracer, effects quality
+and reduced motion per panel.
+Copy A to B for a baseline, then change one control; Reset both restores the
+initial views. The default canvas displays one CSS pixel per world unit where
+space permits; select Enlarge 2× for detail. Heat, velocity and reduced-motion
+responses depend on the renderer version being reviewed; main may not visualize
+heat or distinguish tracers. Reduced motion emulates the renderer's media
+query independently for each draw, not a full gameplay simulation. The fixed
+time slider lets you compare rotor and other time-dependent phases without an
+animation loop. No settings are saved or applied to the game.
+
 ## Controls
 
 | Action | Desktop | Touch |
@@ -172,8 +188,11 @@ MP3 playback and the procedural fallback remain separate in `audio/music/`.
 The library continues to use the game's `ROCKET_IGNITION_DELAY` constant so audio
 and projectile ignition cannot drift apart. It is not an npm package.
 
-Open the game with `?debug` for a read-only `window.render_game_to_text()` QA
-snapshot. Browser DSP tests can be run from an HTTP-served game:
+Open the game with `?debug` for a `window.render_game_to_text()` QA
+snapshot. The developer hook `window.setCannonTracersEnabled(false)` disables
+cosmetic tracers for future cannon shots; pass `true` to re-enable them. The
+five-shot sequence continues while disabled and restarts on a new run.
+Browser DSP tests can be run from an HTTP-served game:
 `await (await import('./tests/audio-browser.js')).runAudioBrowserChecks()`.
 These render every effect in a real `OfflineAudioContext`, compare deterministic
 samples within floating-point tolerance, and check panning and live voice release.

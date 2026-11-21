@@ -18,7 +18,8 @@ export function createCombat(runtime){
   const positionalAudio=source=>{const p=g.player,distanceToSource=distance(source,p);return {pan:clamp((source.x-p.x)/(g.world.width*.35),-1,1),gain:clamp(1-distanceToSource/(g.world.width*.7),.15,1)};};
 function gun(){
   const p=g.player,w=WEAPONS.gun,a=p.cannonAngle+(Math.random()-.5)*w.spread,speed=w.speed;
-  g.bullets.push({x:p.x+Math.cos(a)*39,y:p.y+Math.sin(a)*39,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:w.life,friendly:true,damage:w.damage+(runtime.upgrades.damage||0)*w.damagePerUpgrade,kind:'gun'});
+  p.cannonShotIndex=((p.cannonShotIndex||0)+1)%5;
+  g.bullets.push({x:p.x+Math.cos(a)*39,y:p.y+Math.sin(a)*39,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:w.life,friendly:true,damage:w.damage+(runtime.upgrades.damage||0)*w.damagePerUpgrade,kind:'gun',tracer:g.cannonTracersEnabled!==false&&p.cannonShotIndex===0});
   p.cooldown=w.cooldown*Math.pow(w.cooldownUpgradeFactor,runtime.upgrades.fireRate||0);p.muzzle=w.muzzleTime;p.muzzleSmoke=WEAPON_MUZZLE_TIME;
   p.heat=Math.min(1,p.heat+w.heatPerShot);
   if(p.heat>=1){p.overheated=true;float(t('heat.cooling'),p.x,p.y-55,'#ffb586',true);}

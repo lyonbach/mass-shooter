@@ -154,6 +154,64 @@ test('player cannon flash and smoke timers follow a real shot without changing t
   game.keys.delete('Space');game.pause();game.frame(1000);game.frame(2000);assert.equal(p.muzzleSmoke,.22);
   game.resume();game.update(.23);assert.equal(p.muzzleSmoke,0);
 });
+test('cannon tracer selection follows emitted shots across bursts and toggles and resets on a new run',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;
+  const shots=[],random=Math.random;let randomCalls=0;
+  Math.random=()=>{randomCalls++;return .5;};
+  const fire=()=>{
+    const p=game.g.player;
+    p.cooldown=0;p.heat=0;p.overheated=false;
+    game.keys.add('Space');game.update(.001);game.keys.delete('Space');
+    shots.push(game.g.bullets.at(-1));
+  };
+  try{
+    for(let i=0;i<5;i++)fire();
+    assert.deepEqual(shots.map(b=>b.tracer),[false,false,false,false,true]);
+    game.g.cannonTracersEnabled=false;
+    for(let i=0;i<5;i++)fire();
+    assert.equal(shots[4].tracer,true);
+    assert.deepEqual(shots.slice(5).map(b=>b.tracer),[false,false,false,false,false]);
+    game.g.cannonTracersEnabled=true;
+    for(let i=0;i<5;i++)fire();
+    assert.deepEqual(shots.slice(10).map(b=>b.tracer),[false,false,false,false,true]);
+    assert.equal(randomCalls,15);
+    await game.start();game.g.spawnRemaining=100;fire();
+    assert.equal(shots.at(-1).tracer,false);
+  }finally{Math.random=random;}
+});
+test('cannon tracers retain their spawn selection across mid-cycle toggles without changing gun shots',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;game.g.spawnTimer=100;
+  const p=game.g.player,w=core.WEAPONS.gun,shots=[],random=Math.random;let calls=0;
+  game.getUpgrades().damage=2;game.getUpgrades().fireRate=1;
+  p.cannonAngle=.4;
+  Math.random=()=>{calls++;return .75;};
+  const fire=()=>{
+    p.cooldown=0;p.heat=0;p.overheated=false;game.keys.add('Space');game.update(0);game.keys.delete('Space');
+    const b=game.g.bullets.at(-1),angle=.4+.25*w.spread;
+    assert.equal(b.x,p.x+Math.cos(angle)*39);assert.equal(b.y,p.y+Math.sin(angle)*39);
+    assert.equal(b.vx,Math.cos(angle)*w.speed);assert.equal(b.vy,Math.sin(angle)*w.speed);
+    assert.equal(b.life,w.life);assert.equal(b.damage,w.damage+2*w.damagePerUpgrade);
+    assert.equal(b.kind,'gun');assert.equal(b.friendly,true);
+    assert.equal(p.cooldown,w.cooldown*w.cooldownUpgradeFactor);assert.equal(p.heat,w.heatPerShot);
+    shots.push(b);
+  };
+  try{
+    for(let i=0;i<3;i++)fire();
+    game.g.cannonTracersEnabled=false;
+    for(let i=0;i<4;i++)fire();
+    game.g.cannonTracersEnabled=true;
+    for(let i=0;i<4;i++)fire();
+    game.g.cannonTracersEnabled=false;
+    for(let i=0;i<2;i++)fire();
+    game.g.cannonTracersEnabled=true;
+    for(let i=0;i<2;i++)fire();
+    assert.deepEqual(shots.map(b=>b.tracer),[false,false,false,false,false,false,false,false,false,true,false,false,false,false,true]);
+    game.g.cannonTracersEnabled=false;
+    assert.equal(shots[9].tracer,true);assert.equal(shots[14].tracer,true);assert.equal(shots[4].tracer,false);
+    game.g.cannonTracersEnabled=true;assert.equal(shots[4].tracer,false);
+    assert.equal(calls,15);
+  }finally{Math.random=random;}
+});
 test('AA flak preserves detonation timing, radius, sound and bounded cosmetic lifetime',async()=>{
   for(const reduced of [false,true]){
     const game=createGame(reduced);await game.start();game.g.spawnRemaining=0;
@@ -290,6 +348,69 @@ test('flares deploy automatically below Ace and require manual activation on Ace
   Math.random=()=>0;
   try{assert.equal(manual.deployFlares(),true);}finally{Math.random=random;}
   assert.equal(hardRocket.decoyed,true);
+});
+test('flare salvo preserves spawn, trajectory, cooldown and lifetime',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=100;game.g.spawnTimer=100;
+  const p=game.g.player;Object.assign(p,{x:500,y:300,vx:40,vy:-20,angle:.6});game.g.time=.31;
+  const values=[.1,.2,.3,.4,.5,.6,.7,.8,.9,.4,.2,.1],random=Math.random;let calls=0;
+  Math.random=()=>{assert.ok(calls<values.length);return values[calls++];};
+  try{
+    const before=game.sound.plays.length;
+    assert.equal(game.deployFlares(),true);assert.equal(calls,12);assert.equal(p.flareCooldown,2.2);
+    assert.deepEqual(game.sound.plays.slice(before),['flare']);
+    const flares=game.g.particles.filter(particle=>particle.flare);
+    assert.equal(flares.length,3);
+    for(let i=0;i<3;i++){
+      const flare=flares[i],angle=.6+Math.PI+[-.3,0,.3][i]+(values[4*i]-.5)*.24;
+      const speed=(130+values[4*i+1]*70)*3,phase=values[4*i+2]*Math.PI*2,wobble=35+values[4*i+3]*40;
+      const x=500+Math.cos(angle)*25,y=300+Math.sin(angle)*25,vx=40+Math.cos(angle)*speed,vy=-20+Math.sin(angle)*speed;
+      assert.equal(flare.x,x);assert.equal(flare.y,y);assert.equal(flare.vx,vx);assert.equal(flare.vy,vy);
+      assert.equal(flare.life,.85);assert.equal(flare.maxLife,.85);
+      assert.equal(flare.flarePhase,phase);assert.equal(flare.flareWobble,wobble);
+    }
+    assert.equal(game.deployFlares(),false);assert.equal(calls,12);assert.equal(game.g.particles.length,3);
+    const initial=flares.map(({x,y,vx,vy,flarePhase,flareWobble})=>({x,y,vx,vy,flarePhase,flareWobble}));
+    game.updateEffects(.1);
+    for(let i=0;i<3;i++){
+      const flare=flares[i],start=initial[i],drift=Math.sin(.31*15+start.flarePhase)*start.flareWobble;
+      assert.equal(flare.x,start.x+(start.vx+drift)*.1);assert.equal(flare.y,start.y+(start.vy+drift*.55)*.1);
+      assert.equal(flare.vx,start.vx*Math.exp(-.1*3));assert.equal(flare.vy,start.vy*Math.exp(-.1*3));
+      assert.equal(flare.life,.85-.1);
+    }
+    game.updateEffects(.74);assert.equal(game.g.particles.filter(particle=>particle.flare).length,3);
+    game.updateEffects(.02);assert.equal(game.g.particles.filter(particle=>particle.flare).length,0);
+    game.update(.5);assert.ok(Math.abs(p.flareCooldown-1.7)<1e-12);assert.equal(game.deployFlares(),false);
+    game.update(1.7);assert.ok(p.flareCooldown<1e-12);game.update(.01);assert.equal(p.flareCooldown,0);
+    calls=0;assert.equal(game.deployFlares(),true);assert.equal(calls,12);assert.equal(p.flareCooldown,2.2);
+  }finally{Math.random=random;}
+});
+test('flares decoy only the nearest incoming missile within range at the deflection threshold',async()=>{
+  for(const [roll,decoyed] of [[.319,true],[.32,false]]){
+    const game=createGame();await game.start();const p=game.g.player;
+    Object.assign(p,{x:500,y:300,angle:.6});
+    const rocket=(x,vx,extra={})=>({x,y:300,vx,vy:0,life:5,kind:'enemyRocket',...extra});
+    const nearest=rocket(400,100),farther=rocket(300,100),outOfRange=rocket(240,100),receding=rocket(490,-100),alreadyDecoyed=rocket(480,100,{decoyed:true});
+    game.g.bullets=[farther,outOfRange,receding,alreadyDecoyed,nearest];
+    const random=Math.random;let calls=0;Math.random=()=>++calls===13?roll:.5;
+    try{assert.equal(game.deployFlares(),true);}finally{Math.random=random;}
+    assert.equal(calls,13);assert.equal(!!nearest.decoyed,decoyed);
+    assert.equal(!!farther.decoyed,false);assert.equal(!!outOfRange.decoyed,false);assert.equal(!!receding.decoyed,false);
+    assert.equal(alreadyDecoyed.decoyed,true);
+    if(decoyed){
+      assert.equal(nearest.decoyTimer,.85);
+      assert.equal(nearest.decoyX,p.x-Math.cos(p.angle)*48);assert.equal(nearest.decoyY,p.y-Math.sin(p.angle)*48);
+    }else assert.equal(nearest.decoyTimer,undefined);
+  }
+});
+test('decoyed missiles expire after their decoy timer',async()=>{
+  const game=createGame();await game.start();game.settings.difficulty='hard';game.g.spawnRemaining=100;game.g.spawnTimer=100;
+  const p=game.g.player,rocket={x:p.x-150,y:p.y,vx:1,vy:0,life:5,kind:'enemyRocket',turn:0,acceleration:0,maxSpeed:1,trailDistance:0};
+  game.g.bullets=[rocket];const random=Math.random;Math.random=()=>0;
+  try{
+    assert.equal(game.deployFlares(),true);assert.equal(rocket.decoyTimer,.85);
+    game.update(.84);assert.ok(game.g.bullets.includes(rocket));assert.ok(Math.abs(rocket.decoyTimer-.01)<1e-12);
+    game.update(.02);assert.equal(rocket.life,0);assert.ok(!game.g.bullets.includes(rocket));assert.equal(p.health,100);
+  }finally{Math.random=random;}
 });
 test('critical health and close missiles trigger repeating cockpit alarms',async()=>{
   const critical=createGame();await critical.start();critical.g.spawnRemaining=100;

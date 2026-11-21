@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Renderer visual review</title>
+  <link rel="stylesheet" href="visual-review.css">
+</head>
+<body>
+  <main>
+    <h1>Renderer visual review</h1>
+    <p>Developer-only, frozen render states. Change either panel to compare; nothing is saved or sent to the game.</p>
+    <div class="actions">
+      <button id="copy" type="button">Copy A to B</button>
+      <button id="reset" type="button">Reset both</button>
+    </div>
+    <div class="panels" id="panels"></div>
+    <p class="note">Angles are degrees (0 points right, 90 down). Velocity is in world units/second; bank and pitch are explicit visual values. Heat and movement are state inputs, not a simulation. Visual changes depend on the renderer version: main may not render heat or distinguish tracers.</p>
+    <p class="note">Reduced motion emulates the renderer's media query per panel. The current airframe suppresses bank, pitch and rotor animation as well as muzzle effects; older renderers may handle these differently. Dash ghosts remain controlled separately. Time is a fixed visual phase.</p>
+  </main>
+  <template id="panel-template">
+    <section class="panel">
+      <h2></h2>
+      <canvas width="800" height="560"></canvas>
+      <label class="check"><input name="enlarged" type="checkbox"> Enlarge 2× (default: 1 CSS pixel per world unit, space permitting)</label>
+      <div class="controls">
+        <label>Heading <output></output><input name="heading" type="range" min="-180" max="180" step="15"></label>
+        <label>Cannon heading <output></output><input name="cannon" type="range" min="-180" max="180" step="15"></label>
+        <label>Bank <output></output><input name="bank" type="range" min="-.3" max=".3" step=".05"></label>
+        <label>Pitch <output></output><input name="pitch" type="range" min="-.2" max=".2" step=".05"></label>
+        <label>Velocity X <output></output><input name="vx" type="range" min="-270" max="270" step="30"></label>
+        <label>Velocity Y <output></output><input name="vy" type="range" min="-270" max="270" step="30"></label>
+        <label>Heat <output></output><input name="heat" type="range" min="0" max="1" step=".05"></label>
+        <label>Visual time (s) <output></output><input name="time" type="range" min="0" max="2" step=".01"></label>
+        <label class="check"><input name="muzzle" type="checkbox"> Gun flash + smoke</label>
+        <label class="check"><input name="flare" type="checkbox"> Deployed flares</label>
+        <label class="check"><input name="dash" type="checkbox"> Dash ghosts</label>
+        <label class="check"><input name="explosion" type="checkbox"> Explosion + smoke</label>
+        <label class="check"><input name="hit" type="checkbox"> Hit flash + invulnerability</label>
+        <label class="check"><input name="round" type="checkbox"> Gun round</label>
+        <label class="check"><input name="tracer" type="checkbox"> Round is tracer</label>
+        <label class="check"><input name="effects" type="checkbox"> Effects quality on</label>
+        <label class="check"><input name="reduced" type="checkbox"> Reduced motion</label>
+      </div>
+    </section>
+  </template>
+  <script type="module" src="visual-review.js"></script>
+</body>
+</html>
