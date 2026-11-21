@@ -33,6 +33,32 @@ test('cannon tracers use a shared gradient aligned to velocity while ordinary ro
   assert.deepEqual(ordinary,{x:10,y:20,vx:0,vy:-5,tracer:false});
 });
 
+test('flare rendering has bounded cached layers and leaves particle state unchanged',()=>{
+  const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
+  const p={x:10,y:20,vx:100,vy:-40,life:.5,maxLife:.85,flarePhase:1};
+  const original={...p},random=Math.random;Math.random=()=>{throw new Error('rendering consumed gameplay randomness');};
+  try{for(let i=0;i<30;i++)renderer.flare(c,p);}finally{Math.random=random;}
+  assert.deepEqual(p,original);
+  assert.equal(document.created.length,4);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,30*5);
+  assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+  const low=context();renderer.flare(low,p,true);
+  assert.equal(low.calls.filter(call=>call.name==='drawImage').length,2);
+  const expired=context();renderer.flare(expired,{...p,life:0});
+  assert.equal(expired.calls.length,0);
+});
+
+test('player muzzle uses layered cached flashes only while the shot timer is active',()=>{
+  const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
+  renderer.playerMuzzle(c,{muzzle:.04,muzzleSmoke:.22});
+  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,3);
+  const cooling=context();renderer.playerMuzzle(cooling,{muzzle:0,muzzleSmoke:.1});
+  assert.equal(cooling.calls.filter(call=>call.name==='drawImage').length,1);
+  const settled=context();renderer.playerMuzzle(settled,{muzzle:0,muzzleSmoke:0});
+  assert.equal(settled.calls.length,0);
+  assert.equal(document.created.length,2);
+});
+
 test('smoke puffs use bounded offscreen gradients and stable variants across transforms',()=>{
     const created=[],document={createElement:()=>{const pc=context(),canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
     const renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true}),c=context();

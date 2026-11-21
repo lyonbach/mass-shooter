@@ -1,4 +1,4 @@
-import { TAU, seededRandom, clamp, ENEMIES } from './core.js';
+import { TAU, seededRandom, clamp, ENEMIES, WEAPONS } from './core.js';
 import { WRECK_TRANSITION_TIME, WRECK_COAST_TIME, WRECK_FIRE_TIME, ROCKET_NOZZLE_OFFSET, AA_MUZZLE_TIME, AA_FLASH_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './game/constants.js';
 
 const path = (c, points, fill, stroke) => {
@@ -90,6 +90,24 @@ export class Renderer {
     }
     c.restore();
   }
+  flare(c,p,reduced=false){
+    if(!(p.life>0&&p.maxLife>0))return;
+    const age=clamp(p.maxLife-p.life,0,p.maxLife);
+    const burn=Math.min(1,age/.04)*Math.min(1,p.life/.18);
+    const angle=Math.atan2(p.vy,p.vx),phase=p.flarePhase||0;
+    c.save();c.translate(p.x,p.y);c.rotate(angle);
+    if(this.settings.effects&&!reduced){
+      for(let i=1;i<=3;i++){
+        const distance=i*5,curl=Math.sin(phase+i*.8)*i;
+        this.smoke(c,{x:-distance,y:curl,size:2+i*.45,life:p.life,maxLife:p.maxLife,exhaust:true,smokeVariant:i%3},.18*burn);
+      }
+    }
+    c.globalAlpha*=burn;
+    c.drawImage(this.weaponFlameTexture(),-17,-2.5,19,5);
+    c.drawImage(this.weaponFlameTexture(),-5,-5,10,10);
+    ellipse(c,0,0,1.5,1.5,'#fff5cc');
+    c.restore();
+  }
   muzzleEffect(c,life,tip,size,flashTime){
     if(!(life>0))return;
     const progress=clamp(1-life/WEAPON_MUZZLE_TIME,0,1);
@@ -98,6 +116,15 @@ export class Renderer {
       c.save();c.globalAlpha*=clamp((flashTime-progress*WEAPON_MUZZLE_TIME)/flashTime,0,1);
       c.drawImage(this.weaponFlameTexture(),tip-size*.2,-size*.55,size*1.6,size*1.1);c.restore();
     }
+  }
+  playerMuzzle(c,p){
+    const life=p.muzzleSmoke||0;
+    if(this.settings.effects&&life>0)this.smoke(c,{x:48,y:0,size:5,life,maxLife:WEAPON_MUZZLE_TIME,exhaust:true,smokeVariant:0},.4);
+    if(!(p.muzzle>0))return;
+    c.save();c.globalAlpha*=clamp(p.muzzle/WEAPONS.gun.muzzleTime,0,1);
+    c.drawImage(this.weaponFlameTexture(),42-18*.2,-9.9,28.8,19.8);
+    c.drawImage(this.weaponFlameTexture(),40,-4,15,8);
+    c.restore();
   }
   launcherIgnition(c,life){
     const texture=this.weaponFlameTexture();
@@ -238,8 +265,7 @@ export class Renderer {
     path(c,[[-52,-3],[-61,-18],[-66,-18],[-63,0],[-62,17],[-55,17]],'#81947b');
     c.save();c.translate(20,0);c.rotate((p.cannonAngle??p.angle)-p.angle);c.scale(.5,.5);c.fillStyle='#4c5940';c.fillRect(-4,-5,26,10);c.fillStyle='#b5ac7b';c.fillRect(17,-2,25,4);c.fillStyle='#303d32';c.fillRect(-7,-3,8,6);c.fillStyle='#e0e5b9';c.fillRect(39,-1,3,2);
     if(!ghost&&!(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches)){
-      const life=p.muzzleSmoke||((p.muzzle>0)?WEAPON_MUZZLE_TIME:0);
-      this.muzzleEffect(c,life,42,18,p.muzzle>0?WEAPON_MUZZLE_TIME:0);
+      this.playerMuzzle(c,p);
     }
     c.restore();
     c.fillStyle='#283d33';c.fillRect(-16,-19,36,4);c.fillRect(-16,15,36,4);c.fillStyle='#475f4c';c.fillRect(-10,-23,22,7);c.fillRect(-10,16,22,7);
@@ -487,7 +513,7 @@ export class Renderer {
       c.globalAlpha=g.player.invulnerable>0&&Math.floor(t*18)%2===0?.55:1;this.helicopter(c,g.player,t);c.globalAlpha=1;
       if(g.player.invulnerable>0){c.strokeStyle='#dbea9b40';c.lineWidth=1;c.beginPath();c.arc(g.player.x,g.player.y,43,0,TAU);c.stroke();}
     }
-    for(const p of g.particles){if(p.screenSmoke)continue;if(p.smoke){this.smoke(c,p);}else if(p.flakFlash||p.contactFlash){c.save();c.globalAlpha=clamp(p.life/p.maxLife,0,1);const glow=c.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);glow.addColorStop(0,'#fff6d0ee');glow.addColorStop(.4,'#ff9c4ca0');glow.addColorStop(1,'#ff792600');c.fillStyle=glow;c.fillRect(p.x-p.size,p.y-p.size,p.size*2,p.size*2);c.restore();}else{c.globalAlpha=clamp(p.life/p.maxLife,0,1);c.strokeStyle=p.color;c.lineWidth=p.size;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);c.stroke();if(p.flare){ellipse(c,p.x,p.y,p.size*3.4,p.size*3.4,'#ff9b59aa');ellipse(c,p.x,p.y,p.size*1.8,p.size*1.8,'#fff6c4');}c.globalAlpha=1;}}c.globalAlpha=1;
+    for(const p of g.particles){if(p.screenSmoke)continue;if(p.smoke){this.smoke(c,p);}else if(p.flare){this.flare(c,p,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);}else if(p.flakFlash||p.contactFlash){c.save();c.globalAlpha=clamp(p.life/p.maxLife,0,1);const glow=c.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);glow.addColorStop(0,'#fff6d0ee');glow.addColorStop(.4,'#ff9c4ca0');glow.addColorStop(1,'#ff792600');c.fillStyle=glow;c.fillRect(p.x-p.size,p.y-p.size,p.size*2,p.size*2);c.restore();}else{c.globalAlpha=clamp(p.life/p.maxLife,0,1);c.strokeStyle=p.color;c.lineWidth=p.size;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);c.stroke();c.globalAlpha=1;}}c.globalAlpha=1;
     for(const e of g.explosions){const progress=1-e.life/e.maxLife;c.globalAlpha=(1-progress)*.75;c.strokeStyle='#ffcf8b';c.lineWidth=3*(1-progress);c.beginPath();c.arc(e.x,e.y,e.size*progress,0,TAU);c.stroke();if(progress<.4){const flash=c.createRadialGradient(e.x,e.y,0,e.x,e.y,e.size*.6);flash.addColorStop(0,'#fff6c9aa');flash.addColorStop(1,'#ffc06b00');c.fillStyle=flash;c.fillRect(e.x-e.size,e.y-e.size,e.size*2,e.size*2);}}c.globalAlpha=1;
     for(const f of g.floaters){c.globalAlpha=clamp(f.life,0,1);c.font=`bold ${f.big?19:12}px monospace`;c.fillStyle=f.color;c.textAlign='center';c.fillText(f.text,f.x,f.y);}c.globalAlpha=1;
     // Enemy arrival indicators give the pilot time to react.
