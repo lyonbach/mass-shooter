@@ -1,6 +1,6 @@
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
 import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
-import { AA_MUZZLE_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './constants.js';
+import { MUZZLE_FUME_OFFSET, HELICOPTER_FUME_INTERVAL, HELICOPTER_FUME_OFFSET, AA_MUZZLE_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './constants.js';
 export function updateDroneVisual(e,dt,reduced=false){
   const vx=Number.isFinite(e.vx)?e.vx:0,vy=Number.isFinite(e.vy)?e.vy:0,speed=Math.hypot(vx,vy);
   const fast=e.type==='kamikaze',rate=fast?6:3.5,response=1-Math.exp(-rate*Math.max(0,dt));
@@ -16,6 +16,17 @@ export function createCombat(runtime){
   const {g,settings,sound,keys,pointer,$,t}=runtime;
   const burst=(...args)=>runtime.burst(...args),explosion=(...args)=>runtime.explosion(...args),float=(...args)=>runtime.float(...args);
   const positionalAudio=source=>{const p=g.player,distanceToSource=distance(source,p);return {pan:clamp((source.x-p.x)/(g.world.width*.35),-1,1),gain:clamp(1-distanceToSource/(g.world.width*.7),.15,1)};};
+// Dark gunpowder fume is left in the world at the barrel tip, drifting forward then lingering.
+function emitMuzzleFume(){
+  const p=g.player,reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!settings.effects||reduced)return;
+  const cos=Math.cos(p.cannonAngle),sin=Math.sin(p.cannonAngle);
+  for(let i=0;i<2&&g.particles.length<650;i++){
+    const n=p.muzzleFumeCount=(p.muzzleFumeCount||0)+1,life=.65+(Math.sin(n*5.7)+1)*.2;
+    g.particles.push({x:p.x+cos*MUZZLE_FUME_OFFSET,y:p.y+sin*MUZZLE_FUME_OFFSET,vx:cos*(22+i*10)+Math.sin(n*12.9898)*7,vy:sin*(22+i*10)+Math.sin(n*78.233)*7,
+      life,maxLife:life,smoke:true,gunFume:true,smokeVariant:n%3,size:3.2+(Math.sin(n*2.3)+1)*.9});
+  }
+}
 function gun(){
   const p=g.player,w=WEAPONS.gun,a=p.cannonAngle+(Math.random()-.5)*w.spread,speed=w.speed;
   p.cannonShotIndex=((p.cannonShotIndex||0)+1)%5;
@@ -24,6 +35,7 @@ function gun(){
   p.heat=Math.min(1,p.heat+w.heatPerShot);
   if(p.heat>=1){p.overheated=true;float(t('heat.cooling'),p.x,p.y-55,'#ffb586',true);}
   sound.play('shot',p.x/g.world.width*1.4-.7);
+  emitMuzzleFume();
 }
 const rocketRecharge=()=>WEAPONS.rocket.rechargeTime*Math.pow(WEAPONS.rocket.rechargeUpgradeFactor,runtime.upgrades.rockets||0);
 function launchRocket(){
@@ -168,6 +180,22 @@ function rocketTrail(b,ox,oy,oldAngle){
   }
   b.trailDistance=(previous+length)%spacing;
 }
+// Dark fume is left in the world at both engine outlets, so it trails the helicopter like missile smoke.
+function emitHelicopterFume(dt){
+  const p=g.player,reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!settings.effects||reduced)return;
+  p.fumeTimer=(p.fumeTimer||0)-dt;
+  if(p.fumeTimer>0)return;
+  p.fumeTimer=HELICOPTER_FUME_INTERVAL;
+  const cos=Math.cos(p.angle),sin=Math.sin(p.angle),speed=Math.hypot(p.vx,p.vy)/270;
+  for(const side of [-1,1]){
+    if(g.particles.length>=650)return;
+    // Deterministic jitter keeps cosmetic smoke from consuming gameplay random numbers.
+    const n=p.fumeCount=(p.fumeCount||0)+1,jx=Math.sin(n*12.9898)*4,jy=Math.sin(n*78.233)*4,life=.3+(Math.sin(n*4.1)+1)*.08,lx=HELICOPTER_FUME_OFFSET,ly=side*8;
+    g.particles.push({x:p.x+lx*cos-ly*sin,y:p.y+lx*sin+ly*cos,vx:-cos*(10+speed*10)+jx,vy:-sin*(10+speed*10)+jy,
+      life,maxLife:life,smoke:true,fume:true,smokeVariant:n%3,size:3.6+speed*1.4+(Math.sin(n*2.3)+1)*.6});
+  }
+}
 function update(dt){
   const p=g.player,W=g.world.width,H=g.world.height;g.time+=dt;g.shake=Math.max(0,g.shake-dt*35);
   p.cooldown-=dt;p.invulnerable-=dt;p.dashTime-=dt;p.dashCooldown=Math.max(0,p.dashCooldown-dt);p.flareCooldown=Math.max(0,p.flareCooldown-dt);p.lowHealthAlarm-=dt;p.missileAlarm-=dt;p.rocketCooldown-=dt;p.muzzle-=dt;p.muzzleSmoke=Math.max(0,(p.muzzleSmoke||0)-dt);
@@ -187,6 +215,7 @@ function update(dt){
   const tiltResponse=1-Math.exp(-PLAYER_BANK_RESPONSE*dt);
   p.bank+=(clamp(lateral/270,-1,1)*.3-p.bank)*tiltResponse;
   p.pitch+=(clamp(forward/270,-1,1)*.2-p.pitch)*tiltResponse;
+  emitHelicopterFume(dt);
   const firing=pointer.down||keys.has('Space');
   if(p.overheated||!firing){p.heat=Math.max(0,p.heat-dt/WEAPONS.gun.coolTime);if(p.overheated&&p.heat===0)p.overheated=false;}
   if(firing&&!p.overheated&&p.cooldown<=0)gun();
