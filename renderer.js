@@ -12,7 +12,8 @@ const SMOKE_STOPS={
   wreck:[[0,'#202820cc'],[.45,'#171e18aa'],[1,'#11181200']],
   explosion:[[0,'#606858cc'],[.45,'#394539aa'],[1,'#28342a00']],
   flak:[[0,'#30342fd9'],[.45,'#42463eb0'],[1,'#30383000']],
-  exhaust:[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']]
+  exhaust:[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']],
+  engine:[[0,'#c8c9bde6'],[.45,'#a8aa9dc0'],[1,'#878c8000']]
 };
 const SMOKE_SHAPES=[[1,1],[1,.78],[.78,1]],SMOKE_PUFF_SIZE=64;
 const WRECK_FIRE_PEAK_TRANSITION=4;
@@ -49,7 +50,7 @@ export class Renderer {
   smoke(c,p,alpha=1){
     const progress=clamp(1-p.life/p.maxLife,0,1),radius=p.size*(.8+progress*1.5)*(p.screenSmoke?SCREEN_SMOKE_RENDER.radius:1);
     if(!(radius>0))return;
-    const kind=p.screenSmoke?'screen':p.exhaust?'exhaust':p.persistent?'wreck':p.flakSmoke?'flak':'explosion';
+    const kind=p.screenSmoke?'screen':p.engineExhaust?'engine':p.exhaust?'exhaust':p.persistent?'wreck':p.flakSmoke?'flak':'explosion';
     if(p.smokeVariant===undefined)p.smokeVariant=Math.abs(Math.floor(p.x*13+p.y*7))%SMOKE_SHAPES.length;
     const variant=((p.smokeVariant%SMOKE_SHAPES.length)+SMOKE_SHAPES.length)%SMOKE_SHAPES.length,key=`${kind}:${variant}`;
     let puff=this.smokePuffs.get(key);
@@ -311,8 +312,8 @@ export class Renderer {
     if(ghost)c.globalAlpha*=.3;
     if(!ghost&&!reduced&&this.settings.effects&&canCache){
       for(const side of [-1,1]){
-        c.save();c.translate(-27,side*9);c.scale(1.8,.55);
-        this.smoke(c,{x:-4.5-speed,y:Math.sin(t*2+side)*.3,size:3.3+speed*1.1,life:.5,maxLife:1,exhaust:true,smokeVariant:side<0?0:1},.52+speed*.18);
+        c.save();c.translate(-27,side*10);c.scale(1.8,.7);
+        this.smoke(c,{x:-5.5-speed*.5,y:Math.sin(t*2+side)*.3,size:4.2+speed*.8,life:.5,maxLife:1,engineExhaust:true,smokeVariant:side<0?0:1},.8+speed*.1);
         c.restore();
       }
     }

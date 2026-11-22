@@ -80,7 +80,7 @@ test('engine exhaust responds to speed and hot barrels retain warmth and smoke',
 
 test('engine plumes have visible bounded opacity and extend behind the outlets before the hull',()=>{
   const doc=document(),renderer=new Renderer({getContext:()=>context(),ownerDocument:doc},{effects:true});
-  for(const [speed,alpha] of [[0,.52],[270,.70]]){
+  for(const [speed,alpha] of [[0,.8],[270,.9]]){
     const c=context(),p={x:0,y:0,angle:0,vx:speed,vy:0},before=structuredClone(p);
     c.globalAlpha=.8;
     renderer.helicopter(c,p,.35);
@@ -90,14 +90,14 @@ test('engine plumes have visible bounded opacity and extend behind the outlets b
       near(plume.alpha,alpha*.8);
       const [,x,y,w,h]=plume.args;
       const [left]=point(plume.matrix,x,y),[right]=point(plume.matrix,x+w,y+h);
-      assert.ok(left < -42 && left > -52);
+      assert.ok(left < -48 && left > -53);
       assert.ok(right > -27 && right < -23);
-      assert.ok(h*plume.matrix[3] < 8);
+      assert.ok(h*plume.matrix[3] < 12);
       assert.ok(c.calls.indexOf(plume)<c.calls.findIndex(call=>call.name==='fill'&&call.style==='#728471'));
     }
     assert.deepEqual(p,before);assert.equal(c.globalAlpha,.8);assert.equal(c.stack.length,0);
   }
-  assert.deepEqual(doc.stops.slice(0,3),[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']]);
+  assert.deepEqual(doc.stops.slice(0,3),[[0,'#c8c9bde6'],[.45,'#a8aa9dc0'],[1,'#878c8000']]);
   assert.equal(doc.canvases.length,2);
 });
 
@@ -199,14 +199,31 @@ test('exhaust remains attached to both outlets through hull headings and banks',
     const plumes=c.calls.filter(call=>call.name==='drawImage');
     assert.equal(plumes.length,2);
     for(const [i,side] of [-1,1].entries()){
-      const localX=pitch*30+Math.cos(bank*.45)*(-27*(1-Math.abs(pitch)*.3))-Math.sin(bank*.45)*(side*9*(1-Math.abs(bank)*.5));
-      const localY=bank*30+Math.sin(bank*.45)*(-27*(1-Math.abs(pitch)*.3))+Math.cos(bank*.45)*(side*9*(1-Math.abs(bank)*.5));
+      const localX=pitch*30+Math.cos(bank*.45)*(-27*(1-Math.abs(pitch)*.3))-Math.sin(bank*.45)*(side*10*(1-Math.abs(bank)*.5));
+      const localY=bank*30+Math.sin(bank*.45)*(-27*(1-Math.abs(pitch)*.3))+Math.cos(bank*.45)*(side*10*(1-Math.abs(bank)*.5));
       const [x,y]=point(plumes[i].matrix,0,0);
       near(x,p.x+Math.cos(angle)*localX-Math.sin(angle)*localY);
       near(y,p.y+Math.sin(angle)*localX+Math.cos(angle)*localY);
     }
     assert.equal(c.stack.length,0);
   }
+});
+
+test('gameplay draw invokes both engine plumes without mutating state or consuming RNG',()=>{
+  const c=context(),doc=document(),renderer=new Renderer({getContext:()=>c,ownerDocument:doc},{effects:true,shake:false});
+  renderer.scale=1;renderer.terrain={};
+  const g={world:{width:800,height:600},camera:{x:0,y:0,zoom:1},visualTime:.7,state:'playing',touch:true,
+    player:{x:170,y:80,angle:.9,bank:.3,pitch:.2,vx:120,vy:40,health:100},
+    decals:[],pickups:[],particles:[],enemies:[],bullets:[],explosions:[],floaters:[]};
+  const before=structuredClone(g),random=Math.random;Math.random=()=>{throw Error('renderer used gameplay RNG');};
+  try{
+    renderer.draw(g,.016);
+    const plumes=c.calls.filter(call=>call.name==='drawImage'&&[...renderer.smokePuffs.values()].includes(call.args[0]));
+    assert.equal(plumes.length,2);
+    assert.deepEqual(g,before);
+    assert.equal(c.stack.length,0);
+    assert.equal(doc.canvases.length,2);
+  }finally{Math.random=random;}
 });
 
 test('exhaust uses bounded cache, avoids gameplay randomness, and respects effects and motion settings',()=>{
