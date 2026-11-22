@@ -1,5 +1,5 @@
 import { SoundEffect } from '../core/effect.js';
-import { Tone, Noise } from '../core/primitives.js';
+import { Tone } from '../core/primitives.js';
 
 export class Arpeggio extends SoundEffect {
     static key = 'pickup';
@@ -23,16 +23,39 @@ export class UpgradeChime extends Arpeggio {
     static key = 'upgrade';
 }
 
-export class LowHealthAlarm extends SoundEffect {
-    static key = 'lowHealth';
+class BuzzerAlarm extends SoundEffect {
     render({ gain, at, voice }) {
-        const saw = gain * this.n('sawGain'), square = gain * this.n('squareGain'), noise = gain * this.n('noiseGain'), decay = this.n('decay');
-        for (const offset of [0, 0.48, 0.96]) {
-            new Tone(this.engine, { voice, freq: 185, end: 175, duration: 0.32 * decay, gain: saw, type: 'sawtooth', time: at + offset * decay });
-            new Tone(this.engine, { voice, freq: 277.5, end: 262.5, duration: 0.32 * decay, gain: square, type: 'square', time: at + offset * decay });
-            new Noise(this.engine, { voice, duration: 0.12 * decay, gain: noise, frequency: 900, time: at + offset * decay });
+        const startPitch = this.n('startPitch'), endPitch = this.n('endPitch');
+        const speed = this.n('buzzSpeed'), duration = 0.5 / speed;
+        const saw = gain * this.n('sawGain'), square = gain * this.n('squareGain');
+        const ctx = this.engine.ctx;
+        const buzz = (freq, end, level, type, time) => {
+            const oscillator = ctx.createOscillator(), envelope = ctx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(freq, time);
+            oscillator.frequency.linearRampToValueAtTime(end, time + duration);
+            envelope.gain.setValueAtTime(0, time);
+            envelope.gain.linearRampToValueAtTime(level, time + 0.005);
+            envelope.gain.setValueAtTime(level, time + duration - 0.005);
+            envelope.gain.linearRampToValueAtTime(0, time + duration);
+            voice.track(oscillator, [oscillator, envelope]);
+            oscillator.connect(envelope); envelope.connect(voice.output);
+            oscillator.start(time); oscillator.stop(time + duration + 0.03);
+        };
+        for (let i = 0; i < 3; i++) {
+            const time = at + i / speed;
+            buzz(startPitch, endPitch, saw, 'sawtooth', time);
+            buzz(startPitch * 136 / 130, endPitch * 126 / 120, square, 'square', time);
         }
     }
+}
+
+export class LowHealthAlarm extends BuzzerAlarm {
+    static key = 'lowHealth';
+}
+
+export class Alert extends BuzzerAlarm {
+    static key = 'alert';
 }
 
 export class MissileWarning extends SoundEffect {
@@ -40,17 +63,6 @@ export class MissileWarning extends SoundEffect {
     render({ gain, at, voice }) {
         for (const offset of [0, 0.1, 0.2]) {
             new Tone(this.engine, { voice, freq: 980, end: 820, duration: 0.05, gain: gain * this.n('toneGain'), type: 'sine', time: at + offset });
-        }
-    }
-}
-
-export class Alert extends SoundEffect {
-    static key = 'alert';
-    render({ gain, at, voice }) {
-        const level = gain * this.n('toneGain'), decay = this.n('decay');
-        for (const offset of [0, 0.36]) {
-            new Tone(this.engine, { voice, freq: 330, end: 310, duration: 0.22 * decay, gain: level * 0.65, type: 'sawtooth', time: at + offset * decay });
-            new Tone(this.engine, { voice, freq: 495, end: 465, duration: 0.22 * decay, gain: level * 0.35, type: 'square', time: at + offset * decay });
         }
     }
 }

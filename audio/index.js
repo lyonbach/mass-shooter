@@ -1,9 +1,9 @@
 import { AudioEngine } from './core/engine.js';
 import { SOUND_DATA } from './sound-data.js';
 import { GunShot } from './effects/gun-shot.js';
-import { Explosion } from './effects/explosion.js';
+import { Explosion, Damage } from './effects/explosion.js';
 import { EnemyShot, AAShot, Flare } from './effects/enemy-shots.js';
-import { Hit, Damage, Dash } from './effects/impacts.js';
+import { Hit, Dash } from './effects/impacts.js';
 import { Rocket, Missile } from './effects/rocket.js';
 import { Arpeggio, WaveFanfare, UpgradeChime, LowHealthAlarm, MissileWarning, Alert, UiBlip } from './effects/ui.js';
 import { Rotor } from './effects/rotor.js';

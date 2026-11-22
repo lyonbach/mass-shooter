@@ -33,7 +33,7 @@ for (const Ctor of EFFECT_CLASSES) test(`${Ctor.key}: valid schedules, sources e
     assert.ok(voice && voice.sources.size);
     assert.equal(effect.voiceCount, 1);
     if (Ctor.key === 'rotor') effect.stop();
-    else ctx.advanceTo(5);
+    else ctx.advanceTo(Ctor.key === 'lowHealth' ? 6 : 5);
     assert.equal(effect.voiceCount, 0);
     assert.equal(engine.voices.size, 0);
     assert.ok(ctx.nodes.slice(first).every(node => node.disconnected));
@@ -130,46 +130,38 @@ test('enemy spark parameters control the additional noise layer', () => {
     assert.ok(sources.some(source => source.type === 'sine'));
 });
 
-for (const spec of [
-    { key:'lowHealth', offsets:[0,0.48,0.96], duration:0.32, tones:[['sawtooth',185,175,0.12],['square',277.5,262.5,0.055]], noise:[0.12,900,0.025] },
-    { key:'alert', offsets:[0,0.36], duration:0.22, tones:[['sawtooth',330,310,0.065],['square',495,465,0.035]] }
-]) for (const decay of [1,2]) test(`${spec.key} schedules each buzz with decay ${decay} and holds capacity until the final source`, () => {
-    const config = {maxVoices:1};
-    if (decay !== 1) config.decay = {value:decay,spread:0,unit:'ratio'};
-    const { engine, ctx } = setup({data:{[spec.key]:config}});
-    const effect = engine.effect(spec.key), voice = effect.play({at:2,gain:0.5,randomize:false});
-    const sources = [...voice.sources.keys()];
-    assert.equal(sources.length, spec.offsets.length * (spec.tones.length + (spec.noise ? 1 : 0)));
-    for (const offset of spec.offsets) {
-        const at = 2 + offset * decay, burst = sources.filter(source => Math.abs(source.startAt - at) < 1e-12);
-        assert.equal(burst.length, spec.tones.length + (spec.noise ? 1 : 0));
-        for (const [type,freq,end,level] of spec.tones) {
-            const tone = burst.find(source => source.type === type);
-            assert.ok(tone);
-            assert.ok(Math.abs(tone.end - (at + spec.duration * decay + 0.03)) < 1e-12);
-            assert.ok(ctx.events.some(event => event.label === 'frequency' && event.method === 'set' && event.at === at && event.value === freq));
-            assert.ok(ctx.events.some(event => event.label === 'frequency' && event.method === 'exponential' && Math.abs(event.at - (at + spec.duration * decay)) < 1e-12 && event.value === end));
-            assert.ok(ctx.events.some(event => event.label === 'gain' && event.method === 'linear' && event.at === at + 0.006 && Math.abs(event.value - 0.5 * level) < 1e-12));
-        }
-        if (spec.noise) {
-            const noise = burst.find(source => source.type === 'buffer');
-            assert.ok(noise);
-            assert.ok(Math.abs(noise.end - (at + spec.noise[0] * decay)) < 1e-12);
-            assert.equal(voice.sources.get(noise)[1].frequency.value, spec.noise[1]);
-            assert.ok(ctx.events.some(event => event.label === 'gain' && event.method === 'set' && event.at === at && event.value === 0.5 * spec.noise[2]));
+for (const [key,speedOverride] of [['lowHealth',null],['alert',1]]) test(`${key} plays three steady buzzes at its configured speed`, () => {
+    const options=speedOverride===null?{}:{data:{[key]:{maxVoices:1,buzzSpeed:{value:speedOverride,spread:0,unit:'hertz'}}}};
+    const {engine,ctx}=setup(options),settings=SOUND_DATA[key],speed=speedOverride??settings.buzzSpeed.value;
+    const effect=engine.effect(key),voice=effect.play({at:2,randomize:false}),sources=[...voice.sources.keys()];
+    const duration=.5/speed,starts=Array.from({length:3},(_,i)=>2+i/speed);
+    assert.equal(sources.length,6);
+    assert.deepEqual(sources.map(source=>source.startAt),starts.flatMap(at=>[at,at]));
+    assert.deepEqual(sources.map(source=>source.type),['sawtooth','square','sawtooth','square','sawtooth','square']);
+    for(const [i,at] of starts.entries()){
+        assert.ok(Math.abs(sources[i*2].end-(at+duration+.03))<1e-12);
+        assert.ok(Math.abs(sources[i*2+1].end-(at+duration+.03))<1e-12);
+        for(const source of sources.slice(i*2,i*2+2)){
+            const ratio=source.type==='sawtooth'?1:136/130, endRatio=source.type==='sawtooth'?1:126/120;
+            const level=settings[source.type==='sawtooth'?'sawGain':'squareGain'].value;
+            assert.ok(ctx.events.some(event=>event.label==='frequency'&&event.method==='set'&&event.value===settings.startPitch.value*ratio&&event.at===at));
+            assert.ok(ctx.events.some(event=>event.label==='frequency'&&event.method==='linear'&&event.value===settings.endPitch.value*endRatio&&event.at===at+duration));
+            assert.ok(ctx.events.some(event=>event.label==='gain'&&event.method==='linear'&&event.value===level&&event.at===at+.005));
+            assert.ok(ctx.events.some(event=>event.label==='gain'&&event.method==='set'&&event.value===level&&event.at===at+duration-.005));
+            assert.ok(ctx.events.some(event=>event.label==='gain'&&event.method==='linear'&&event.value===0&&event.at===at+duration));
         }
     }
-    assert.equal(effect.play({randomize:false}), null);
-    const finalEnd = Math.max(...sources.map(source => source.end));
-    ctx.advanceTo(finalEnd - 0.001);
-    assert.equal(effect.voiceCount, 1);
-    ctx.advanceTo(finalEnd);
-    assert.equal(effect.voiceCount, 0);
+    assert.equal(effect.play({randomize:false}),null);
+    ctx.advanceTo(Math.max(...sources.map(source=>source.end)));
+    assert.equal(effect.voiceCount,0);
     assert.ok(effect.play({randomize:false}));
 });
 
-for (const key of ['lowHealth','alert','flare']) test(`${key} stop cancels every future source`, () => {
-    const { engine, ctx } = setup({data:{[key]:{maxVoices:1,decay:{value:2,spread:0,unit:'ratio'}}}});
+for (const key of ['alert','flare']) test(`${key} stop cancels every future source`, () => {
+    const options=key==='alert'
+        ?{data:{alert:{maxVoices:1,buzzSpeed:{value:1,spread:0,unit:'hertz'}}}}
+        :{data:{flare:{maxVoices:1,decay:{value:2,spread:0,unit:'ratio'}}}};
+    const { engine, ctx } = setup(options);
     const effect = engine.effect(key), voice = effect.play({at:10,randomize:false});
     const sources = [...voice.sources.keys()];
     assert.ok(sources.every(source => source.startAt > ctx.currentTime));
@@ -207,7 +199,7 @@ for (const decay of [1,2]) test(`flare scales all layer durations with decay ${d
     assert.ok(effect.play({randomize:false}));
 });
 
-for (const key of ['lowHealth','alert','flare']) test(`${key} samples randomized decay once for all layers`, () => {
+for (const key of ['flare']) test(`${key} samples randomized decay once for all layers`, () => {
     const { engine } = setup({data:{[key]:{decay:{value:2,spread:0.25,unit:'ratio'}}}});
     engine.random = () => 1;
     const effect = engine.effect(key), jitter = engine.jitter.bind(engine);
@@ -219,10 +211,7 @@ for (const key of ['lowHealth','alert','flare']) test(`${key} samples randomized
     const voice = effect.play({at:2,randomize:true}), sources = [...voice.sources.keys()];
     assert.equal(samples, 1);
     const decay = 2.5;
-    const expected = key === 'lowHealth'
-        ? [0,0.48,0.96].flatMap(offset => [[offset,0.32],[offset,0.32],[offset,0.12]])
-        : key === 'alert' ? [0,0,0.36,0.36].map(offset => [offset,0.22])
-        : [[0,0.025],[0,0.045],[0,0.24],[0,0.18]];
+    const expected = [[0,0.025],[0,0.045],[0,0.24],[0,0.18]];
     assert.equal(sources.length, expected.length);
     for (const [i,[offset,duration]] of expected.entries()) {
         assert.ok(Math.abs(sources[i].startAt - (2 + offset * decay)) < 1e-12);

@@ -14,12 +14,12 @@ const catalog = {
     flare: ['Flare', 'Combat', 'Countermeasure deployment.'],
     dash: ['Dash', 'Combat', 'A short burst of acceleration.'],
     damage: ['Player damage', 'Combat', 'The cockpit damage cue.'],
-    lowHealth: ['Low health', 'Signals', 'Low-health warning pulse.'],
+    lowHealth: ['Low health', 'Signals', 'Three cockpit buzzes with equal-length pauses; speed controls the timing.'],
     missileAlert: ['Missile warning', 'Signals', 'Incoming missile warning.'],
     pickup: ['Pickup', 'Signals', 'Collectible arpeggio.'],
     wave: ['New wave', 'Signals', 'The next enemy wave announcement.'],
     upgrade: ['Upgrade', 'Signals', 'Upgrade selection chime.'],
-    alert: ['Alert', 'Signals', 'General tactical alert.'],
+    alert: ['Goliath alarm', 'Signals', 'Three sustained buzzer pulses; speed controls the timing.'],
     ui: ['UI blip', 'Signals', 'A short interface confirmation.'],
     rotor: ['Helicopter rotor', 'Engine', 'Continuous rotor loop. Stop manually or press Escape.']
 };

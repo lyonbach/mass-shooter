@@ -1,18 +1,22 @@
 // Shared by the browser editor and Node build: one CSV format and validation path.
 const shotParams = 'noiseDuration noiseGain noiseCutoff subStart subEnd subDuration subGain';
+const explodeParams = 'debrisChance pitch decay crack bodyGain midGain highGain rumbleGain tailGain sparkGain dustGain debrisGain crackGain';
+const buzzerParams = 'startPitch endPitch buzzSpeed sawGain squareGain';
 export const SOUND_PARAMETERS = {
     shot: `${shotParams} sparkDuration sparkGain sparkCutoff`,
     enemy: `${shotParams} sparkDuration sparkGain sparkCutoff`,
     aa: shotParams,
     hit: 'heavyChance pitch decay snapGain bodyGain thudGain subGain ringGain heavyGain heavySubGain heavyRingGain',
-    explode: 'debrisChance pitch decay crack bodyGain midGain highGain rumbleGain tailGain sparkGain dustGain debrisGain crackGain',
+    explode: explodeParams,
+    damage: explodeParams,
     rocket: 'snapGain pitch decay snapSubGain whooshGain whooshTailGain',
     missile: 'snapGain pitch decay snapSubGain whooshGain whooshTailGain',
     flare: 'snapGain pitch decay snapSubGain whooshGain tailGain',
-    dash: 'noiseGain subGain', damage: 'noiseGain subGain',
-    lowHealth: 'noiseGain sawGain squareGain decay',
+    dash: 'noiseGain subGain',
+    lowHealth: buzzerParams,
+    alert: buzzerParams,
     missileAlert: 'toneGain', pickup: 'noteGain', upgrade: 'noteGain',
-    wave: 'noteGain', alert: 'toneGain decay', ui: 'toneGain',
+    wave: 'noteGain', ui: 'toneGain',
     rotor: 'bladePulseHz bladeAirHz noiseCutoff bodyGain pulseGain airQ airGain airPulseGain motorHz motorGain'
 };
 
@@ -21,7 +25,9 @@ export function validateParameter(name, { value, spread, unit }, effect) {
     if (!Number.isFinite(spread) || spread < 0 || spread >= 1) return 'Variation must be at least 0% and less than 100%';
     if (!['gain', 'hertz', 'duration', 'ratio'].includes(unit)) return 'Invalid unit';
     if (['hertz', 'duration'].includes(unit) && value <= 0) return 'Frequency and duration must be positive';
-    if (name === 'decay' && ['lowHealth', 'alert', 'flare'].includes(effect) && value <= 0) return 'Decay must be positive';
+    if (name === 'buzzSpeed' && (value * (1 - spread) < 0.1 || value * (1 + spread) > 10))
+        return 'Buzz speed, including variation, must stay between 0.1 and 10 Hz';
+    if (name === 'decay' && effect === 'flare' && value <= 0) return 'Decay must be positive';
     if (name.endsWith('Chance') && (value > 1 || spread !== 0)) return 'Chance must be between 0 and 1, with zero variation';
     return '';
 }

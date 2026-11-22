@@ -13,7 +13,7 @@ import { wreckFireState } from '../renderer.js';
 function createGame(reducedMotion=false) {
   const elements=new Map(),storage=new Map(),windowEvents=new Map(),documentEvents=new Map();
   class Element {
-    constructor(){this.hidden=false;this.style={};this.dataset={};this.children=[];this.value=60;this.checked=true;this.listeners={};this.classList={add(){},remove(){},toggle(){}};}
+    constructor(){this.hidden=false;this.style={};this.dataset={};this.children=[];this.value=60;this.checked=true;this.listeners={};this.classes=new Set();this.classList={add:name=>this.classes.add(name),remove:name=>this.classes.delete(name),toggle:(name,force)=>{const enabled=force??!this.classes.has(name);if(enabled)this.classes.add(name);else this.classes.delete(name);return enabled;},contains:name=>this.classes.has(name)};}
     addEventListener(name,fn){(this.listeners[name]??=[]).push(fn);}
     setAttribute(name,value){this[name]=value;}
     getBoundingClientRect(){return{left:0,top:0,width:1200,height:675};}
@@ -445,12 +445,21 @@ test('decoyed missiles expire after their decoy timer',async()=>{
     game.update(.02);assert.equal(rocket.life,0);assert.ok(!game.g.bullets.includes(rocket));assert.equal(p.health,100);
   }finally{Math.random=random;}
 });
-test('critical health and close missiles trigger repeating cockpit alarms',async()=>{
+test('critical health HUD container exists in the page',()=>{
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/<div class="hull" id="hull">/);
+});
+test('critical health triggers one triple-buzz cue per low-health episode',async()=>{
   const critical=createGame();await critical.start();critical.g.spawnRemaining=100;
   critical.g.player.health=25;critical.update(.01);
   assert.equal(critical.sound.plays.filter(name=>name==='lowHealth').length,1);
+  assert.equal(critical.elements.get('hull').classList.contains('critical'),true);
   critical.update(.5);assert.equal(critical.sound.plays.filter(name=>name==='lowHealth').length,1);
-  critical.update(1);assert.equal(critical.sound.plays.filter(name=>name==='lowHealth').length,2);
+  critical.update(1);assert.equal(critical.sound.plays.filter(name=>name==='lowHealth').length,1);
+  critical.g.player.health=26;critical.update(.1);
+  assert.equal(critical.elements.get('hull').classList.contains('critical'),false);
+  critical.g.player.health=25;critical.update(.1);assert.equal(critical.sound.plays.filter(name=>name==='lowHealth').length,2);
+  assert.equal(critical.elements.get('hull').classList.contains('critical'),true);
 
   const missile=createGame();await missile.start();missile.g.spawnRemaining=100;missile.settings.difficulty='hard';
   const p=missile.g.player;

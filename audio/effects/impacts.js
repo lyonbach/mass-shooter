@@ -20,14 +20,6 @@ export class Hit extends SoundEffect {
     }
 }
 
-export class Damage extends SoundEffect {
-    static key = 'damage';
-    render({ pan, gain, at, voice }) {
-        new Noise(this.engine, { voice, duration: 0.22, gain: gain * this.n('noiseGain'), frequency: 700, pan, time: at });
-        new Tone(this.engine, { voice, freq: 160, end: 50, duration: 0.25, gain: gain * this.n('subGain'), type: 'sawtooth', time: at });
-    }
-}
-
 export class Dash extends SoundEffect {
     static key = 'dash';
     render({ pan, gain, at, voice }) {

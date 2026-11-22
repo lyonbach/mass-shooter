@@ -58,42 +58,42 @@ export const SOUND_DATA = {
     "spatial": true,
     "maxVoices": 6,
     "noiseDuration": {
-      "value": 1,
+      "value": 4,
       "spread": 0.05,
       "unit": "duration"
     },
     "noiseGain": {
-      "value": 0.5,
+      "value": 1,
       "spread": 0,
       "unit": "gain"
     },
     "noiseCutoff": {
-      "value": 100,
+      "value": 150,
       "spread": 0.01,
       "unit": "hertz"
     },
     "sparkDuration": {
-      "value": 0.035,
+      "value": 0.04,
       "spread": 0,
       "unit": "duration"
     },
     "sparkGain": {
-      "value": 0.08,
+      "value": 0.3,
       "spread": 0,
       "unit": "gain"
     },
     "sparkCutoff": {
-      "value": 4500,
+      "value": 3500,
       "spread": 0,
       "unit": "hertz"
     },
     "subStart": {
-      "value": 100,
+      "value": 50,
       "spread": 0,
       "unit": "hertz"
     },
     "subEnd": {
-      "value": 50,
+      "value": 10,
       "spread": 0,
       "unit": "hertz"
     },
@@ -103,7 +103,7 @@ export const SOUND_DATA = {
       "unit": "duration"
     },
     "subGain": {
-      "value": 0.4,
+      "value": 0.05,
       "spread": 0,
       "unit": "gain"
     }
@@ -215,18 +215,18 @@ export const SOUND_DATA = {
       "unit": "ratio"
     },
     "pitch": {
-      "value": 0.4,
+      "value": 0.3,
       "spread": 0.01,
       "unit": "ratio"
     },
     "decay": {
-      "value": 1.3,
+      "value": 2.5,
       "spread": 0.15,
       "unit": "ratio"
     },
     "crack": {
-      "value": 1,
-      "spread": 0.2,
+      "value": 0.7,
+      "spread": 0.5,
       "unit": "ratio"
     },
     "bodyGain": {
@@ -240,7 +240,7 @@ export const SOUND_DATA = {
       "unit": "gain"
     },
     "highGain": {
-      "value": 0.6,
+      "value": 0.1,
       "spread": 0.25,
       "unit": "gain"
     },
@@ -250,12 +250,12 @@ export const SOUND_DATA = {
       "unit": "gain"
     },
     "tailGain": {
-      "value": 0.6,
+      "value": 0.2,
       "spread": 0,
       "unit": "gain"
     },
     "sparkGain": {
-      "value": 0.3,
+      "value": 0.03,
       "spread": 0,
       "unit": "gain"
     },
@@ -270,8 +270,8 @@ export const SOUND_DATA = {
       "unit": "gain"
     },
     "crackGain": {
-      "value": 0.01,
-      "spread": 0,
+      "value": 5,
+      "spread": 0.3,
       "unit": "gain"
     }
   },
@@ -392,15 +392,70 @@ export const SOUND_DATA = {
     }
   },
   "damage": {
-    "spatial": false,
-    "maxVoices": 3,
-    "noiseGain": {
+    "spatial": true,
+    "maxVoices": 10,
+    "debrisChance": {
+      "value": 0.2,
+      "spread": 0,
+      "unit": "ratio"
+    },
+    "pitch": {
+      "value": 0.6,
+      "spread": 0.01,
+      "unit": "ratio"
+    },
+    "decay": {
+      "value": 1,
+      "spread": 0.15,
+      "unit": "ratio"
+    },
+    "crack": {
       "value": 0.4,
+      "spread": 0.2,
+      "unit": "ratio"
+    },
+    "bodyGain": {
+      "value": 0.3,
+      "spread": 0.5,
+      "unit": "gain"
+    },
+    "midGain": {
+      "value": 0.3,
+      "spread": 0.5,
+      "unit": "gain"
+    },
+    "highGain": {
+      "value": 0.3,
+      "spread": 0.25,
+      "unit": "gain"
+    },
+    "rumbleGain": {
+      "value": 0.5,
+      "spread": 0.5,
+      "unit": "gain"
+    },
+    "tailGain": {
+      "value": 0.2,
       "spread": 0,
       "unit": "gain"
     },
-    "subGain": {
-      "value": 0.4,
+    "sparkGain": {
+      "value": 0.3,
+      "spread": 0,
+      "unit": "gain"
+    },
+    "dustGain": {
+      "value": 0.3,
+      "spread": 0.5,
+      "unit": "gain"
+    },
+    "debrisGain": {
+      "value": 0.7,
+      "spread": 0,
+      "unit": "gain"
+    },
+    "crackGain": {
+      "value": 3,
       "spread": 0,
       "unit": "gain"
     }
@@ -408,25 +463,30 @@ export const SOUND_DATA = {
   "lowHealth": {
     "spatial": false,
     "maxVoices": 1,
-    "noiseGain": {
-      "value": 0.1,
+    "startPitch": {
+      "value": 75,
       "spread": 0,
-      "unit": "gain"
+      "unit": "hertz"
+    },
+    "endPitch": {
+      "value": 200,
+      "spread": 0,
+      "unit": "hertz"
+    },
+    "buzzSpeed": {
+      "value": 1.5,
+      "spread": 0,
+      "unit": "hertz"
     },
     "sawGain": {
-      "value": 0.4,
+      "value": 0.15,
       "spread": 0,
       "unit": "gain"
     },
     "squareGain": {
-      "value": 0.1,
+      "value": 0.15,
       "spread": 0,
       "unit": "gain"
-    },
-    "decay": {
-      "value": 1,
-      "spread": 0,
-      "unit": "ratio"
     }
   },
   "missileAlert": {
@@ -468,15 +528,30 @@ export const SOUND_DATA = {
   "alert": {
     "spatial": false,
     "maxVoices": 2,
-    "toneGain": {
-      "value": 0.1,
+    "startPitch": {
+      "value": 100,
+      "spread": 0,
+      "unit": "hertz"
+    },
+    "endPitch": {
+      "value": 100,
+      "spread": 0,
+      "unit": "hertz"
+    },
+    "buzzSpeed": {
+      "value": 1,
+      "spread": 0,
+      "unit": "hertz"
+    },
+    "sawGain": {
+      "value": 0.02,
       "spread": 0,
       "unit": "gain"
     },
-    "decay": {
-      "value": 2,
+    "squareGain": {
+      "value": 0.04,
       "spread": 0,
-      "unit": "ratio"
+      "unit": "gain"
     }
   },
   "ui": {

@@ -18,3 +18,8 @@ export class Explosion extends SoundEffect {
         if (debris) new Noise(this.engine, { voice, duration: 0.055 * decay, gain: gain * this.n('debrisGain'), frequency: 7600 * pitch * crack, pan, time: at });
     }
 }
+
+// Player damage shares the explosion synthesis and parameter set; only its sounds.csv rows are separate.
+export class Damage extends Explosion {
+    static key = 'damage';
+}
