@@ -101,7 +101,7 @@ test('flare lifetime and arbitrary particle counts use bounded texture allocatio
 test('player muzzle matches 5678270 burst geometry, gradients, placement and timing',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});
   renderer.playerMuzzle(c,{muzzle:.04,muzzleSmoke:.22});
-  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,2);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage').length,3);
   const flash=renderer.playerFlash;
   assert.equal(flash.width,100);assert.equal(flash.height,48);
   assert.deepEqual(flash.pc.calls.find(call=>call.name==='createRadialGradient').args,[57,0,1,57,0,34]);
@@ -110,12 +110,12 @@ test('player muzzle matches 5678270 burst geometry, gradients, placement and tim
   assert.deepEqual(document.stops.slice(-4),[[0,'#fffbe0ff'],[.24,'#ffe9a6ed'],[.58,'#ff9b4ac0'],[1,'#b7392300']]);
   assert.deepEqual(c.calls.filter(call=>call.name==='drawImage').at(-1).args.slice(1),[40,-12,50,24]);
   const firing=context();renderer.playerMuzzle(firing,{muzzle:.001,muzzleSmoke:0});
-  assert.equal(firing.calls.filter(call=>call.name==='drawImage').length,1);
+  assert.equal(firing.calls.filter(call=>call.name==='drawImage').length,2);
   const cooling=context();renderer.playerMuzzle(cooling,{muzzle:0,muzzleSmoke:.1});
   assert.equal(cooling.calls.filter(call=>call.name==='drawImage').length,1);
   const settled=context();renderer.playerMuzzle(settled,{muzzle:0,muzzleSmoke:0});
   assert.equal(settled.calls.length,0);
-  assert.equal(document.created.length,2);
+  assert.equal(document.created.length,3);
 });
 
 test('smoke puffs use bounded offscreen gradients and stable variants across transforms',()=>{
@@ -341,6 +341,9 @@ test('cannon is half-sized and fires from its barrel tip',()=>{
   assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===20&&call.args[1]===0));
   assert.ok(c.calls.some(call=>call.name==='scale'&&call.args[0]===.5&&call.args[1]===.5));
   assert.ok(c.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.playerFlash&&call.args[1]===40));
+  const halo=c.calls.find(call=>call.name==='drawImage'&&call.args[0]===renderer.playerFlashGlow);
+  assert.ok(halo&&halo.args[3]===96&&halo.args[1]+halo.args[3]/2===42);
+  assert.equal(c.stack.length,0);
 });
 
 test('helicopter strobe lights flash once every two seconds',()=>{
@@ -374,6 +377,20 @@ test('tail rotor is rendered edge-on',()=>{
   renderer.helicopter(c,{x:100,y:100,angle:0,bank:0,pitch:0},0);
   assert.ok(c.calls.some(call=>call.name==='ellipse'&&call.args[0]===0&&call.args[1]===0&&call.args[2]===15&&call.args[3]===2&&call.fillStyle==='#d8dfb699'));
   assert.equal(c.calls.some(call=>call.name==='fillRect'&&call.args[0]===-12&&call.args[1]===-1&&call.args[2]===24&&call.args[3]===2),false);
+});
+
+test('both rotors have painted blade tips, a blur disc and a bolted hub',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{});
+  const c=context();
+  renderer.helicopter(c,{x:100,y:100,angle:0,bank:0,pitch:0},0);
+  const tips=c.calls.filter(call=>call.name==='fillRect'&&call.fillStyle==='#d9a45a'&&call.args[2]===6);
+  assert.equal(tips.length,4);
+  assert.ok(c.calls.some(call=>call.name==='ellipse'&&call.fillStyle==='#dce8ca0e'&&call.args[2]===44));
+  assert.equal(c.calls.filter(call=>call.name==='ellipse'&&call.fillStyle==='#a9b58f').length,4);
+  const a=context(),b=context(),player={x:100,y:100,angle:0,bank:0,pitch:0};
+  renderer.helicopter(a,player,0);renderer.helicopter(b,player,.02);
+  const blades=x=>x.calls.filter(call=>call.name==='fillRect'&&call.fillStyle==='#eef3d9b0').map(call=>call.args[2]);
+  assert.notDeepEqual(blades(a),blades(b));
 });
 
 test('tail rotor blur cycles as it spins',()=>{

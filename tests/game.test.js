@@ -839,3 +839,17 @@ test('helicopter leaves world-space dark fume at both outlets, skipped in reduce
   const reduced=createGame(true);await reduced.start();reduced.g.spawnRemaining=0;reduced.update(.2);
   assert.equal(reduced.g.particles.filter(q=>q.fume).length,0);
 });
+
+test('firing the cannon leaves dark world-space fume at the barrel tip, skipped in reduced motion',async()=>{
+  for(const reduced of [false,true]){
+    const game=createGame(reduced);await game.start();game.g.spawnRemaining=100;
+    const p=game.g.player;p.cooldown=0;p.heat=0;p.overheated=false;
+    game.keys.add('Space');game.update(.001);game.keys.delete('Space');
+    const fume=game.g.particles.filter(q=>q.gunFume&&q.smoke);
+    if(reduced){assert.equal(fume.length,0);continue;}
+    assert.equal(fume.length,2);
+    for(const q of fume)assert.ok(Math.abs(Math.hypot(q.x-p.x,q.y-p.y)-40)<1e-6);
+    const x=fume[0].x;p.x+=300;game.updateEffects(.1);
+    assert.ok(Math.abs(fume[0].x-x)<10);
+  }
+});
