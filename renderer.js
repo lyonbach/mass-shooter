@@ -16,6 +16,7 @@ const SMOKE_STOPS={
   engine:[[0,'#c8c9bde6'],[.45,'#a8aa9dc0'],[1,'#878c8000']]
 };
 const SMOKE_SHAPES=[[1,1],[1,.78],[.78,1]],SMOKE_PUFF_SIZE=64;
+const ENGINE_WAKE_INTERVAL=.1,ENGINE_WAKE_LIFE=.5,ENGINE_WAKE_LIMIT=12;
 const WRECK_FIRE_PEAK_TRANSITION=4;
 const WRECK_FIRE_POINTS={
   rocketSemi:[[-20,0],[12,-3],[-8,-5],[2,5],[20,3]],
@@ -36,7 +37,49 @@ export function wreckFireState(d){
 }
 
 export class Renderer {
-  constructor(canvas, settings) { this.canvas=canvas; this.ctx=canvas.getContext('2d',{alpha:false}); this.settings=settings; this.smokePuffs=new Map(); this.tankShades=new WeakMap(); this.cockpitShades=new WeakMap(); }
+  constructor(canvas, settings) { this.canvas=canvas; this.ctx=canvas.getContext('2d',{alpha:false}); this.settings=settings; this.smokePuffs=new Map(); this.tankShades=new WeakMap(); this.cockpitShades=new WeakMap(); this.clearEngineWake(); }
+  clearEngineWake(){this.engineWake=[];this.engineWakeSample=null;this.engineWakePlayer=null;this.engineWakeNext=0;}
+  updateEngineWake(g){
+    const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canCache=typeof (this.canvas.ownerDocument||(typeof document!=='undefined'?document:null))?.createElement==='function';
+    const p=g.player,t=g.visualTime;
+    if(!this.settings.effects||reduced||!canCache||!p||!(p.health>0)||g.state==='ready'||g.state==='over'){
+      this.clearEngineWake();return;
+    }
+    if(this.engineWakePlayer!==p||this.engineWakeSample&&t<this.engineWakeSample.t)this.clearEngineWake();
+    if(g.state!=='playing')return;
+    const current={t,x:p.x,y:p.y,angle:p.angle,bank:p.bank||0,pitch:p.pitch||0,speed:clamp(Math.hypot(p.vx||0,p.vy||0)/270,0,1)};
+    const previous=this.engineWakeSample;
+    this.engineWakePlayer=p;
+    if(!previous){this.engineWakeSample=current;this.engineWakeNext=t+ENGINE_WAKE_INTERVAL;return;}
+    this.engineWake=this.engineWake.filter(puff=>t-puff.time<ENGINE_WAKE_LIFE);
+    if(t-previous.t>ENGINE_WAKE_LIFE){this.engineWakeNext=t;this.engineWake=[];}
+    const angleDelta=Math.atan2(Math.sin(current.angle-previous.angle),Math.cos(current.angle-previous.angle));
+    while(this.engineWakeNext<=t+1e-9){
+      const time=this.engineWakeNext,f=clamp((time-previous.t)/(t-previous.t||1),0,1);
+      const lerp=key=>previous[key]+(current[key]-previous[key])*f;
+      const angle=previous.angle+angleDelta*f,bank=lerp('bank'),pitch=lerp('pitch'),speed=lerp('speed');
+      const ca=Math.cos(angle),sa=Math.sin(angle),theta=angle+bank*.45,sx=1-Math.abs(pitch)*.3,sy=1-Math.abs(bank)*.5;
+      for(const side of [-1,1]){
+        const x=-27+(-5.5-speed*.5)*1.8,y=side*10+Math.sin(time*2+side)*.3*.7;
+        const bx=Math.cos(bank*.45)*x*sx-Math.sin(bank*.45)*y*sy+pitch*30;
+        const by=Math.sin(bank*.45)*x*sx+Math.cos(bank*.45)*y*sy+bank*30;
+        this.engineWake.push({x:lerp('x')+ca*bx-sa*by,y:lerp('y')+sa*bx+ca*by,theta,sx,sy,speed,time,variant:side<0?0:1});
+      }
+      this.engineWakeNext+=ENGINE_WAKE_INTERVAL;
+    }
+    if(this.engineWake.length>ENGINE_WAKE_LIMIT)this.engineWake.splice(0,this.engineWake.length-ENGINE_WAKE_LIMIT);
+    this.engineWakeSample=current;
+  }
+  drawEngineWake(c,t){
+    for(const puff of this.engineWake){
+      const age=clamp((t-puff.time)/ENGINE_WAKE_LIFE,0,1),drift=age*1.5;
+      c.save();c.translate(puff.x-Math.cos(puff.theta)*drift,puff.y-Math.sin(puff.theta)*drift);
+      c.rotate(puff.theta);c.scale(puff.sx*1.8,puff.sy*.7);
+      this.smoke(c,{x:0,y:0,size:(2.8+puff.speed*.7)*(1+age*.3),life:.5,maxLife:1,engineExhaust:true,smokeVariant:puff.variant},(.08+puff.speed*.18)*(1-age));
+      c.restore();
+    }
+  }
   tankShade(c){
     let shade=this.tankShades.get(c);
     if(!shade){shade=c.createLinearGradient(0,-16,0,16);shade.addColorStop(0,'#ffffff25');shade.addColorStop(.5,'#ffffff00');shade.addColorStop(1,'#10181055');this.tankShades.set(c,shade);}
@@ -182,6 +225,7 @@ export class Renderer {
     c.restore();
   }
   resize(world, rect, map) {
+    this.clearEngineWake();
     this.world=world;
     const dpr=Math.min(window.devicePixelRatio||1,this.settings.effects?2:1.3);
     this.canvas.width=Math.round(rect.width*dpr);this.canvas.height=Math.round(rect.height*dpr);
@@ -567,6 +611,7 @@ export class Renderer {
   }
   draw(g,dt) {
     const c=this.ctx,W=g.world.width,H=g.world.height,t=g.visualTime,camera=g.camera,zoom=camera.zoom;
+    this.updateEngineWake(g);
     c.setTransform(this.scale,0,0,this.scale,0,0);c.clearRect(0,0,W,H);
     c.setTransform(this.scale*zoom,0,0,this.scale*zoom,-camera.x*this.scale*zoom,-camera.y*this.scale*zoom);
     c.save();if(this.settings.shake&&g.shake>0){c.translate((Math.random()-.5)*g.shake,(Math.random()-.5)*g.shake);}
@@ -588,6 +633,7 @@ export class Renderer {
       c.fillStyle='#dbea9b';c.fillRect(-3,-8,6,16);c.fillRect(-8,-3,16,6);c.restore();
     }
     for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,SCREEN_SMOKE_RENDER.behind);
+    this.drawEngineWake(c,t);
     for(const e of g.enemies)this.enemy(c,e,t);
     for(const p of g.particles)if(p.screenSmoke)this.screenSmoke(c,p,SCREEN_SMOKE_RENDER.front);
     if(g.state==='ready'){this.enemy(c,{x:W*.7,y:H*.73,angle:-2.2,type:'tank',health:3,maxHealth:3},t);this.enemy(c,{x:W*.87,y:H*.57,angle:-2.5,type:'tank',health:3,maxHealth:3},t);}

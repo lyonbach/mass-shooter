@@ -96,6 +96,7 @@ function damagePlayer(amount){
   $('damage-flash').classList.remove('hit');void $('damage-flash').offsetWidth;$('damage-flash').classList.add('hit');
   if(p.health<=25&&p.health>0)runtime.announce(t('hull.repairing'),t('supply.collect'),t('supply.note'),1.8);
   if(p.health<=0){
+    runtime.renderer.clearEngineWake();
     if(g.testRange){p.health=p.maxHealth;p.invulnerable=1;p.x=g.world.width*.43;p.y=g.world.height*.52;}
     else runtime.endGame();
   }runtime.updateHud();

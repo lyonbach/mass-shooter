@@ -25,10 +25,10 @@ function createGame(reducedMotion=false) {
   const window={addEventListener:(event,fn)=>windowEvents.set(event,fn)};
   const localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)};
   class Audio{constructor(){this.scene='menu';this.initializations=0;this.plays=[];this.calls=[];}async init(){this.initializations++;} configure(){} setActive(){} setMusicScene(scene){this.scene=scene;} play(name,...args){this.plays.push(name);this.calls.push({name,args});} update(){}}
-  class Renderer{resize(){} setMap(){} draw(){}}
+  class Renderer{resize(){} setMap(){} draw(){} clearEngineWake(){this.wakeClears=(this.wakeClears||0)+1;}}
   const moduleFiles=['game/constants.js','game/state.js','game/entities.js','game/waves.js','game/loop.js','game/combat.js','game/upgrades.js','game/input.js','game.js'];
   const source=moduleFiles.map(file=>readFileSync(new URL(`../${file}`,import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'')).join('\n');
-  const factory=new Function('document','window','localStorage','matchMedia','ResizeObserver','requestAnimationFrame','SoundEngine','Renderer',...Object.keys(core),...Object.keys(i18n),`${source}\nreturn {g:runtime.g,keys:runtime.keys,settings:runtime.settings,start:runtime.start,pause:runtime.pause,resume:runtime.resume,frame:runtime.frame,update:runtime.update,updateEffects:runtime.updateEffects,spawnEnemy:runtime.spawnEnemy,fireEnemy:runtime.fireEnemy,launchRocket:runtime.launchRocket,dash:runtime.dash,deployFlares:runtime.deployFlares,hitEnemy:runtime.hitEnemy,damagePlayer:runtime.damagePlayer,showUpgrades:runtime.showUpgrades,selectUpgrade:runtime.selectUpgrade,nextWave:runtime.nextWave,movement:runtime.movement,pointerPosition:runtime.pointerPosition,sound:runtime.sound,getChoices:()=>runtime.choices,getUpgrades:()=>runtime.upgrades};`);
+  const factory=new Function('document','window','localStorage','matchMedia','ResizeObserver','requestAnimationFrame','SoundEngine','Renderer',...Object.keys(core),...Object.keys(i18n),`${source}\nreturn {g:runtime.g,keys:runtime.keys,settings:runtime.settings,start:runtime.start,pause:runtime.pause,resume:runtime.resume,frame:runtime.frame,update:runtime.update,updateEffects:runtime.updateEffects,spawnEnemy:runtime.spawnEnemy,fireEnemy:runtime.fireEnemy,launchRocket:runtime.launchRocket,dash:runtime.dash,deployFlares:runtime.deployFlares,hitEnemy:runtime.hitEnemy,damagePlayer:runtime.damagePlayer,showUpgrades:runtime.showUpgrades,selectUpgrade:runtime.selectUpgrade,nextWave:runtime.nextWave,movement:runtime.movement,pointerPosition:runtime.pointerPosition,sound:runtime.sound,renderer:runtime.renderer,getChoices:()=>runtime.choices,getUpgrades:()=>runtime.upgrades};`);
   const game=factory(document,window,localStorage,query=>({matches:reducedMotion&&query.includes('prefers-reduced-motion')}),class{observe(){}},()=>{},Audio,Renderer,...Object.values(core),...Object.values(i18n));
   return{...game,elements,storage,windowEvents,documentEvents,sound:game.sound};
 }
@@ -331,6 +331,7 @@ test('test range spawns only the configured enemy with selected upgrades',async(
   assert.equal(game.g.enemies[0].health,game.g.enemies[0].maxHealth);assert.equal(game.g.player.maxHealth,175);assert.equal(game.g.player.maxRockets,4);
   game.g.player.invulnerable=0;game.damagePlayer(1000);
   assert.equal(game.g.state,'playing');assert.equal(game.g.player.health,game.g.player.maxHealth);
+  assert.equal(game.renderer.wakeClears,1);
 });
 test('flares deploy automatically below Ace and require manual activation on Ace',async()=>{
   const automatic=createGame();await automatic.start();automatic.g.spawnRemaining=100;

@@ -223,7 +223,91 @@ test('gameplay draw invokes both engine plumes without mutating state or consumi
     assert.deepEqual(g,before);
     assert.equal(c.stack.length,0);
     assert.equal(doc.canvases.length,2);
+    g.visualTime+=.1;g.player.x+=12;
+    const updated=structuredClone(g);c.calls.length=0;
+    renderer.draw(g,.1);
+    assert.equal(c.calls.filter(call=>call.name==='drawImage'&&[...renderer.smokePuffs.values()].includes(call.args[0])).length,4);
+    assert.deepEqual(g,updated);assert.equal(c.stack.length,0);assert.equal(doc.canvases.length,2);
   }finally{Math.random=random;}
+});
+
+test('engine wake retains world-space history through movement and turns, at transformed outlets',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:document()},{effects:true});
+  const p={x:170,y:80,angle:0,bank:0,pitch:0,vx:100,vy:0,health:100};
+  const g={state:'playing',visualTime:0,player:p},random=Math.random;
+  Math.random=()=>{throw Error('renderer used gameplay RNG');};
+  try{
+    renderer.updateEngineWake(g);
+    g.visualTime=.1;renderer.updateEngineWake(g);
+    assert.equal(renderer.engineWake.length,2);
+    for(const [i,side] of [-1,1].entries()){
+      const puff=renderer.engineWake[i],speed=100/270;
+      near(puff.x,p.x-27+(-5.5-speed*.5)*1.8);
+      near(puff.y,p.y+side*10+Math.sin(.2+side)*.3*.7);
+    }
+    const old=structuredClone(renderer.engineWake);
+    Object.assign(p,{x:210,y:110,angle:Math.PI/2,bank:.3,pitch:-.2});
+    g.visualTime=.2;renderer.updateEngineWake(g);
+    assert.deepEqual(renderer.engineWake.slice(0,2),old);
+    const puff=renderer.engineWake[2],side=-1,speed=100/270;
+    const x=(-27+(-5.5-speed*.5)*1.8)*(1-.2*.3);
+    const y=(side*10+Math.sin(.4+side)*.3*.7)*(1-.3*.5);
+    const bx=Math.cos(.3*.45)*x-Math.sin(.3*.45)*y-.2*30;
+    const by=Math.sin(.3*.45)*x+Math.cos(.3*.45)*y+.3*30;
+    near(puff.x,p.x-by);near(puff.y,p.y+bx);
+    const c=context(),before=structuredClone(g);renderer.drawEngineWake(c,.2);
+    assert.equal(c.calls.filter(call=>call.name==='drawImage').length,4);
+    assert.deepEqual(g,before);assert.equal(c.stack.length,0);
+  }finally{Math.random=random;}
+});
+
+test('engine wake emission is time-based, finite and cleared on lifecycle and settings changes',()=>{
+  const create=()=>new Renderer({getContext:()=>context(),ownerDocument:document()},{effects:true});
+  const run=step=>{
+    const r=create(),p={x:0,y:0,angle:0,health:100,vx:100},g={state:'playing',visualTime:0,player:p};
+    r.updateEngineWake(g);
+    for(let i=1;i<=Math.round(1/step);i++){g.visualTime=i*step;p.x=100*g.visualTime;r.updateEngineWake(g);}
+    return {r,g};
+  };
+  const a=run(.05),b=run(.02);
+  assert.equal(a.r.engineWake.length,b.r.engineWake.length);
+  assert.ok(a.r.engineWake.length<=12);
+  for(let i=0;i<a.r.engineWake.length;i++){
+    near(a.r.engineWake[i].time,b.r.engineWake[i].time);
+    near(a.r.engineWake[i].x,b.r.engineWake[i].x);
+  }
+  const {r,g}=a,paused=structuredClone(r.engineWake);
+  g.state='paused';r.updateEngineWake(g);r.updateEngineWake(g);
+  assert.deepEqual(r.engineWake,paused);
+  g.state='playing';g.visualTime+=.6;r.updateEngineWake(g);
+  assert.ok(r.engineWake.every(puff=>g.visualTime-puff.time<.5));
+  g.player={...g.player};r.updateEngineWake(g);assert.equal(r.engineWake.length,0);
+  g.visualTime+=.1;r.updateEngineWake(g);assert.equal(r.engineWake.length,2);
+  g.player.health=0;r.updateEngineWake(g);assert.equal(r.engineWake.length,0);
+  g.player.health=100;g.visualTime+=.1;r.updateEngineWake(g);g.visualTime+=.1;r.updateEngineWake(g);
+  r.settings.effects=false;r.updateEngineWake(g);assert.equal(r.engineWake.length,0);
+  r.settings.effects=true;g.visualTime+=.1;r.updateEngineWake(g);g.visualTime+=.1;r.updateEngineWake(g);
+  const old=globalThis.matchMedia;
+  globalThis.matchMedia=()=>({matches:true});
+  try{r.updateEngineWake(g);assert.equal(r.engineWake.length,0);}
+  finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+});
+
+test('engine wake samples both outlets for multiple headings and banked poses',()=>{
+  const renderer=new Renderer({getContext:()=>context(),ownerDocument:document()},{effects:true});
+  for(const angle of [0,.9,-2.1])for(const bank of [-.3,0,.3]){
+    renderer.clearEngineWake();
+    const p={x:170,y:80,angle,bank,pitch:.2,vx:0,vy:0,health:100};
+    const g={state:'playing',visualTime:0,player:p};
+    renderer.updateEngineWake(g);g.visualTime=.1;renderer.updateEngineWake(g);
+    for(const [i,side] of [-1,1].entries()){
+      const localX=(-27-5.5*1.8)*.94,localY=(side*10+Math.sin(.2+side)*.3*.7)*(1-Math.abs(bank)*.5);
+      const x=Math.cos(bank*.45)*localX-Math.sin(bank*.45)*localY+6;
+      const y=Math.sin(bank*.45)*localX+Math.cos(bank*.45)*localY+bank*30;
+      near(renderer.engineWake[i].x,p.x+Math.cos(angle)*x-Math.sin(angle)*y);
+      near(renderer.engineWake[i].y,p.y+Math.sin(angle)*x+Math.cos(angle)*y);
+    }
+  }
 });
 
 test('exhaust uses bounded cache, avoids gameplay randomness, and respects effects and motion settings',()=>{
