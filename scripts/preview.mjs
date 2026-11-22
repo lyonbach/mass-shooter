@@ -3,7 +3,7 @@ import { readFile, writeFile, mkdir, cp } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
-const out = resolve(process.argv[2] || '/home/user/workspace/nuclear-shooter-preview');
+const out = resolve(process.argv[2] || '/home/user/workspace/mass-shooter-preview');
 if (out === root) throw new Error('Preview output must not overwrite the source folder');
 await mkdir(out, { recursive: true });
 for (const name of ['index.html','style.css','hud.css','sound']) {

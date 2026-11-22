@@ -1,5 +1,5 @@
 
-> nuclear-shooter@2.0.0 test
+> mass-shooter@2.0.0 test
 > node --test tests/*.test.js
 
 Could not play music for menu; using synthesized music.
