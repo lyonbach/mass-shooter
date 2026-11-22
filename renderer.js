@@ -13,7 +13,7 @@ const SMOKE_STOPS={
   explosion:[[0,'#606858cc'],[.45,'#394539aa'],[1,'#28342a00']],
   flak:[[0,'#30342fd9'],[.45,'#42463eb0'],[1,'#30383000']],
   exhaust:[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']],
-  engine:[[0,'#c8c9bde6'],[.45,'#a8aa9dc0'],[1,'#878c8000']]
+  engine:SCREEN_SMOKE_RENDER.stops
 };
 const SMOKE_SHAPES=[[1,1],[1,.78],[.78,1]],SMOKE_PUFF_SIZE=64;
 const ENGINE_WAKE_INTERVAL=.1,ENGINE_WAKE_LIFE=.5,ENGINE_WAKE_LIMIT=12;
@@ -37,7 +37,7 @@ export function wreckFireState(d){
 }
 
 export class Renderer {
-  constructor(canvas, settings) { this.canvas=canvas; this.ctx=canvas.getContext('2d',{alpha:false}); this.settings=settings; this.smokePuffs=new Map(); this.tankShades=new WeakMap(); this.cockpitShades=new WeakMap(); this.clearEngineWake(); }
+  constructor(canvas, settings) { this.canvas=canvas; this.ctx=canvas.getContext('2d',{alpha:false}); this.settings=settings; this.smokePuffs=new Map(); this.tankShades=new WeakMap(); this.cockpitShades=new WeakMap(); this.strobeGlows=new WeakMap(); this.clearEngineWake(); }
   clearEngineWake(){this.engineWake=[];this.engineWakeSample=null;this.engineWakePlayer=null;this.engineWakeNext=0;}
   updateEngineWake(g){
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -76,7 +76,7 @@ export class Renderer {
       const age=clamp((t-puff.time)/ENGINE_WAKE_LIFE,0,1),drift=age*1.5;
       c.save();c.translate(puff.x-Math.cos(puff.theta)*drift,puff.y-Math.sin(puff.theta)*drift);
       c.rotate(puff.theta);c.scale(puff.sx*1.8,puff.sy*.7);
-      this.smoke(c,{x:0,y:0,size:(2.8+puff.speed*.7)*(1+age*.3),life:.5,maxLife:1,engineExhaust:true,smokeVariant:puff.variant},(.08+puff.speed*.18)*(1-age));
+      this.smoke(c,{x:0,y:0,size:(3.4+puff.speed*1.1)*(1+age*.3),life:.5,maxLife:1,engineExhaust:true,smokeVariant:puff.variant},(.1+puff.speed*.3)*(1-age));
       c.restore();
     }
   }
@@ -89,6 +89,17 @@ export class Renderer {
     let shade=this.cockpitShades.get(c);
     if(!shade){shade=c.createLinearGradient(10,-10,26,8);shade.addColorStop(0,'#83a79555');shade.addColorStop(.55,'#52796a18');shade.addColorStop(1,'#263e3500');this.cockpitShades.set(c,shade);}
     return shade;
+  }
+  strobeGlow(c,x,y,color){
+    let glows=this.strobeGlows.get(c);
+    if(!glows){glows=new Map();this.strobeGlows.set(c,glows);}
+    let glow=glows.get(color);
+    if(!glow){
+      glow=c.createRadialGradient(0,0,0,0,0,6);
+      glow.addColorStop(0,`${color}80`);glow.addColorStop(1,`${color}00`);
+      glows.set(color,glow);
+    }
+    c.save();c.translate(x,y);c.fillStyle=glow;c.fillRect(-6,-6,12,12);c.restore();
   }
   smoke(c,p,alpha=1){
     const progress=clamp(1-p.life/p.maxLife,0,1),radius=p.size*(.8+progress*1.5)*(p.screenSmoke?SCREEN_SMOKE_RENDER.radius:1);
@@ -366,6 +377,8 @@ export class Renderer {
     path(c,[[-22,-4],[-61,-2],[-65,0],[-22,1]],'#9aa98b');
     path(c,[[-36,1],[-61,2],[-65,0],[-36,4]],'#526b59');
     path(c,[[-52,-3],[-61,-18],[-66,-18],[-63,0],[-62,17],[-55,17]],'#81947b');
+    path(c,[[-62,-15],[-65,-16],[-62,-2],[-58,-3]],'#a4b49877');
+    path(c,[[-62,2],[-61,15],[-56,15],[-59,3]],'#506b5888');
     for(const side of [-1,1]){
       c.save();c.scale(1,side);
       path(c,[[-18,10],[5,11],[17,20],[13,24],[-18,23],[-22,17]],'#334b3c','#70896e77');
@@ -401,7 +414,7 @@ export class Renderer {
     path(c,[[9,-10],[23,-8],[30,-4],[33,0],[30,4],[23,8],[9,10],[10,0]],this.cockpitShade(c));
     c.fillStyle='#b5c096';c.fillRect(-8,-10,3,20);c.fillStyle='#3c503f';c.fillRect(-14,-7,5,14);
     c.fillStyle='#d2d7ad';c.fillRect(4,-12,1,2);c.fillRect(4,10,1,2);
-    c.save();c.translate(-62,0);const rotorPhase=reduced?0:Math.abs(Math.sin(t*42));ellipse(c,0,0,15+4*rotorPhase,2+rotorPhase,'#d8dfb699');c.save();c.rotate(reduced?0:Math.sin(t*42)*.12);ellipse(c,0,0,13+3*rotorPhase,1,'#aebd9a88');c.restore();c.fillStyle='#455240';c.fillRect(-3,-2,6,4);c.restore();
+    c.save();c.translate(-62,0);const rotorPhase=reduced?0:Math.abs(Math.sin(t*42));ellipse(c,0,0,15+4*rotorPhase,2+rotorPhase,'#d8dfb699');c.save();c.rotate(reduced?0:Math.sin(t*42)*.12);ellipse(c,0,0,13+3*rotorPhase,1,'#aebd9a88');c.restore();c.fillStyle='#455240';c.fillRect(-3,-2,6,4);c.fillStyle='#a8b99a';c.fillRect(-2,-1,3,1);c.restore();
     c.save();c.translate(-5,0);c.rotate(reduced?0:t*49);
     c.strokeStyle='#e7eed914';c.lineWidth=2;c.beginPath();c.arc(0,0,45,0,TAU);c.stroke();
     c.strokeStyle='#dce8ca38';c.lineWidth=3;c.beginPath();
@@ -410,8 +423,8 @@ export class Renderer {
     for(let i=0;i<4;i++){c.rotate(Math.PI/2);path(c,[[0,-2],[46,-3],[44,0],[0,2]],'#e2e7cc70');}
     ellipse(c,0,0,5,5,'#374e3e');ellipse(c,-1,-1,2,2,'#c3caa9');c.restore();
     if(reduced||Math.sin(t*5)>0)ellipse(c,-51,0,2,2,'#f7a26d');ellipse(c,1,-19,1.5,1.5,'#c1ed95');
-    if(!ghost&&!reduced&&t%2<.12){ellipse(c,18,-18,3,3,'#ffffff');ellipse(c,18,18,3,3,'#ff5d52');}
-    if(!ghost&&!reduced&&t%1.5<.12)ellipse(c,-72,0,2.5,2.5,'#ffb35c');
+    if(!ghost&&!reduced&&t%2<.12){if(this.settings.effects){this.strobeGlow(c,18,-18,'#ffffff');this.strobeGlow(c,18,18,'#ff5d52');}ellipse(c,18,-18,3,3,'#ffffff');ellipse(c,18,18,3,3,'#ff5d52');}
+    if(!ghost&&!reduced&&t%1.5<.12){if(this.settings.effects)this.strobeGlow(c,-72,0,'#ffb35c');ellipse(c,-72,0,2.5,2.5,'#ffb35c');}
     c.restore();
     c.restore();
   }

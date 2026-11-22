@@ -26,7 +26,7 @@ function context(){
     fillRect(...args){calls.push({name:'fillRect',args,matrix:[...matrix],style:c.fillStyle});},
     drawImage(...args){calls.push({name:'drawImage',args,matrix:[...matrix],alpha:c.globalAlpha});},
     stroke(){calls.push({name:'stroke',style:c.strokeStyle});},
-    createRadialGradient(){return {addColorStop(){}};},
+    createRadialGradient(...args){const stops=[];const gradient={args,stops,addColorStop:(...stop)=>stops.push(stop)};calls.push({name:'createRadialGradient',gradient});return gradient;},
     createLinearGradient(){calls.push({name:'createLinearGradient'});return linearGradient;}
   },{get(target,key){return key in target?target[key]:(...args)=>calls.push({name:key,args,style:target.fillStyle});}});
   return c;
@@ -97,8 +97,50 @@ test('engine plumes have visible bounded opacity and extend behind the outlets b
     }
     assert.deepEqual(p,before);assert.equal(c.globalAlpha,.8);assert.equal(c.stack.length,0);
   }
-  assert.deepEqual(doc.stops.slice(0,3),[[0,'#c8c9bde6'],[.45,'#a8aa9dc0'],[1,'#878c8000']]);
+  assert.deepEqual(doc.stops.slice(0,3),[[0,'#f8f9f4f2'],[.45,'#e8ebe6d0'],[1,'#d7dedb00']]);
   assert.equal(doc.canvases.length,2);
+});
+
+test('tail outline and rotor motion remain unchanged while shading stays inside the silhouette',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:false}),a=context(),b=context();
+  renderer.helicopter(a,{x:0,y:0,angle:0},.35);renderer.helicopter(b,{x:0,y:0,angle:0},.36);
+  const shape=(c,style)=>c.calls.find(call=>call.name==='fill'&&call.style===style);
+  assert.deepEqual(shape(a,'#728471').path,[[-14,-6],[-63,-3],[-72,0],[-62,4],[-14,6]]);
+  assert.deepEqual(shape(a,'#81947b').path,[[-52,-3],[-61,-18],[-66,-18],[-63,0],[-62,17],[-55,17]]);
+  assert.ok(shape(a,'#a4b49877'));assert.ok(shape(a,'#506b5888'));
+  const rotor=c=>c.calls.find(call=>call.name==='ellipse'&&call.style==='#d8dfb699');
+  near(rotor(a).args[2],15+4*Math.abs(Math.sin(.35*42)));
+  near(rotor(b).args[2],15+4*Math.abs(Math.sin(.36*42)));
+  assert.notEqual(rotor(a).args[2],rotor(b).args[2]);assert.equal(a.stack.length,0);
+});
+
+test('strobe glow is localized, cached and follows unchanged flash timing and settings',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true}),p={x:170,y:80,angle:.9,bank:.3,pitch:.2};
+  const c=context();
+  const frame=(time,ghost=false)=>{c.calls.length=0;renderer.helicopter(c,p,time,ghost);return [...c.calls];};
+  const flashes=calls=>calls.filter(call=>call.name==='ellipse'&&['#ffffff','#ff5d52','#ffb35c'].includes(call.style));
+  const glows=calls=>calls.filter(call=>call.name==='fillRect'&&call.style&&typeof call.style==='object'&&call.style.stops);
+  const first=frame(0);
+  assert.deepEqual(flashes(first).map(call=>call.style),['#ffffff','#ff5d52','#ffb35c']);
+  assert.equal(glows(first).length,3);
+  for(const [i,color] of ['#ffffff','#ff5d52','#ffb35c'].entries()){
+    const glow=glows(first)[i],flash=flashes(first)[i];
+    assert.deepEqual(glow.args,[-6,-6,12,12]);
+    assert.deepEqual(glow.style.stops,[[0,`${color}80`],[1,`${color}00`]]);
+    const center=point(flash.matrix,flash.args[0],flash.args[1]);
+    const actual=point(glow.matrix,0,0);near(actual[0],center[0]);near(actual[1],center[1]);
+  }
+  assert.equal(frame(.13).filter(call=>call.name==='createRadialGradient').length,0);
+  const second=frame(1.5);assert.deepEqual(flashes(second).map(call=>call.style),['#ffb35c']);assert.equal(glows(second).length,1);
+  const third=frame(2);assert.deepEqual(flashes(third).map(call=>call.style),['#ffffff','#ff5d52']);assert.equal(glows(third).length,2);
+  assert.equal(third.filter(call=>call.name==='createRadialGradient').length,0);
+  assert.equal(glows(frame(0,true)).length,0);
+  renderer.settings.effects=false;const low=frame(0);
+  assert.equal(glows(low).length,0);assert.equal(flashes(low).length,3);
+  const old=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});
+  try{renderer.settings.effects=true;const reduced=frame(0);assert.equal(glows(reduced).length,0);assert.equal(flashes(reduced).length,0);}
+  finally{if(old===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=old;}
+  assert.equal(c.stack.length,0);
 });
 
 test('hull outline is unchanged with continuous glazing and paired engine covers',()=>{
@@ -259,6 +301,24 @@ test('engine wake retains world-space history through movement and turns, at tra
     assert.equal(c.calls.filter(call=>call.name==='drawImage').length,4);
     assert.deepEqual(g,before);assert.equal(c.stack.length,0);
   }finally{Math.random=random;}
+});
+
+test('engine wake reuses white vehicle smoke colors and fades with speed-dependent strength',()=>{
+  const doc=document(),renderer=new Renderer({getContext:()=>context(),ownerDocument:doc},{effects:true}),c=context();
+  renderer.smoke(c,{x:0,y:0,size:1,life:.5,maxLife:1,screenSmoke:true,smokeVariant:0});
+  const vehicleStops=doc.stops.slice();
+  const base={x:0,y:0,theta:0,sx:1,sy:1,time:0,variant:0};
+  renderer.engineWake=[{...base,speed:0},{...base,speed:1}];
+  renderer.drawEngineWake(c,0);
+  assert.deepEqual(doc.stops.slice(3),vehicleStops);
+  const images=c.calls.filter(call=>call.name==='drawImage');
+  near(images[1].alpha,.1);near(images[2].alpha,.4);
+  assert.ok(images[2].args[3]>images[1].args[3]);
+  c.calls.length=0;renderer.drawEngineWake(c,.25);
+  const aged=c.calls.filter(call=>call.name==='drawImage');
+  near(aged[0].alpha,.05);near(aged[1].alpha,.2);
+  assert.ok(aged[1].args[3]>images[2].args[3]);
+  assert.equal(doc.canvases.length,2);assert.equal(c.stack.length,0);
 });
 
 test('engine wake emission is time-based, finite and cleared on lifecycle and settings changes',()=>{
