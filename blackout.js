@@ -912,32 +912,32 @@ const SOUND_DATA = {
     "spatial": true,
     "maxVoices": 20,
     "noiseDuration": {
-      "value": 0.3,
-      "spread": 0.01,
+      "value": 0.6,
+      "spread": 0.25,
       "unit": "duration"
     },
     "noiseGain": {
-      "value": 0.6,
+      "value": 0.8,
       "spread": 0,
       "unit": "gain"
     },
     "noiseCutoff": {
-      "value": 450,
+      "value": 500,
       "spread": 0,
       "unit": "hertz"
     },
     "sparkDuration": {
-      "value": 0.08,
+      "value": 0.15,
       "spread": 0,
       "unit": "duration"
     },
     "sparkGain": {
-      "value": 0.02,
+      "value": 0.1,
       "spread": 0,
       "unit": "gain"
     },
     "sparkCutoff": {
-      "value": 6000,
+      "value": 7200,
       "spread": 0,
       "unit": "hertz"
     },
@@ -952,7 +952,7 @@ const SOUND_DATA = {
       "unit": "hertz"
     },
     "subDuration": {
-      "value": 0.1,
+      "value": 0.06,
       "spread": 0,
       "unit": "duration"
     },
@@ -966,42 +966,42 @@ const SOUND_DATA = {
     "spatial": true,
     "maxVoices": 6,
     "noiseDuration": {
-      "value": 1,
+      "value": 4,
       "spread": 0.05,
       "unit": "duration"
     },
     "noiseGain": {
-      "value": 0.5,
+      "value": 1,
       "spread": 0,
       "unit": "gain"
     },
     "noiseCutoff": {
-      "value": 100,
+      "value": 150,
       "spread": 0.01,
       "unit": "hertz"
     },
     "sparkDuration": {
-      "value": 0.035,
+      "value": 0.04,
       "spread": 0,
       "unit": "duration"
     },
     "sparkGain": {
-      "value": 0.08,
+      "value": 0.3,
       "spread": 0,
       "unit": "gain"
     },
     "sparkCutoff": {
-      "value": 4500,
+      "value": 3500,
       "spread": 0,
       "unit": "hertz"
     },
     "subStart": {
-      "value": 100,
+      "value": 50,
       "spread": 0,
       "unit": "hertz"
     },
     "subEnd": {
-      "value": 50,
+      "value": 10,
       "spread": 0,
       "unit": "hertz"
     },
@@ -1011,7 +1011,7 @@ const SOUND_DATA = {
       "unit": "duration"
     },
     "subGain": {
-      "value": 0.4,
+      "value": 0.05,
       "spread": 0,
       "unit": "gain"
     }
@@ -1069,17 +1069,17 @@ const SOUND_DATA = {
       "unit": "ratio"
     },
     "decay": {
-      "value": 0.4,
+      "value": 0.2,
       "spread": 0.1,
       "unit": "ratio"
     },
     "snapGain": {
-      "value": 0.7,
+      "value": 0.5,
       "spread": 0.01,
       "unit": "gain"
     },
     "bodyGain": {
-      "value": 0.3,
+      "value": 0.5,
       "spread": 0.01,
       "unit": "gain"
     },
@@ -1089,7 +1089,7 @@ const SOUND_DATA = {
       "unit": "gain"
     },
     "subGain": {
-      "value": 0.8,
+      "value": 0.2,
       "spread": 0,
       "unit": "gain"
     },
@@ -1118,68 +1118,68 @@ const SOUND_DATA = {
     "spatial": true,
     "maxVoices": 10,
     "debrisChance": {
-      "value": 0.2,
+      "value": 0.1,
       "spread": 0,
       "unit": "ratio"
     },
     "pitch": {
-      "value": 0.6,
+      "value": 0.3,
       "spread": 0.01,
       "unit": "ratio"
     },
     "decay": {
-      "value": 2,
+      "value": 2.5,
       "spread": 0.15,
       "unit": "ratio"
     },
     "crack": {
-      "value": 0.4,
-      "spread": 0.2,
+      "value": 0.7,
+      "spread": 0.5,
       "unit": "ratio"
     },
     "bodyGain": {
-      "value": 0.3,
+      "value": 0.7,
       "spread": 0.5,
       "unit": "gain"
     },
     "midGain": {
-      "value": 0.3,
+      "value": 0.7,
       "spread": 0.5,
       "unit": "gain"
     },
     "highGain": {
-      "value": 0.3,
+      "value": 0.1,
       "spread": 0.25,
       "unit": "gain"
     },
     "rumbleGain": {
-      "value": 0.3,
+      "value": 0.9,
       "spread": 0.5,
       "unit": "gain"
     },
     "tailGain": {
-      "value": 0.5,
+      "value": 0.2,
       "spread": 0,
       "unit": "gain"
     },
     "sparkGain": {
-      "value": 0.5,
+      "value": 0.03,
       "spread": 0,
       "unit": "gain"
     },
     "dustGain": {
-      "value": 0.4,
+      "value": 0.2,
       "spread": 0.5,
       "unit": "gain"
     },
     "debrisGain": {
-      "value": 0.7,
+      "value": 0.1,
       "spread": 0,
       "unit": "gain"
     },
     "crackGain": {
-      "value": 3,
-      "spread": 0,
+      "value": 5,
+      "spread": 0.3,
       "unit": "gain"
     }
   },
@@ -1387,12 +1387,12 @@ const SOUND_DATA = {
       "unit": "hertz"
     },
     "sawGain": {
-      "value": 0.25,
+      "value": 0.15,
       "spread": 0,
       "unit": "gain"
     },
     "squareGain": {
-      "value": 0.35,
+      "value": 0.15,
       "spread": 0,
       "unit": "gain"
     }
@@ -1452,12 +1452,12 @@ const SOUND_DATA = {
       "unit": "hertz"
     },
     "sawGain": {
-      "value": 0.05,
+      "value": 0.02,
       "spread": 0,
       "unit": "gain"
     },
     "squareGain": {
-      "value": 0.15,
+      "value": 0.04,
       "spread": 0,
       "unit": "gain"
     }
