@@ -824,3 +824,18 @@ test('moving and stationary cannon wrecks grow, peak and decline without changin
     assert.equal(source.x,wreck.x);assert.equal(source.y,wreck.y);
   }
 });
+
+test('helicopter leaves world-space dark fume at both outlets, skipped in reduced motion',async()=>{
+  const game=createGame();await game.start();game.g.spawnRemaining=0;
+  const p=game.g.player;
+  game.update(.08);
+  const fume=game.g.particles.filter(q=>q.fume&&q.smoke);
+  assert.equal(fume.length,2);
+  const local=q=>{const dx=q.x-p.x,dy=q.y-p.y,c=Math.cos(p.angle),s=Math.sin(p.angle);return{x:dx*c+dy*s,y:-dx*s+dy*c};};
+  assert.ok(fume.every(q=>Math.abs(local(q).x+30)<2&&Math.abs(Math.abs(local(q).y)-8)<2));
+  assert.ok(local(fume[0]).y*local(fume[1]).y<0);
+  const x=fume[0].x;p.x+=200;game.updateEffects(.1);
+  assert.ok(Math.abs(fume[0].x-x)<5);
+  const reduced=createGame(true);await reduced.start();reduced.g.spawnRemaining=0;reduced.update(.2);
+  assert.equal(reduced.g.particles.filter(q=>q.fume).length,0);
+});

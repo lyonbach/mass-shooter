@@ -1895,7 +1895,8 @@ const SMOKE_STOPS={
   wreck:[[0,'#202820cc'],[.45,'#171e18aa'],[1,'#11181200']],
   explosion:[[0,'#606858cc'],[.45,'#394539aa'],[1,'#28342a00']],
   flak:[[0,'#30342fd9'],[.45,'#42463eb0'],[1,'#30383000']],
-  exhaust:[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']]
+  exhaust:[[0,'#e4d9bccc'],[.45,'#b5aa91aa'],[1,'#938c7900']],
+  fume:[[0,'#c4c8c4d0'],[.5,'#b4b9b4ac'],[1,'#a8aea800']]
 };
 const SMOKE_SHAPES=[[1,1],[1,.78],[.78,1]],SMOKE_PUFF_SIZE=64;
 const WRECK_FIRE_PEAK_TRANSITION=4;
@@ -1927,7 +1928,7 @@ class Renderer {
   smoke(c,p,alpha=1){
     const progress=clamp(1-p.life/p.maxLife,0,1),radius=p.size*(.8+progress*1.5)*(p.screenSmoke?SCREEN_SMOKE_RENDER.radius:1);
     if(!(radius>0))return;
-    const kind=p.screenSmoke?'screen':p.exhaust?'exhaust':p.persistent?'wreck':p.flakSmoke?'flak':'explosion';
+    const kind=p.screenSmoke?'screen':p.fume?'fume':p.exhaust?'exhaust':p.persistent?'wreck':p.flakSmoke?'flak':'explosion';
     if(p.smokeVariant===undefined)p.smokeVariant=Math.abs(Math.floor(p.x*13+p.y*7))%SMOKE_SHAPES.length;
     const variant=((p.smokeVariant%SMOKE_SHAPES.length)+SMOKE_SHAPES.length)%SMOKE_SHAPES.length,key=`${kind}:${variant}`;
     let puff=this.smokePuffs.get(key);
@@ -2507,7 +2508,7 @@ class Renderer {
       c.globalAlpha=g.player.invulnerable>0&&Math.floor(t*18)%2===0?.55:1;this.helicopter(c,g.player,t);c.globalAlpha=1;
       if(g.player.invulnerable>0){c.strokeStyle='#dbea9b40';c.lineWidth=1;c.beginPath();c.arc(g.player.x,g.player.y,43,0,TAU);c.stroke();}
     }
-    for(const p of g.particles){if(p.screenSmoke)continue;if(p.smoke){this.smoke(c,p);}else if(p.flare){this.flare(c,p);}else if(p.flakFlash||p.contactFlash){c.save();c.globalAlpha=clamp(p.life/p.maxLife,0,1);const glow=c.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);glow.addColorStop(0,'#fff6d0ee');glow.addColorStop(.4,'#ff9c4ca0');glow.addColorStop(1,'#ff792600');c.fillStyle=glow;c.fillRect(p.x-p.size,p.y-p.size,p.size*2,p.size*2);c.restore();}else{c.globalAlpha=clamp(p.life/p.maxLife,0,1);c.strokeStyle=p.color;c.lineWidth=p.size;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);c.stroke();c.globalAlpha=1;}}c.globalAlpha=1;
+    for(const p of g.particles){if(p.screenSmoke)continue;if(p.smoke){this.smoke(c,p,p.fume?.25:1);}else if(p.flare){this.flare(c,p);}else if(p.flakFlash||p.contactFlash){c.save();c.globalAlpha=clamp(p.life/p.maxLife,0,1);const glow=c.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);glow.addColorStop(0,'#fff6d0ee');glow.addColorStop(.4,'#ff9c4ca0');glow.addColorStop(1,'#ff792600');c.fillStyle=glow;c.fillRect(p.x-p.size,p.y-p.size,p.size*2,p.size*2);c.restore();}else{c.globalAlpha=clamp(p.life/p.maxLife,0,1);c.strokeStyle=p.color;c.lineWidth=p.size;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(p.x-p.vx*.025,p.y-p.vy*.025);c.stroke();c.globalAlpha=1;}}c.globalAlpha=1;
     for(const e of g.explosions){const progress=1-e.life/e.maxLife;c.globalAlpha=(1-progress)*.75;c.strokeStyle='#ffcf8b';c.lineWidth=3*(1-progress);c.beginPath();c.arc(e.x,e.y,e.size*progress,0,TAU);c.stroke();if(progress<.4){const flash=c.createRadialGradient(e.x,e.y,0,e.x,e.y,e.size*.6);flash.addColorStop(0,'#fff6c9aa');flash.addColorStop(1,'#ffc06b00');c.fillStyle=flash;c.fillRect(e.x-e.size,e.y-e.size,e.size*2,e.size*2);}}c.globalAlpha=1;
     for(const f of g.floaters){c.globalAlpha=clamp(f.life,0,1);c.font=`bold ${f.big?19:12}px monospace`;c.fillStyle=f.color;c.textAlign='center';c.fillText(f.text,f.x,f.y);}c.globalAlpha=1;
     // Enemy arrival indicators give the pilot time to react.
@@ -2528,6 +2529,7 @@ const PLAYER_ACCELERATION=3.5,PLAYER_DECELERATION=2.8,PLAYER_TURN_RATE=4,PLAYER_
 const FLARE_RANGE=260,FLARE_COOLDOWN=2.2,FLARE_DEFLECTION_CHANCE=.32;
 const LOW_HEALTH_ALARM_INTERVAL=1.4,MISSILE_ALARM_INTERVAL=1.2;
 const ROCKET_RAIL_FORWARD=28,ROCKET_RAIL_OFFSET=15;
+const HELICOPTER_FUME_INTERVAL=.07,HELICOPTER_FUME_OFFSET=-30;
 const ROCKET_NOZZLE_OFFSET=9,ROCKET_TRAIL_SPACING=12,ROCKET_TRAIL_LOW_SPACING=24,ROCKET_TRAIL_STEP_LIMIT=24;
 const TANK_TRACK_HALF_WIDTH=16.5,GOLIATH_TRACK_HALF_WIDTH=36;
 const WRECK_TRANSITION_TIME=6,WRECK_COAST_TIME=2.5,WRECK_STOP_SPEED=.01,WRECK_FIRE_TIME=WRECK_COAST_TIME+WRECK_TRANSITION_TIME+5.5,WRECK_SMOKE_TIME=WRECK_FIRE_TIME+4;
@@ -2929,6 +2931,22 @@ function rocketTrail(b,ox,oy,oldAngle){
   }
   b.trailDistance=(previous+length)%spacing;
 }
+// Dark fume is left in the world at both engine outlets, so it trails the helicopter like missile smoke.
+function emitHelicopterFume(dt){
+  const p=g.player,reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!settings.effects||reduced)return;
+  p.fumeTimer=(p.fumeTimer||0)-dt;
+  if(p.fumeTimer>0)return;
+  p.fumeTimer=HELICOPTER_FUME_INTERVAL;
+  const cos=Math.cos(p.angle),sin=Math.sin(p.angle),speed=Math.hypot(p.vx,p.vy)/270;
+  for(const side of [-1,1]){
+    if(g.particles.length>=650)return;
+    // Deterministic jitter keeps cosmetic smoke from consuming gameplay random numbers.
+    const n=p.fumeCount=(p.fumeCount||0)+1,jx=Math.sin(n*12.9898)*4,jy=Math.sin(n*78.233)*4,life=.55+(Math.sin(n*4.1)+1)*.12,lx=HELICOPTER_FUME_OFFSET,ly=side*8;
+    g.particles.push({x:p.x+lx*cos-ly*sin,y:p.y+lx*sin+ly*cos,vx:-cos*(10+speed*10)+jx,vy:-sin*(10+speed*10)+jy,
+      life,maxLife:life,smoke:true,fume:true,smokeVariant:n%3,size:3.6+speed*1.4+(Math.sin(n*2.3)+1)*.6});
+  }
+}
 function update(dt){
   const p=g.player,W=g.world.width,H=g.world.height;g.time+=dt;g.shake=Math.max(0,g.shake-dt*35);
   p.cooldown-=dt;p.invulnerable-=dt;p.dashTime-=dt;p.dashCooldown=Math.max(0,p.dashCooldown-dt);p.flareCooldown=Math.max(0,p.flareCooldown-dt);p.lowHealthAlarm-=dt;p.missileAlarm-=dt;p.rocketCooldown-=dt;p.muzzle-=dt;p.muzzleSmoke=Math.max(0,(p.muzzleSmoke||0)-dt);
@@ -2948,6 +2966,7 @@ function update(dt){
   const tiltResponse=1-Math.exp(-PLAYER_BANK_RESPONSE*dt);
   p.bank+=(clamp(lateral/270,-1,1)*.3-p.bank)*tiltResponse;
   p.pitch+=(clamp(forward/270,-1,1)*.2-p.pitch)*tiltResponse;
+  emitHelicopterFume(dt);
   const firing=pointer.down||keys.has('Space');
   if(p.overheated||!firing){p.heat=Math.max(0,p.heat-dt/WEAPONS.gun.coolTime);if(p.overheated&&p.heat===0)p.overheated=false;}
   if(firing&&!p.overheated&&p.cooldown<=0)gun();
