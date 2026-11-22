@@ -41,3 +41,16 @@
   .ability b { font-size: 12px; }
   .ability kbd { font-size: 10px; }
 }
+
+.hull.critical { animation: hull-critical-flash 1s steps(2, end) infinite; }
+.hull.critical .hull-reading strong,
+.hull.critical .hull-reading > span { text-shadow: 0 0 6px #ff2020, 0 0 14px #ff2020; }
+.hull.critical .health-track { box-shadow: 0 0 8px #ff2020; }
+.hull.critical .health-track div { box-shadow: 0 0 6px #ff2020, 0 0 14px #ff2020; }
+@keyframes hull-critical-flash {
+  0%, 49% { opacity: 1; filter: drop-shadow(0 0 10px #ff2020); }
+  50%, 100% { opacity: .4; filter: drop-shadow(0 0 3px #ff2020); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hull.critical { animation: none; }
+}

@@ -912,32 +912,32 @@ const SOUND_DATA = {
     "spatial": true,
     "maxVoices": 20,
     "noiseDuration": {
-      "value": 0.6,
-      "spread": 0.25,
+      "value": 0.3,
+      "spread": 0.01,
       "unit": "duration"
     },
     "noiseGain": {
-      "value": 0.8,
+      "value": 0.6,
       "spread": 0,
       "unit": "gain"
     },
     "noiseCutoff": {
-      "value": 500,
+      "value": 450,
       "spread": 0,
       "unit": "hertz"
     },
     "sparkDuration": {
-      "value": 0.15,
+      "value": 0.08,
       "spread": 0,
       "unit": "duration"
     },
     "sparkGain": {
-      "value": 0.1,
+      "value": 0.02,
       "spread": 0,
       "unit": "gain"
     },
     "sparkCutoff": {
-      "value": 7200,
+      "value": 6000,
       "spread": 0,
       "unit": "hertz"
     },
@@ -952,7 +952,7 @@ const SOUND_DATA = {
       "unit": "hertz"
     },
     "subDuration": {
-      "value": 0.06,
+      "value": 0.1,
       "spread": 0,
       "unit": "duration"
     },
@@ -1069,17 +1069,17 @@ const SOUND_DATA = {
       "unit": "ratio"
     },
     "decay": {
-      "value": 0.2,
+      "value": 0.4,
       "spread": 0.1,
       "unit": "ratio"
     },
     "snapGain": {
-      "value": 0.5,
+      "value": 0.7,
       "spread": 0.01,
       "unit": "gain"
     },
     "bodyGain": {
-      "value": 0.5,
+      "value": 0.3,
       "spread": 0.01,
       "unit": "gain"
     },
@@ -1089,7 +1089,7 @@ const SOUND_DATA = {
       "unit": "gain"
     },
     "subGain": {
-      "value": 0.2,
+      "value": 0.8,
       "spread": 0,
       "unit": "gain"
     },
@@ -1118,67 +1118,67 @@ const SOUND_DATA = {
     "spatial": true,
     "maxVoices": 10,
     "debrisChance": {
-      "value": 0.1,
+      "value": 0.2,
       "spread": 0,
       "unit": "ratio"
     },
     "pitch": {
-      "value": 0.4,
+      "value": 0.6,
       "spread": 0.01,
       "unit": "ratio"
     },
     "decay": {
-      "value": 1.3,
+      "value": 2,
       "spread": 0.15,
       "unit": "ratio"
     },
     "crack": {
-      "value": 1,
+      "value": 0.4,
       "spread": 0.2,
       "unit": "ratio"
     },
     "bodyGain": {
-      "value": 0.7,
+      "value": 0.3,
       "spread": 0.5,
       "unit": "gain"
     },
     "midGain": {
-      "value": 0.7,
+      "value": 0.3,
       "spread": 0.5,
       "unit": "gain"
     },
     "highGain": {
-      "value": 0.6,
+      "value": 0.3,
       "spread": 0.25,
       "unit": "gain"
     },
     "rumbleGain": {
-      "value": 0.9,
+      "value": 0.3,
       "spread": 0.5,
       "unit": "gain"
     },
     "tailGain": {
-      "value": 0.6,
+      "value": 0.5,
       "spread": 0,
       "unit": "gain"
     },
     "sparkGain": {
-      "value": 0.3,
+      "value": 0.5,
       "spread": 0,
       "unit": "gain"
     },
     "dustGain": {
-      "value": 0.2,
+      "value": 0.4,
       "spread": 0.5,
       "unit": "gain"
     },
     "debrisGain": {
-      "value": 0.1,
+      "value": 0.7,
       "spread": 0,
       "unit": "gain"
     },
     "crackGain": {
-      "value": 0.01,
+      "value": 3,
       "spread": 0,
       "unit": "gain"
     }
@@ -1300,15 +1300,70 @@ const SOUND_DATA = {
     }
   },
   "damage": {
-    "spatial": false,
-    "maxVoices": 3,
-    "noiseGain": {
+    "spatial": true,
+    "maxVoices": 10,
+    "debrisChance": {
+      "value": 0.2,
+      "spread": 0,
+      "unit": "ratio"
+    },
+    "pitch": {
+      "value": 0.6,
+      "spread": 0.01,
+      "unit": "ratio"
+    },
+    "decay": {
+      "value": 1,
+      "spread": 0.15,
+      "unit": "ratio"
+    },
+    "crack": {
       "value": 0.4,
+      "spread": 0.2,
+      "unit": "ratio"
+    },
+    "bodyGain": {
+      "value": 0.3,
+      "spread": 0.5,
+      "unit": "gain"
+    },
+    "midGain": {
+      "value": 0.3,
+      "spread": 0.5,
+      "unit": "gain"
+    },
+    "highGain": {
+      "value": 0.3,
+      "spread": 0.25,
+      "unit": "gain"
+    },
+    "rumbleGain": {
+      "value": 0.5,
+      "spread": 0.5,
+      "unit": "gain"
+    },
+    "tailGain": {
+      "value": 0.2,
       "spread": 0,
       "unit": "gain"
     },
-    "subGain": {
-      "value": 0.4,
+    "sparkGain": {
+      "value": 0.3,
+      "spread": 0,
+      "unit": "gain"
+    },
+    "dustGain": {
+      "value": 0.3,
+      "spread": 0.5,
+      "unit": "gain"
+    },
+    "debrisGain": {
+      "value": 0.7,
+      "spread": 0,
+      "unit": "gain"
+    },
+    "crackGain": {
+      "value": 3,
       "spread": 0,
       "unit": "gain"
     }
@@ -1316,25 +1371,30 @@ const SOUND_DATA = {
   "lowHealth": {
     "spatial": false,
     "maxVoices": 1,
-    "noiseGain": {
-      "value": 0.1,
+    "startPitch": {
+      "value": 75,
       "spread": 0,
-      "unit": "gain"
+      "unit": "hertz"
+    },
+    "endPitch": {
+      "value": 200,
+      "spread": 0,
+      "unit": "hertz"
+    },
+    "buzzSpeed": {
+      "value": 1.5,
+      "spread": 0,
+      "unit": "hertz"
     },
     "sawGain": {
-      "value": 0.4,
+      "value": 0.25,
       "spread": 0,
       "unit": "gain"
     },
     "squareGain": {
-      "value": 0.1,
+      "value": 0.35,
       "spread": 0,
       "unit": "gain"
-    },
-    "decay": {
-      "value": 1,
-      "spread": 0,
-      "unit": "ratio"
     }
   },
   "missileAlert": {
@@ -1376,15 +1436,30 @@ const SOUND_DATA = {
   "alert": {
     "spatial": false,
     "maxVoices": 2,
-    "toneGain": {
-      "value": 0.1,
+    "startPitch": {
+      "value": 100,
+      "spread": 0,
+      "unit": "hertz"
+    },
+    "endPitch": {
+      "value": 100,
+      "spread": 0,
+      "unit": "hertz"
+    },
+    "buzzSpeed": {
+      "value": 1,
+      "spread": 0,
+      "unit": "hertz"
+    },
+    "sawGain": {
+      "value": 0.05,
       "spread": 0,
       "unit": "gain"
     },
-    "decay": {
-      "value": 2,
+    "squareGain": {
+      "value": 0.15,
       "spread": 0,
-      "unit": "ratio"
+      "unit": "gain"
     }
   },
   "ui": {
@@ -1764,14 +1839,6 @@ class Hit extends SoundEffect {
     }
 }
 
-class Damage extends SoundEffect {
-    static key = 'damage';
-    render({ pan, gain, at, voice }) {
-        new Noise(this.engine, { voice, duration: 0.22, gain: gain * this.n('noiseGain'), frequency: 700, pan, time: at });
-        new Tone(this.engine, { voice, freq: 160, end: 50, duration: 0.25, gain: gain * this.n('subGain'), type: 'sawtooth', time: at });
-    }
-}
-
 class Dash extends SoundEffect {
     static key = 'dash';
     render({ pan, gain, at, voice }) {
@@ -1798,6 +1865,11 @@ class Explosion extends SoundEffect {
         new Noise(this.engine, { voice, duration: 0.09 * decay, gain: gain * this.n('dustGain'), frequency: 6200 * pitch * crack, pan, time: at });
         if (debris) new Noise(this.engine, { voice, duration: 0.055 * decay, gain: gain * this.n('debrisGain'), frequency: 7600 * pitch * crack, pan, time: at });
     }
+}
+
+// Player damage shares the explosion synthesis and parameter set; only its sounds.csv rows are separate.
+class Damage extends Explosion {
+    static key = 'damage';
 }
 
 // audio/effects/rocket.js
@@ -1850,16 +1922,39 @@ class UpgradeChime extends Arpeggio {
     static key = 'upgrade';
 }
 
-class LowHealthAlarm extends SoundEffect {
-    static key = 'lowHealth';
+class BuzzerAlarm extends SoundEffect {
     render({ gain, at, voice }) {
-        const saw = gain * this.n('sawGain'), square = gain * this.n('squareGain'), noise = gain * this.n('noiseGain'), decay = this.n('decay');
-        for (const offset of [0, 0.48, 0.96]) {
-            new Tone(this.engine, { voice, freq: 185, end: 175, duration: 0.32 * decay, gain: saw, type: 'sawtooth', time: at + offset * decay });
-            new Tone(this.engine, { voice, freq: 277.5, end: 262.5, duration: 0.32 * decay, gain: square, type: 'square', time: at + offset * decay });
-            new Noise(this.engine, { voice, duration: 0.12 * decay, gain: noise, frequency: 900, time: at + offset * decay });
+        const startPitch = this.n('startPitch'), endPitch = this.n('endPitch');
+        const speed = this.n('buzzSpeed'), duration = 0.5 / speed;
+        const saw = gain * this.n('sawGain'), square = gain * this.n('squareGain');
+        const ctx = this.engine.ctx;
+        const buzz = (freq, end, level, type, time) => {
+            const oscillator = ctx.createOscillator(), envelope = ctx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(freq, time);
+            oscillator.frequency.linearRampToValueAtTime(end, time + duration);
+            envelope.gain.setValueAtTime(0, time);
+            envelope.gain.linearRampToValueAtTime(level, time + 0.005);
+            envelope.gain.setValueAtTime(level, time + duration - 0.005);
+            envelope.gain.linearRampToValueAtTime(0, time + duration);
+            voice.track(oscillator, [oscillator, envelope]);
+            oscillator.connect(envelope); envelope.connect(voice.output);
+            oscillator.start(time); oscillator.stop(time + duration + 0.03);
+        };
+        for (let i = 0; i < 3; i++) {
+            const time = at + i / speed;
+            buzz(startPitch, endPitch, saw, 'sawtooth', time);
+            buzz(startPitch * 136 / 130, endPitch * 126 / 120, square, 'square', time);
         }
     }
+}
+
+class LowHealthAlarm extends BuzzerAlarm {
+    static key = 'lowHealth';
+}
+
+class Alert extends BuzzerAlarm {
+    static key = 'alert';
 }
 
 class MissileWarning extends SoundEffect {
@@ -1867,17 +1962,6 @@ class MissileWarning extends SoundEffect {
     render({ gain, at, voice }) {
         for (const offset of [0, 0.1, 0.2]) {
             new Tone(this.engine, { voice, freq: 980, end: 820, duration: 0.05, gain: gain * this.n('toneGain'), type: 'sine', time: at + offset });
-        }
-    }
-}
-
-class Alert extends SoundEffect {
-    static key = 'alert';
-    render({ gain, at, voice }) {
-        const level = gain * this.n('toneGain'), decay = this.n('decay');
-        for (const offset of [0, 0.36]) {
-            new Tone(this.engine, { voice, freq: 330, end: 310, duration: 0.22 * decay, gain: level * 0.65, type: 'sawtooth', time: at + offset * decay });
-            new Tone(this.engine, { voice, freq: 495, end: 465, duration: 0.22 * decay, gain: level * 0.35, type: 'square', time: at + offset * decay });
         }
     }
 }
@@ -3009,7 +3093,7 @@ class Renderer {
 const TREAD_MARK_LIFETIME=20,TREAD_MARK_SPACING=14,TREAD_MARK_LIMIT=160;
 const PLAYER_ACCELERATION=3.5,PLAYER_DECELERATION=2.8,PLAYER_TURN_RATE=4,PLAYER_TOUCH_TURN_RATE=5,PLAYER_CANNON_TURN_RATE=16,PLAYER_BANK_RESPONSE=3;
 const FLARE_RANGE=260,FLARE_COOLDOWN=2.2,FLARE_DEFLECTION_CHANCE=.32;
-const LOW_HEALTH_ALARM_INTERVAL=1.4,MISSILE_ALARM_INTERVAL=1.2;
+const MISSILE_ALARM_INTERVAL=1.2;
 const ROCKET_RAIL_FORWARD=28,ROCKET_RAIL_OFFSET=15;
 const HELICOPTER_FUME_INTERVAL=.07,HELICOPTER_FUME_OFFSET=-30,MUZZLE_FUME_OFFSET=40;
 const ROCKET_NOZZLE_OFFSET=9,ROCKET_TRAIL_SPACING=12,ROCKET_TRAIL_LOW_SPACING=24,ROCKET_TRAIL_STEP_LIMIT=24;
@@ -3040,7 +3124,7 @@ function createState(){
   const bestValue=read('blackout.best',0);
   const g={world:{width:1600,height:900},state:'ready',pointer,touch:matchMedia('(pointer:coarse)').matches,enemies:[],bullets:[],particles:[],pickups:[],explosions:[],deathBursts:[],warnings:[],floaters:[],decals:[],props:[],treadMarks:[],wreckSmoke:[],cannonTracersEnabled:true,time:0,visualTime:0,shake:0,wave:1,score:0,kills:0,best:typeof bestValue==='number'&&Number.isFinite(bestValue)?Math.max(0,bestValue):0,combo:0,comboTimer:0,spawnRemaining:0,spawnTimer:0,waveWait:-1,bannerTime:0,hudTimer:0,testRange:null,camera:{x:0,y:0,zoom:1},map:mapForWave(1)};
   const runtime={$,canvas,arena,overlay,dialog,panels,settings,read,write,saveSettings:()=>write('blackout.settings',settings),sound,renderer,keys,pointer,g,pad:(n,length=6)=>String(Math.floor(n)).padStart(length,'0'),clock:value=>`${String(Math.floor(value/60)).padStart(2,'0')}:${String(Math.floor(value%60)).padStart(2,'0')}`,t,upgrades:{},choices:[],joystick:{x:0,y:0,id:null},firePointer:null,gamePointer:null,lastTime:0,settingsPaused:false,starting:false};
-  function newPlayer(){return{x:g.world.width*.43,y:g.world.height*.52,vx:0,vy:0,angle:-Math.PI/2,cannonAngle:-Math.PI/2,bank:0,pitch:0,health:100,maxHealth:100,cooldown:0,heat:0,overheated:false,invulnerable:0,dashTime:0,dashCooldown:0,flareCooldown:0,lowHealthAlarm:0,missileAlarm:0,rockets:3,maxRockets:3,rocketTimer:0,rocketCooldown:0,rocketSide:-1,muzzle:0,cannonShotIndex:0};}
+  function newPlayer(){return{x:g.world.width*.43,y:g.world.height*.52,vx:0,vy:0,angle:-Math.PI/2,cannonAngle:-Math.PI/2,bank:0,pitch:0,health:100,maxHealth:100,cooldown:0,heat:0,overheated:false,invulnerable:0,dashTime:0,dashCooldown:0,flareCooldown:0,lowHealthAlarm:false,missileAlarm:0,rockets:3,maxRockets:3,rocketTimer:0,rocketCooldown:0,rocketSide:-1,muzzle:0,cannonShotIndex:0};}
   function readTestRange(){const enemy=$('test-enemy').value,validEnemy=Object.hasOwn(ENEMIES,enemy)?enemy:'tank';const number=(id,fallback,min,max)=>clamp(Number($(`test-${id}`).value)||fallback,min,max);return {enemy:validEnemy,interval:number('interval',1,.2,5),maxActive:number('max-active',3,1,20),health:number('health',1,.25,5),distance:number('distance',350,120,700),upgrades:{damage:number('damage',0,0,4),fireRate:number('fire-rate',0,0,4),armor:number('armor',0,0,4),engine:number('engine',0,0,3),rockets:number('rockets',0,0,3)}};}
   function applyStartingUpgrades(){const p=g.player;p.maxHealth+=25*(runtime.upgrades.armor||0);p.health=p.maxHealth;p.maxRockets+=runtime.upgrades.rockets||0;p.rockets=p.maxRockets;}
   g.player=newPlayer();
@@ -3505,7 +3589,7 @@ function emitHelicopterFume(dt){
 }
 function update(dt){
   const p=g.player,W=g.world.width,H=g.world.height;g.time+=dt;g.shake=Math.max(0,g.shake-dt*35);
-  p.cooldown-=dt;p.invulnerable-=dt;p.dashTime-=dt;p.dashCooldown=Math.max(0,p.dashCooldown-dt);p.flareCooldown=Math.max(0,p.flareCooldown-dt);p.lowHealthAlarm-=dt;p.missileAlarm-=dt;p.rocketCooldown-=dt;p.muzzle-=dt;p.muzzleSmoke=Math.max(0,(p.muzzleSmoke||0)-dt);
+  p.cooldown-=dt;p.invulnerable-=dt;p.dashTime-=dt;p.dashCooldown=Math.max(0,p.dashCooldown-dt);p.flareCooldown=Math.max(0,p.flareCooldown-dt);p.missileAlarm-=dt;p.rocketCooldown-=dt;p.muzzle-=dt;p.muzzleSmoke=Math.max(0,(p.muzzleSmoke||0)-dt);
   const move=movement(),speed=270*Math.pow(1.12,runtime.upgrades.engine||0),response=1-Math.exp(-(Math.hypot(move.x,move.y)>.01?PLAYER_ACCELERATION:PLAYER_DECELERATION)*dt);
   if(p.dashTime<=0){p.vx+=(move.x*speed-p.vx)*response;p.vy+=(move.y*speed-p.vy)*response;}
   p.x=clamp(p.x+p.vx*dt,34,W-34);p.y=clamp(p.y+p.vy*dt,104,H-42);
@@ -3569,8 +3653,8 @@ function update(dt){
     if(g.state!=='playing')return;
   }
   if(p.health<=p.maxHealth*.25){
-    if(p.lowHealthAlarm<=0){sound.play('lowHealth');p.lowHealthAlarm=LOW_HEALTH_ALARM_INTERVAL;}
-  }else p.lowHealthAlarm=0;
+    if(!p.lowHealthAlarm){sound.play('lowHealth');p.lowHealthAlarm=true;}
+  }else p.lowHealthAlarm=false;
   const missileThreat=incomingMissile();
   if(missileThreat){
     if(p.missileAlarm<=0){sound.play('missileAlert');p.missileAlarm=MISSILE_ALARM_INTERVAL;}
@@ -3650,8 +3734,9 @@ function createUpgrades(runtime){
 function updateHud(){
   const p=g.player,percent=Math.ceil(p.health/p.maxHealth*100),multiplier=Math.min(5,1+Math.floor(g.combo/3));
   $('wave').innerHTML=`${t('hud.wave')} <b>${pad(g.wave,2)}</b>`;
-  $('health').textContent=percent;$('health-fill').style.width=`${percent}%`;$('health-fill').style.background=percent<=25?'#ee9b6b':'#dbea9b';
-  $('hull-status').textContent=t(percent<=25?'hud.critical':percent<=60?'hud.damaged':'hud.healthy');$('hull-status').style.color=percent<=25?'#ee9b6b':'';
+  $('health').textContent=percent;$('health-fill').style.width=`${percent}%`;$('health-fill').style.background=percent<=25?'#ff3b3b':'#dbea9b';
+  $('hull').classList.toggle('critical',percent<=25);
+  $('hull-status').textContent=t(percent<=25?'hud.critical':percent<=60?'hud.damaged':'hud.healthy');$('hull-status').style.color=percent<=25?'#ff3b3b':'';
   $('score').textContent=pad(g.score);$('best').textContent=pad(Math.max(g.best,g.score));
   $('hostiles').textContent=g.state==='ready'?t('hud.scanning'):`${g.enemies.length+g.spawnRemaining} ${t('hud.hostiles')}`;
   $('flight-time').textContent=`${t('flight.label')} ${clock(g.time)}`;

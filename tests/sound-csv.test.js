@@ -40,12 +40,21 @@ test('parameter validator rejects unsafe values and invalid chance distributions
     assert.ok(validateParameter('heavyChance', {value:0.5, spread:0.1, unit:'ratio'}));
     assert.equal(validateParameter('heavyChance', {value:1, spread:0, unit:'ratio'}), '');
     assert.equal(validateParameter('noiseGain', {value:0, spread:0.99, unit:'gain'}), '');
+    assert.match(validateParameter('buzzSpeed', {value:0.05,spread:0,unit:'hertz'}, 'lowHealth'), /between 0.1 and 10/);
+    assert.equal(validateParameter('buzzSpeed', {value:1, spread:0, unit:'hertz'}, 'lowHealth'), '');
+});
+
+test('Goliath alert has independent copies of the low-health buzzer controls', () => {
+    assert.equal(SOUND_PARAMETERS.alert, SOUND_PARAMETERS.lowHealth);
+    for (const param of SOUND_PARAMETERS.lowHealth.split(' ')) {
+        assert.deepEqual(SOUND_DATA.alert[param], SOUND_DATA.lowHealth[param]);
+    }
 });
 
 test('new decay controls round trip and reject zero only for the requested effects', async () => {
     const text = await readFile(new URL('../sounds.csv', import.meta.url), 'utf8');
     const data = structuredClone(SOUND_DATA);
-    for (const key of ['lowHealth','alert','flare']) {
+    for (const key of ['flare']) {
         assert.ok(SOUND_PARAMETERS[key].split(' ').includes('decay'));
         assert.deepEqual(data[key].decay, {value:1,spread:0,unit:'ratio'});
         assert.match(validateParameter('decay', {value:0,spread:0,unit:'ratio'}, key), /positive/);

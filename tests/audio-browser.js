@@ -66,7 +66,7 @@ export async function runAudioBrowserChecks() {
 
 export function runAudioEditorChecks() {
     const selected = document.querySelector('#effect-list button[aria-pressed="true"]');
-    for (const key of ['lowHealth','alert','flare']) {
+    for (const key of ['flare']) {
         document.querySelector(`#effect-list button[data-effect="${key}"]`).click();
         const input = document.querySelector('input[data-param="decay"][data-field="value"]');
         check(Boolean(input), `${key} decay control missing`);
@@ -79,6 +79,15 @@ export function runAudioEditorChecks() {
         check(!document.querySelector('#play').disabled && !document.querySelector('#download-csv').disabled, `${key} valid decay did not unblock play and export`);
         input.value = original; input.dispatchEvent(new Event('input', {bubbles:true}));
     }
+    for (const key of ['lowHealth','alert']) {
+        document.querySelector(`#effect-list button[data-effect="${key}"]`).click();
+        const speed = document.querySelector('input[data-param="buzzSpeed"][data-field="value"]');
+        check(Boolean(speed), `${key} buzz speed control missing`);
+        speed.value = '0.05'; speed.dispatchEvent(new Event('input', {bubbles:true}));
+        check(speed.getAttribute('aria-invalid') === 'true', `${key} accepted an out-of-range buzz speed`);
+        speed.value = '2'; speed.dispatchEvent(new Event('input', {bubbles:true}));
+        check(speed.getAttribute('aria-invalid') === 'false' && window.audioLabSnapshot().parameters.buzzSpeed.value === 2, `${key} rejected a valid buzz speed`);
+    }
     selected.click();
-    return {decayControls:3,zeroRejected:true,validAccepted:true};
+    return {decayControls:1,buzzerSpeedControls:2,zeroRejected:true,validAccepted:true};
 }

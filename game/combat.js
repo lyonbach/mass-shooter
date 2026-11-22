@@ -1,6 +1,6 @@
 import { environmentFor, environmentGeometry, generateProps } from '../environment.js';
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
-import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
+import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
 import { MUZZLE_FUME_OFFSET, HELICOPTER_FUME_INTERVAL, HELICOPTER_FUME_OFFSET, AA_MUZZLE_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './constants.js';
 export function updateDroneVisual(e,dt,reduced=false){
   const vx=Number.isFinite(e.vx)?e.vx:0,vy=Number.isFinite(e.vy)?e.vy:0,speed=Math.hypot(vx,vy);
@@ -261,7 +261,7 @@ function emitHelicopterFume(dt){
 }
 function update(dt){
   const p=g.player,W=g.world.width,H=g.world.height;g.time+=dt;g.shake=Math.max(0,g.shake-dt*35);
-  p.cooldown-=dt;p.invulnerable-=dt;p.dashTime-=dt;p.dashCooldown=Math.max(0,p.dashCooldown-dt);p.flareCooldown=Math.max(0,p.flareCooldown-dt);p.lowHealthAlarm-=dt;p.missileAlarm-=dt;p.rocketCooldown-=dt;p.muzzle-=dt;p.muzzleSmoke=Math.max(0,(p.muzzleSmoke||0)-dt);
+  p.cooldown-=dt;p.invulnerable-=dt;p.dashTime-=dt;p.dashCooldown=Math.max(0,p.dashCooldown-dt);p.flareCooldown=Math.max(0,p.flareCooldown-dt);p.missileAlarm-=dt;p.rocketCooldown-=dt;p.muzzle-=dt;p.muzzleSmoke=Math.max(0,(p.muzzleSmoke||0)-dt);
   const move=movement(),speed=270*Math.pow(1.12,runtime.upgrades.engine||0),response=1-Math.exp(-(Math.hypot(move.x,move.y)>.01?PLAYER_ACCELERATION:PLAYER_DECELERATION)*dt);
   if(p.dashTime<=0){p.vx+=(move.x*speed-p.vx)*response;p.vy+=(move.y*speed-p.vy)*response;}
   p.x=clamp(p.x+p.vx*dt,34,W-34);p.y=clamp(p.y+p.vy*dt,104,H-42);
@@ -325,8 +325,8 @@ function update(dt){
     if(g.state!=='playing')return;
   }
   if(p.health<=p.maxHealth*.25){
-    if(p.lowHealthAlarm<=0){sound.play('lowHealth');p.lowHealthAlarm=LOW_HEALTH_ALARM_INTERVAL;}
-  }else p.lowHealthAlarm=0;
+    if(!p.lowHealthAlarm){sound.play('lowHealth');p.lowHealthAlarm=true;}
+  }else p.lowHealthAlarm=false;
   const missileThreat=incomingMissile();
   if(missileThreat){
     if(p.missileAlarm<=0){sound.play('missileAlert');p.missileAlarm=MISSILE_ALARM_INTERVAL;}
