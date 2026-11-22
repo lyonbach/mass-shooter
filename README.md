@@ -32,6 +32,19 @@ query independently for each draw, not a full gameplay simulation. The fixed
 time slider lets you compare rotor and other time-dependent phases without an
 animation loop. No settings are saved or applied to the game.
 
+## Environment
+
+`environment.js` describes a battlefield independently of the game mode. `environmentFor(map)` merges base defaults, the layout defaults (`desert`, `valley`, `canyon`) and an optional `map.environment` override, so waves, missions and generators can all supply their own spec:
+
+```js
+{ time: 'day|dawn|dusk|night', weather: { type: 'none|dust|fog|rain', intensity: 0..1, wind: [x, y] },
+  density: { rocks, vegetation, craters, props }, vegetation: ['scrub', 'tree', 'pine', 'deadtree', 'cactus'],
+  landing: [x, y], compounds: [[x, y, scale]], roads: [{ pts, curve, width, shoulder, surface, edge, centre }],
+  rivers: [{ pts, width }], lakes: [[x, y, rx, ry, rotation]] }
+```
+
+Coordinates are fractions of the world size. Roads that cross rivers get bridges automatically; ground enemies cannot enter water and route to a bridge, while drones and kamikazes fly over. `generateProps` places seeded destructible props (crates, barrels, sandbags); explosive barrels chain-damage enemies and other props but never the player. Wave mode still takes its levels from `levels.csv`, whose optional `time` (`day|dawn|dusk|night`) and `weather` (`none|dust|fog|rain`) columns override the layout defaults when filled in (e.g. `NIGHT WATCH` is a rainy night).
+
 ## Controls
 
 | Action | Desktop | Touch |

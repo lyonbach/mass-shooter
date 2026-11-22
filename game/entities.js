@@ -17,8 +17,8 @@ function fireSplinters(x,y,size){
   }
 }
 function destructionSound(x,y){sound.play('explode',{position:{x,y}});}
-function explosion(x,y,size=75){
-  g.explosions.push({x,y,size,life:.65,maxLife:.65});burst(x,y,'#f9c57f',46,size/65);burst(x,y,'#28342a',16,.45,true);fireSplinters(x,y,size);
+function explosion(x,y,size=75,life=.65){
+  g.explosions.push({x,y,size,life,maxLife:life});burst(x,y,'#f9c57f',46,size/65);burst(x,y,'#28342a',16,.45,true);fireSplinters(x,y,size);
   g.shake=Math.max(g.shake,size/6);destructionSound(x,y);
 }
 function flakBurst(x,y){
@@ -80,7 +80,7 @@ function emitScreenSmoke(tank){
 function updateEffects(dt){
   for(const burst of g.deathBursts)burst.delay-=dt;
   const pendingBursts=[];
-  for(const burst of g.deathBursts){if(burst.delay<=0)explosion(burst.x,burst.y,burst.size);else pendingBursts.push(burst);}
+  for(const burst of g.deathBursts){if(burst.delay<=0)explosion(burst.x,burst.y,burst.size,burst.life);else pendingBursts.push(burst);}
   g.deathBursts=pendingBursts;
   for(const decal of g.decals){
     if(!decal.wreck)continue;

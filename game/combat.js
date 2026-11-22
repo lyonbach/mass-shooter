@@ -1,3 +1,4 @@
+import { environmentFor, environmentGeometry, generateProps } from '../environment.js';
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
 import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
 import { MUZZLE_FUME_OFFSET, HELICOPTER_FUME_INTERVAL, HELICOPTER_FUME_OFFSET, AA_MUZZLE_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './constants.js';
@@ -80,11 +81,11 @@ function hitEnemy(e,damage,source='other'){
     float(`+${points}${multiplier>1?' ×'+multiplier:''}`,e.x,e.y-35,'#e0efa6',multiplier>1);
     const stats=ENEMIES[e.type];
     if(cannonWreck)runtime.destructionSound(e.x,e.y);
-    else explosion(e.x,e.y,stats.deathExplosion);
+    else explosion(e.x,e.y,stats.deathExplosion,e.type==='boss'?BOSS_EXPLOSION_LIFE:undefined);
     if(e.type==='boss'&&!cannonWreck){
       for(let i=0;i<5;i++){
         const a=Math.random()*TAU,distance=10+Math.random()*38;
-        g.deathBursts.push({x:e.x+Math.cos(a)*distance,y:e.y+Math.sin(a)*distance,size:58+Math.random()*28,delay:.1+i*.12+Math.random()*.05});
+        g.deathBursts.push({x:e.x+Math.cos(a)*distance,y:e.y+Math.sin(a)*distance,size:58+Math.random()*28,life:BOSS_EXPLOSION_LIFE,delay:(.1+i*.12+Math.random()*.05)*2});
       }
     }
     if(e.type==='kamikaze'&&distance(e,g.player)<stats.explosionRadius+17)damagePlayer(stats.projectileDamage);
@@ -112,8 +113,70 @@ function damagePlayer(amount){
     else runtime.endGame();
   }runtime.updateHud();
 }
+// Props are plain data from environment.js so missions and generated levels can rebuild them for any map.
+const BOSS_EXPLOSION_LIFE=1.3;
+function refreshGeometry(){g.geometry=environmentGeometry(environmentFor(g.map),g.world.width,g.world.height,g.map.seed);}
+function buildProps(){refreshGeometry();g.props=generateProps(environmentFor(g.map),g.world.width,g.world.height,g.map.seed);}
+function damageProp(prop,damage){
+  if(prop.destroyed)return;
+  prop.health-=damage;prop.hitFlash=.12;
+  burst(prop.x,prop.y,prop.type==='sandbags'?'#b9a779':'#c9b27c',3,.2);
+  if(prop.health>0)return;
+  prop.destroyed=true;prop.scorch=prop.type==='barrel';
+  if(prop.hostile){g.score+=prop.points;float(`+${prop.points}`,prop.x,prop.y-20,'#e0efa6');}
+  if(prop.type!=='barrel')return;
+  explosion(prop.x,prop.y,85);
+  for(const e of g.enemies)if(e.health>0&&distance(e,prop)<85+e.radius)hitEnemy(e,40,'other');
+  for(const other of g.props)if(!other.destroyed&&distance(other,prop)<85)damageProp(other,2);
+}
+// Ground units cannot wade through rivers or lakes: they steer to a bridge when water blocks the way
+// and are stopped at the shore otherwise. Air units ignore water.
+const flying=e=>e.type==='drone'||e.type==='kamikaze';
+function crossesWater(e,target){
+  const w=g.geometry;
+  for(let i=1;i<=12;i++){const f=i/12;if(w.inWater(e.x+(target.x-e.x)*f,e.y+(target.y-e.y)*f,e.radius*.5))return true;}
+  return false;
+}
+function groundGoal(e,target){
+  const w=g.geometry;
+  if(!w||flying(e)||!w.bridges.length||!crossesWater(e,target))return target;
+  let best=null,bestCost=Infinity;
+  for(const b of w.bridges){const cost=distance(e,b)+distance(b,target);if(cost<bestCost){best=b;bestCost=cost;}}
+  const half=best.length/2,ends=[-1,1].map(k=>({x:best.x+Math.cos(best.angle)*half*k,y:best.y+Math.sin(best.angle)*half*k}));
+  const [near,far]=distance(e,ends[0])<distance(e,ends[1])?ends:[ends[1],ends[0]];
+  return w.onBridge(e.x,e.y)||distance(e,near)<18?far:near;
+}
+// Water, trees and buildings are solid for ground units; a unit already inside one may still walk out of it.
+function groundMove(e,vx,vy,dt){
+  const w=g.geometry,r=e.radius*.5,bm=e.radius+22,{width:W,height:H}=g.world;
+  if(!w||flying(e))return [vx,vy];
+  const treeAt=(x,y)=>w.trees.find(t=>Math.hypot(t.x-x,t.y-y)<t.radius+r);
+  // Clearance zones around obstacles: full margin, 60% and the bare footprint. A unit already inside a
+  // zone may only move without entering the next, deeper one, so it can slide along walls and back out.
+  const at=(x,y,k)=>w.inWater(x,y,r*k)||w.trees.some(t=>Math.hypot(t.x-x,t.y-y)<t.radius+r*k)||w.inBuilding(x,y,bm*k);
+  const zone=at(e.x,e.y,1)?(at(e.x,e.y,.6)?(at(e.x,e.y,0)?3:2):1):0;
+  // Distance outside the nearest building footprint; used so a unit pressed into a wall may only back away or slide.
+  const gap=(x,y)=>w.buildings.reduce((best,b)=>{const cos=Math.cos(-b.angle),sin=Math.sin(-b.angle),dx=x-b.x,dy=y-b.y;return Math.min(best,Math.max(Math.abs(dx*cos-dy*sin)-b.hw,Math.abs(dx*sin+dy*cos)-b.hh));},Infinity);
+  const wallOnly=zone===2&&!w.inWater(e.x,e.y,r*.6)&&!w.trees.some(t=>Math.hypot(t.x-e.x,t.y-e.y)<t.radius+r*.6),here=wallOnly?gap(e.x,e.y):0;
+  const solid=(x,y)=>x>0&&x<W&&y>0&&y<H&&(zone===3?false:wallOnly?at(x,y,0)||(at(x,y,.6)&&gap(x,y)<here-.01):at(x,y,[1,.6,0][zone]));
+  if(!solid(e.x+vx*dt,e.y+vy*dt)){e.detour=0;return [vx,vy];}
+  if(!solid(e.x+vx*dt,e.y))return [vx,0];
+  if(!solid(e.x,e.y+vy*dt))return [0,vy];
+  // Wedged against an obstacle: slide around a tree trunk, or along a wall in a remembered direction.
+  const tree=treeAt(e.x+vx*dt,e.y+vy*dt),speed=Math.hypot(vx,vy);
+  if(tree){
+    const side=Math.sign((e.x-tree.x)*vy-(e.y-tree.y)*vx)||1,nx=-(e.y-tree.y),ny=e.x-tree.x,len=Math.hypot(nx,ny)||1;
+    const sx=nx/len*side*speed,sy=ny/len*side*speed;
+    if(!solid(e.x+sx*dt,e.y+sy*dt))return [sx,sy];
+  }
+  if(!e.detour)e.detour=Math.sign(vx*(g.player.y-e.y)-vy*(g.player.x-e.x))||1;
+  const px=-vy/(speed||1)*e.detour*speed,py=vx/(speed||1)*e.detour*speed;
+  if(!solid(e.x+px*dt,e.y+py*dt))return [px,py];
+  return [0,0];
+}
 function detonate(b){
   explosion(b.x,b.y,135);
+  for(const prop of g.props)if(!prop.destroyed&&distance(prop,b)<135)damageProp(prop,4);
   for(const e of g.enemies){const d=distance(e,b);if(d<135+e.radius)hitEnemy(e,b.damage*(1-clamp(d/230,0,.65)),'rocket');}
   g.bullets.forEach(other=>{if(!other.friendly&&distance(other,b)<135)other.life=0;});
 }
@@ -230,10 +293,12 @@ function update(dt){
     if(e.weaponMuzzle>0){e.weaponMuzzle-=dt;if(e.weaponMuzzle<=0)delete e.weaponMuzzle;}
     const stats=ENEMIES[e.type],a=Math.atan2(p.y-e.y,p.x-e.x),d=distance(e,p),stop=stats.stopDistance;
     let vx=0,vy=0;
-    if(d>stop){vx=Math.cos(a)*e.speed;vy=Math.sin(a)*e.speed;}
+    const goal=groundGoal(e,p),ga=goal===p?a:Math.atan2(goal.y-e.y,goal.x-e.x);
+    if(d>stop||goal!==p){vx=Math.cos(ga)*e.speed;vy=Math.sin(ga)*e.speed;}
     if(stats.strafeSpeed){vx+=Math.cos(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;vy+=Math.sin(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;}
     // Gentle separation keeps armor from stacking into one unreadable target.
     for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
+    [vx,vy]=groundMove(e,vx,vy,dt);
     e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
     if(e.type==='drone'||e.type==='kamikaze')updateDroneVisual(e,dt,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
     const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
@@ -296,7 +361,9 @@ function update(dt){
     if(b.friendly){
       let target=null,nearest=Infinity;
       for(const e of g.enemies)if(e.health>0&&segmentHitsCircle(ox,oy,b.x,b.y,e.x,e.y,e.radius+(b.kind==='rocket'?8:2))){const d=Math.hypot(e.x-ox,e.y-oy);if(d<nearest){target=e;nearest=d;}}
+      const prop=target?null:g.props.find(q=>!q.destroyed&&segmentHitsCircle(ox,oy,b.x,b.y,q.x,q.y,q.radius+2));
       if(target){b.life=0;if(b.kind==='rocket')detonate(b);else hitEnemy(target,b.damage,b.kind==='gun'?'cannon':'other');}
+      else if(prop){b.life=0;if(b.kind==='rocket')detonate(b);else damageProp(prop,1);}
       else if(b.kind==='rocket'&&b.life<=0)detonate(b);
     }else if(segmentHitsCircle(ox,oy,b.x,b.y,p.x,p.y,17)){
       if(b.kind==='enemyRocket'){
@@ -330,5 +397,5 @@ function update(dt){
   if(g.bannerTime>0){g.bannerTime-=dt;if(g.bannerTime<=0)$('announcement').classList.remove('visible');}
   g.hudTimer-=dt;if(g.hudTimer<=0){runtime.updateHud();g.hudTimer=.08;}
 }
-  return {gun,rocketRecharge,launchRocket,dash,movement,updateCamera,hitEnemy,damagePlayer,detonate,fireEnemy,incomingMissile,deployFlares,update};
+  return {buildProps,refreshGeometry,damageProp,gun,rocketRecharge,launchRocket,dash,movement,updateCamera,hitEnemy,damagePlayer,detonate,fireEnemy,incomingMissile,deployFlares,update};
 }
