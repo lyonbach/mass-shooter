@@ -316,6 +316,15 @@ export class Renderer {
     path(c,[[-22,-4],[-61,-2],[-65,0],[-22,1]],'#9aa98b');
     path(c,[[-36,1],[-61,2],[-65,0],[-36,4]],'#526b59');
     path(c,[[-52,-3],[-61,-18],[-66,-18],[-63,0],[-62,17],[-55,17]],'#81947b');
+    // Tail detail: shaded stabilizer halves, leading edges, tip marks, boom seams and gearbox fairing.
+    path(c,[[-55,-3],[-61,-17],[-64,-17],[-62,-1]],'#9bab8c');
+    path(c,[[-55,3],[-61,16],[-64,16],[-62,1]],'#6a7e66');
+    c.strokeStyle='#d3dcb8aa';c.lineWidth=1;
+    c.beginPath();c.moveTo(-52,-3);c.lineTo(-61,-18);c.moveTo(-55,17);c.lineTo(-62,17);c.stroke();
+    c.fillStyle='#d9a45a';c.fillRect(-66,-18,3,2);c.fillRect(-65,16,3,2);
+    c.fillStyle='#3d5143';for(const x of [-30,-40,-50])c.fillRect(x,-4,1,8);
+    path(c,[[-60,-3],[-68,-2],[-70,0],[-68,2],[-60,3]],'#4a604f','#b8c79c66');
+    c.fillStyle='#dfe8c288';c.fillRect(-46,-3,14,1);
     for(const side of [-1,1]){
       c.save();c.scale(1,side);
       path(c,[[-18,10],[5,11],[17,20],[13,24],[-18,23],[-22,17]],'#334b3c','#bfca9e99');
@@ -379,8 +388,11 @@ export class Renderer {
     for(let i=0;i<4;i++){c.rotate(Math.PI/2);path(c,[[0,-2],[46,-3],[44,0],[0,2]],'#e2e7cc99');}
     ellipse(c,0,0,6,6,'#233a30');ellipse(c,0,0,4,4,'#60765a');ellipse(c,-1,-1,2,2,'#d2dbb2');c.restore();
     if(reduced||Math.sin(t*5)>0)ellipse(c,-51,0,2,2,'#f7a26d');ellipse(c,1,-19,1.5,1.5,'#c1ed95');
-    if(!ghost&&!reduced&&t%2<.12){ellipse(c,18,-18,3,3,'#ffffff');ellipse(c,18,18,3,3,'#ff5d52');}
-    if(!ghost&&!reduced&&t%1.5<.12)ellipse(c,-72,0,2.5,2.5,'#ffb35c');
+    const glow=(x,y,r,color)=>{ellipse(c,x,y,r*4.2,r*4.2,color+'18');ellipse(c,x,y,r*2.8,r*2.8,color+'33');ellipse(c,x,y,r*1.7,r*1.7,color+'66');};
+    if(!ghost&&!reduced&&t%2<.12){glow(18,-18,3,'#ffffff');glow(18,18,3,'#ff5d52');ellipse(c,18,-18,3,3,'#ffffff');ellipse(c,18,18,3,3,'#ff5d52');}
+    if(!ghost&&!reduced&&t%1.5<.12){
+      for(const [x,y,r] of [[-72,0,2.5],[-65,-18,2],[-64,17,2]]){glow(x,y,r,'#ffb35c');ellipse(c,x,y,r,r,'#ffb35c');}
+    }
     c.restore();
     c.restore();
   }

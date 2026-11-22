@@ -329,6 +329,7 @@ test('helicopter has layered cockpit glass, landing rails, and a detailed rotor 
   assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#18382fbb'));
   assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#2c5e57'));
   assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#e6fff0aa'));
+  assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#d9a45a'));
   assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#718469'));
   assert.ok(c.calls.some(call=>call.name==='ellipse'&&call.fillStyle==='#233a30'&&call.args[2]===6));
 });
@@ -350,6 +351,9 @@ test('helicopter strobe lights flash once every two seconds',()=>{
   const hasStrobes=c=>c.calls.some(call=>call.name==='fill'&&['#ffffff','#ff5d52'].includes(call.fillStyle));
   assert.equal(hasStrobes(flashing),true);
   assert.equal(hasStrobes(dark),false);
+  const halos=flashing.calls.filter(call=>call.name==='ellipse'&&['#ffffff33','#ff5d5233'].includes(call.fillStyle));
+  assert.equal(halos.length,2);
+  assert.ok(halos.every(call=>call.args[2]>3));
 });
 
 test('helicopter tail strobe flashes once every 1.5 seconds',()=>{
@@ -360,6 +364,8 @@ test('helicopter tail strobe flashes once every 1.5 seconds',()=>{
   const hasTailStrobe=c=>c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#ffb35c');
   assert.equal(hasTailStrobe(flashing),true);
   assert.equal(hasTailStrobe(dark),false);
+  const tips=flashing.calls.filter(call=>call.name==='ellipse'&&call.fillStyle==='#ffb35c'&&call.args[2]===2);
+  assert.deepEqual(tips.map(call=>call.args.slice(0,2)),[[-65,-18],[-64,17]]);
 });
 
 test('tail rotor is rendered edge-on',()=>{
