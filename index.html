@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111511">
-  <meta name="description" content="Nuclear Shooter: Blackout. Fly your helicopter, stop enemy waves, and grow stronger every sortie. Free tactical air combat.">
-  <title>Nuclear Shooter — Blackout</title>
+  <meta name="description" content="Mass Shooter: Blackout. Fly your helicopter, stop enemy waves, and grow stronger every sortie. Free tactical air combat.">
+  <title>Mass Shooter — Blackout</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23111511'/%3E%3Cpath d='M32 7 55 47H9Z' fill='none' stroke='%23d9eb90' stroke-width='5'/%3E%3Ccircle cx='32' cy='35' r='6' fill='%23d9eb90'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="hud.css">
@@ -21,7 +21,7 @@
   </defs></svg>
   <main class="shell">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="Nuclear Shooter home"><svg><use href="#i-mark"/></svg><span>NUCLEAR<span class="brand-light">SHOOTER</span><small>TACTICAL AIR COMBAT</small></span></a>
+      <a class="brand" href="./" aria-label="Mass Shooter home"><svg><use href="#i-mark"/></svg><span>MASS<span class="brand-light">SHOOTER</span><small>TACTICAL AIR COMBAT</small></span></a>
       <nav aria-label="Game controls">
         <span class="online"><i></i> <span data-i18n="nav.online">SYSTEM ONLINE</span></span><select id="language" class="language-select" aria-label="Language"><option value="en">EN</option><option value="tr">TR</option><option value="de">DE</option><option value="es">ES</option><option value="fr">FR</option></select>
         <button class="icon-button" id="sound-toggle" aria-label="Turn sound off" data-i18n-aria="nav.soundOff" aria-pressed="false" title="Turn sound off (M)"><svg><use href="#i-volume"/></svg></button>
@@ -96,7 +96,7 @@
       <div class="control"><kbd class="single">E</kbd><span><span data-i18n="manual.guidedRocket">GUIDED ROCKET</span><small data-i18n="manual.areaDamage">Area damage · auto-reload</small></span></div>
       <div class="control manual-pause"><kbd class="wide">ESC</kbd><span><span data-i18n="manual.pause">PAUSE</span><small data-i18n="manual.breathe">Take a breath</small></span></div>
     </section>
-    <footer class="site-footer"><span>NUCLEAR SHOOTER <b>/</b> BLACKOUT PROTOCOL</span><span class="footer-tip" data-i18n="footer.tip">Move. Fire. Survive.</span><span><span data-i18n="footer.signoff">GOOD HUNTING, PILOT.</span> <span class="tiny-mark">✳</span></span></footer>
+    <footer class="site-footer"><span>MASS SHOOTER <b>/</b> BLACKOUT PROTOCOL</span><span class="footer-tip" data-i18n="footer.tip">Move. Fire. Survive.</span><span><span data-i18n="footer.signoff">GOOD HUNTING, PILOT.</span> <span class="tiny-mark">✳</span></span></footer>
   </main>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><span class="panel-kicker" data-i18n="settings.kicker">FLIGHT COMPUTER</span><button class="icon-button" id="settings-close" aria-label="Close settings" data-i18n-aria="settings.close"><svg><use href="#i-cross"/></svg></button></div><h2 id="settings-title" data-i18n="settings.title">FLIGHT <em>SETTINGS</em></h2><label class="setting" for="volume"><span data-i18n="settings.volume">Master volume</span><output id="volume-value">60%</output><input id="volume" type="range" min="0" max="100" value="60"></label><label class="setting toggle"><span data-i18n="settings.music">Tactical music</span><input id="music" type="checkbox" checked><span></span></label><label class="setting toggle"><span data-i18n="settings.shake">Screen shake</span><input id="shake" type="checkbox" checked><span></span></label><label class="setting toggle"><span data-i18n="settings.effects">Visual effects</span><input id="effects" type="checkbox" checked><span></span></label><p class="settings-note" data-i18n="settings.note">Settings and your high score are saved in this browser.<br>Audio starts after your first interaction.</p><button class="primary-button" id="settings-done" data-i18n="settings.done">DONE <span>✓</span></button></dialog>
   <script src="blackout.js" defer></script>

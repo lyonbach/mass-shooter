@@ -1,6 +1,6 @@
 # Audio Lab Usage
 
-Use the Audio Lab to listen to Nuclear Shooter's sound effects, adjust their
+Use the Audio Lab to listen to Mass Shooter's sound effects, adjust their
 parameters, and export a complete `sounds.csv`. The lab uses the same audio
 library as the game, without running gameplay or music.
 

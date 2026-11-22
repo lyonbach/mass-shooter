@@ -1,9 +1,9 @@
 {
-  "name": "nuclear-shooter",
+  "name": "mass-shooter",
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Blackout Protocol — a dependency-free tactical helicopter shooter",
+  "description": "Mass Shooter - A dependency-free tactical helicopter shooter. One of mass shooter games.",
   "scripts": {
     "build": "node scripts/build.mjs",
     "watch": "node scripts/watch.mjs",
