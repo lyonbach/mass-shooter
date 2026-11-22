@@ -1,3 +1,4 @@
+import { environmentFor, environmentGeometry, generateProps } from '../environment.js';
 import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, ROCKET_IGNITION_DELAY } from '../core.js';
 import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, LOW_HEALTH_ALARM_INTERVAL, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
 import { MUZZLE_FUME_OFFSET, HELICOPTER_FUME_INTERVAL, HELICOPTER_FUME_OFFSET, AA_MUZZLE_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './constants.js';
@@ -112,8 +113,50 @@ function damagePlayer(amount){
     else runtime.endGame();
   }runtime.updateHud();
 }
+// Props are plain data from environment.js so missions and generated levels can rebuild them for any map.
+function refreshGeometry(){g.geometry=environmentGeometry(environmentFor(g.map),g.world.width,g.world.height);}
+function buildProps(){refreshGeometry();g.props=generateProps(environmentFor(g.map),g.world.width,g.world.height,g.map.seed);}
+function damageProp(prop,damage){
+  if(prop.destroyed)return;
+  prop.health-=damage;prop.hitFlash=.12;
+  burst(prop.x,prop.y,prop.type==='sandbags'?'#b9a779':'#c9b27c',3,.2);
+  if(prop.health>0)return;
+  prop.destroyed=true;prop.scorch=prop.type==='barrel';
+  if(prop.hostile){g.score+=prop.points;float(`+${prop.points}`,prop.x,prop.y-20,'#e0efa6');}
+  if(prop.type!=='barrel')return;
+  explosion(prop.x,prop.y,85);
+  for(const e of g.enemies)if(e.health>0&&distance(e,prop)<85+e.radius)hitEnemy(e,40,'other');
+  for(const other of g.props)if(!other.destroyed&&distance(other,prop)<85)damageProp(other,2);
+}
+// Ground units cannot wade through rivers or lakes: they steer to a bridge when water blocks the way
+// and are stopped at the shore otherwise. Air units ignore water.
+const flying=e=>e.type==='drone'||e.type==='kamikaze';
+function crossesWater(e,target){
+  const w=g.geometry;
+  for(let i=1;i<=12;i++){const f=i/12;if(w.inWater(e.x+(target.x-e.x)*f,e.y+(target.y-e.y)*f,e.radius*.5))return true;}
+  return false;
+}
+function groundGoal(e,target){
+  const w=g.geometry;
+  if(!w||flying(e)||!w.bridges.length||!crossesWater(e,target))return target;
+  let best=null,bestCost=Infinity;
+  for(const b of w.bridges){const cost=distance(e,b)+distance(b,target);if(cost<bestCost){best=b;bestCost=cost;}}
+  const half=best.length/2,ends=[-1,1].map(k=>({x:best.x+Math.cos(best.angle)*half*k,y:best.y+Math.sin(best.angle)*half*k}));
+  const [near,far]=distance(e,ends[0])<distance(e,ends[1])?ends:[ends[1],ends[0]];
+  return w.onBridge(e.x,e.y)||distance(e,near)<18?far:near;
+}
+function groundMove(e,vx,vy,dt){
+  const w=g.geometry,r=e.radius*.5,{width:W,height:H}=g.world;
+  if(!w||flying(e)||w.inWater(e.x,e.y,r))return [vx,vy];
+  const wet=(x,y)=>x>0&&x<W&&y>0&&y<H&&w.inWater(x,y,r);
+  if(!wet(e.x+vx*dt,e.y+vy*dt))return [vx,vy];
+  if(!wet(e.x+vx*dt,e.y))return [vx,0];
+  if(!wet(e.x,e.y+vy*dt))return [0,vy];
+  return [0,0];
+}
 function detonate(b){
   explosion(b.x,b.y,135);
+  for(const prop of g.props)if(!prop.destroyed&&distance(prop,b)<135)damageProp(prop,4);
   for(const e of g.enemies){const d=distance(e,b);if(d<135+e.radius)hitEnemy(e,b.damage*(1-clamp(d/230,0,.65)),'rocket');}
   g.bullets.forEach(other=>{if(!other.friendly&&distance(other,b)<135)other.life=0;});
 }
@@ -230,10 +273,12 @@ function update(dt){
     if(e.weaponMuzzle>0){e.weaponMuzzle-=dt;if(e.weaponMuzzle<=0)delete e.weaponMuzzle;}
     const stats=ENEMIES[e.type],a=Math.atan2(p.y-e.y,p.x-e.x),d=distance(e,p),stop=stats.stopDistance;
     let vx=0,vy=0;
-    if(d>stop){vx=Math.cos(a)*e.speed;vy=Math.sin(a)*e.speed;}
+    const goal=groundGoal(e,p),ga=goal===p?a:Math.atan2(goal.y-e.y,goal.x-e.x);
+    if(d>stop||goal!==p){vx=Math.cos(ga)*e.speed;vy=Math.sin(ga)*e.speed;}
     if(stats.strafeSpeed){vx+=Math.cos(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;vy+=Math.sin(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;}
     // Gentle separation keeps armor from stacking into one unreadable target.
     for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
+    [vx,vy]=groundMove(e,vx,vy,dt);
     e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
     if(e.type==='drone'||e.type==='kamikaze')updateDroneVisual(e,dt,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
     const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
@@ -296,7 +341,9 @@ function update(dt){
     if(b.friendly){
       let target=null,nearest=Infinity;
       for(const e of g.enemies)if(e.health>0&&segmentHitsCircle(ox,oy,b.x,b.y,e.x,e.y,e.radius+(b.kind==='rocket'?8:2))){const d=Math.hypot(e.x-ox,e.y-oy);if(d<nearest){target=e;nearest=d;}}
+      const prop=target?null:g.props.find(q=>!q.destroyed&&segmentHitsCircle(ox,oy,b.x,b.y,q.x,q.y,q.radius+2));
       if(target){b.life=0;if(b.kind==='rocket')detonate(b);else hitEnemy(target,b.damage,b.kind==='gun'?'cannon':'other');}
+      else if(prop){b.life=0;if(b.kind==='rocket')detonate(b);else damageProp(prop,1);}
       else if(b.kind==='rocket'&&b.life<=0)detonate(b);
     }else if(segmentHitsCircle(ox,oy,b.x,b.y,p.x,p.y,17)){
       if(b.kind==='enemyRocket'){
@@ -330,5 +377,5 @@ function update(dt){
   if(g.bannerTime>0){g.bannerTime-=dt;if(g.bannerTime<=0)$('announcement').classList.remove('visible');}
   g.hudTimer-=dt;if(g.hudTimer<=0){runtime.updateHud();g.hudTimer=.08;}
 }
-  return {gun,rocketRecharge,launchRocket,dash,movement,updateCamera,hitEnemy,damagePlayer,detonate,fireEnemy,incomingMissile,deployFlares,update};
+  return {buildProps,refreshGeometry,damageProp,gun,rocketRecharge,launchRocket,dash,movement,updateCamera,hitEnemy,damagePlayer,detonate,fireEnemy,incomingMissile,deployFlares,update};
 }

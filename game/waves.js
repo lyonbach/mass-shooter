@@ -5,7 +5,7 @@ export function createWaves(runtime){
   const announce=(...args)=>runtime.announce(...args);
 function nextWave(){
   g.wave++;g.plan=wavePlan(g.wave,settings.difficulty);g.spawnRemaining=g.plan.count;g.spawnIndex=0;g.spawnTimer=2.4;g.waveWait=-1;
-  g.map=mapForWave(g.wave);g.decals=[];g.treadMarks=[];g.wreckSmoke=[];g.particles=g.particles.filter(particle=>!particle.smoke);renderer.setMap(g.map);
+  g.map=mapForWave(g.wave);g.decals=[];g.treadMarks=[];g.wreckSmoke=[];g.particles=g.particles.filter(particle=>!particle.smoke);renderer.setMap(g.map);runtime.buildProps();
   renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;
   $('wave').innerHTML=`${t('hud.wave')} <b>${pad(g.wave,2)}</b>`;
   announce(t(g.plan.boss?'wave.bossTag':'wave.enemyTag'),t(g.plan.boss?'wave.bossTitle':'wave.title',{wave:pad(g.wave,2)}),`${renderer.mapLabel} · ${t(g.plan.boss?'wave.bossNote':g.wave===1?'wave.firstNote':'wave.note')}`,3.2);

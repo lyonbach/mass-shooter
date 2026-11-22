@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as core from '../core.js';
 import * as i18n from '../i18n.js';
+import * as environment from '../environment.js';
 import { updateDroneVisual } from '../game/combat.js';
 import { createEntities } from '../game/entities.js';
 import { wreckFireState } from '../renderer.js';
@@ -28,11 +29,43 @@ function createGame(reducedMotion=false) {
   class Renderer{resize(){} setMap(){} draw(){}}
   const moduleFiles=['game/constants.js','game/state.js','game/entities.js','game/waves.js','game/loop.js','game/combat.js','game/upgrades.js','game/input.js','game.js'];
   const source=moduleFiles.map(file=>readFileSync(new URL(`../${file}`,import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'')).join('\n');
-  const factory=new Function('document','window','localStorage','matchMedia','ResizeObserver','requestAnimationFrame','SoundEngine','Renderer',...Object.keys(core),...Object.keys(i18n),`${source}\nreturn {g:runtime.g,keys:runtime.keys,settings:runtime.settings,start:runtime.start,pause:runtime.pause,resume:runtime.resume,frame:runtime.frame,update:runtime.update,updateEffects:runtime.updateEffects,spawnEnemy:runtime.spawnEnemy,fireEnemy:runtime.fireEnemy,launchRocket:runtime.launchRocket,dash:runtime.dash,deployFlares:runtime.deployFlares,hitEnemy:runtime.hitEnemy,damagePlayer:runtime.damagePlayer,showUpgrades:runtime.showUpgrades,selectUpgrade:runtime.selectUpgrade,nextWave:runtime.nextWave,movement:runtime.movement,pointerPosition:runtime.pointerPosition,sound:runtime.sound,getChoices:()=>runtime.choices,getUpgrades:()=>runtime.upgrades};`);
-  const game=factory(document,window,localStorage,query=>({matches:reducedMotion&&query.includes('prefers-reduced-motion')}),class{observe(){}},()=>{},Audio,Renderer,...Object.values(core),...Object.values(i18n));
+  const factory=new Function('document','window','localStorage','matchMedia','ResizeObserver','requestAnimationFrame','SoundEngine','Renderer',...Object.keys(core),...Object.keys(i18n),...Object.keys(environment),`${source}\nreturn {g:runtime.g,keys:runtime.keys,settings:runtime.settings,start:runtime.start,pause:runtime.pause,resume:runtime.resume,frame:runtime.frame,update:runtime.update,updateEffects:runtime.updateEffects,spawnEnemy:runtime.spawnEnemy,fireEnemy:runtime.fireEnemy,launchRocket:runtime.launchRocket,dash:runtime.dash,deployFlares:runtime.deployFlares,hitEnemy:runtime.hitEnemy,damageProp:runtime.damageProp,buildProps:runtime.buildProps,damagePlayer:runtime.damagePlayer,showUpgrades:runtime.showUpgrades,selectUpgrade:runtime.selectUpgrade,nextWave:runtime.nextWave,movement:runtime.movement,pointerPosition:runtime.pointerPosition,sound:runtime.sound,getChoices:()=>runtime.choices,getUpgrades:()=>runtime.upgrades};`);
+  const game=factory(document,window,localStorage,query=>({matches:reducedMotion&&query.includes('prefers-reduced-motion')}),class{observe(){}},()=>{},Audio,Renderer,...Object.values(core),...Object.values(i18n),...Object.values(environment));
   return{...game,elements,storage,windowEvents,documentEvents,sound:game.sound};
 }
 function enemy(overrides={}){return{x:600,y:300,type:'tank',health:4,maxHealth:4,speed:0,points:110,radius:25,angle:0,turret:0,cooldown:10,charge:0,hit:0,seed:0,...overrides};}
+
+test('props are rebuilt per wave; destroyed barrels blast nearby enemies and props but spare the player',async()=>{
+  const game=createGame();await game.start();
+  assert.ok(game.g.props.length>0);
+  const barrel=game.g.props.find(q=>q.type==='barrel');
+  assert.ok(barrel);
+  const other=game.g.props.find(q=>q!==barrel&&!q.destroyed);
+  other.x=barrel.x+30;other.y=barrel.y;other.health=other.maxHealth=1;
+  game.g.enemies.push(enemy({x:barrel.x,y:barrel.y+40,health:100,maxHealth:100}));
+  const target=game.g.enemies[0],hp=game.g.player.health;
+  game.damageProp(barrel,1);
+  assert.ok(barrel.destroyed&&other.destroyed);
+  assert.equal(target.health,60);
+  assert.equal(game.g.player.health,hp);
+  assert.ok(game.g.props.every(q=>q.health<=q.maxHealth));
+  const score=game.g.score,crate=game.g.props.find(q=>q.type==='crate'&&!q.destroyed);
+  game.damageProp(crate,crate.maxHealth);assert.equal(game.g.score,score);
+  const hostile=game.g.props.find(q=>q.type==='sandbags'&&!q.destroyed);hostile.hostile=true;
+  game.damageProp(hostile,hostile.maxHealth);assert.equal(game.g.score,score+hostile.points);
+});
+
+test('ground enemies cross rivers only by bridge',async()=>{
+  const game=createGame();await game.start();
+  game.g.map={...game.g.map,layout:'valley'};game.buildProps();
+  const w=game.g.geometry,bridge=w.bridges[0],p=game.g.player;
+  p.x=game.g.world.width*.8;p.y=game.g.world.height*.9;p.health=1e9;p.maxHealth=1e9;
+  game.g.enemies.length=0;game.g.spawnRemaining=0;
+  const tank=enemy({x:bridge.x-bridge.length/2-60,y:bridge.y+120,speed:120,radius:20,cooldown:999});
+  game.g.enemies.push(tank);
+  for(let i=0;i<300;i++){game.update(.05);assert.ok(!w.inWater(tank.x,tank.y,tank.radius*.5)||w.onBridge(tank.x,tank.y));}
+  assert.ok(tank.x>bridge.x+bridge.length/2);
+});
 
 test('drone visual response follows travel by the shortest arc and settles without changing aim',()=>{
   const e=enemy({type:'drone',angle:2,turret:-1,speed:100,vx:-100,vy:-1,visualHeading:Math.PI-.02});

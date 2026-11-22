@@ -664,6 +664,198 @@ const UPGRADES = [
   { id: 'repair', icon: '+', title: 'Field Repairs', description: 'Fully repairs the hull.', detail: 'FULL REPAIR', max: Infinity },
 ];
 
+// environment.js
+
+// An environment describes everything about a battlefield except the enemies:
+// lighting, weather, terrain detail, water, roads, compounds and props.
+// Coordinates are fractions of the world size so any mode (waves, missions or a
+// future generator) can supply its own spec through `map.environment`.
+// Missing fields fall back to the per-layout defaults below.
+const TIME_OF_DAY = {
+  day: { tint: '#fff2cc', tintAlpha: 0, vignette: .22, shadow: [6, 8] },
+  dawn: { tint: '#ffb87a', tintAlpha: .11, vignette: .3, shadow: [13, 6] },
+  dusk: { tint: '#ff7a4a', tintAlpha: .15, vignette: .36, shadow: [16, 9] },
+  night: { tint: '#0b1a3a', tintAlpha: .3, vignette: .5, shadow: [4, 5] }
+};
+const WEATHER_TYPES = ['none', 'dust', 'fog', 'rain'];
+const PROP_TYPES = {
+  crate: { health: 2, radius: 11, points: 25 },
+  barrel: { health: 1, radius: 8, explosive: true, points: 40 },
+  sandbags: { health: 4, radius: 14, points: 15 }
+};
+
+const BASE = {
+  time: 'day',
+  weather: { type: 'none', intensity: 0, wind: [0, 0] },
+  density: { rocks: 1, vegetation: 1, craters: 1, props: 1 },
+  vegetation: ['scrub'],
+  landing: [.35, .37],
+  compounds: [],
+  roads: [],
+  rivers: [],
+  lakes: []
+};
+const MAIN_ROAD = {
+  desert: [[-.05, .68], [.24, .43], [.43, .9], [.65, .61], [.84, .36], [.91, .56], [1.06, .24]],
+  valley: [[-.05, .25], [.3, .15], [.45, .65], [.72, .5], [.9, .4], [.85, .75], [1.06, .8]],
+  canyon: [[.2, -.09], [.6, .15], [.28, .42], [.52, .65], [.7, .85], [.83, .65], [.91, 1.11]]
+};
+const LAYOUTS = {
+  desert: {
+    time: 'day', weather: { type: 'dust', intensity: .5, wind: [38, 6] },
+    density: { rocks: 1, vegetation: .8, craters: 1.2, props: 1 }, vegetation: ['scrub', 'cactus'],
+    landing: [.35, .37],
+    compounds: [[.8, .2, .84], [.14, .8, .72], [.52, .3, .5], [.68, .68, .48]],
+    lakes: [[.2, .2, .05, .045, -.3]]
+  },
+  valley: {
+    time: 'dawn', weather: { type: 'fog', intensity: .5, wind: [10, 3] },
+    density: { rocks: .6, vegetation: 1.5, craters: .4, props: 1 }, vegetation: ['tree', 'scrub'],
+    landing: [.68, .22],
+    compounds: [[.78, .76, .84], [.38, .24, .72], [.17, .7, .5], [.57, .52, .48]],
+    rivers: [{ pts: [[.1, -.07], [.3, .2], [.06, .54], [.32, 1.07]], width: 105 }],
+    lakes: [[.5, .86, .06, .04, .2]]
+  },
+  canyon: {
+    time: 'dusk', weather: { type: 'dust', intensity: .35, wind: [55, 12] },
+    density: { rocks: 1.6, vegetation: .5, craters: .9, props: 1 }, vegetation: ['deadtree', 'scrub'],
+    landing: [.24, .68],
+    compounds: [[.72, .25, .84], [.53, .82, .72], [.17, .32, .5], [.84, .65, .48]]
+  }
+};
+
+// Merge order: base defaults, layout defaults, then the level's own overrides.
+function environmentFor(map) {
+  const layout = LAYOUTS[map.layout] || LAYOUTS.desert;
+  const own = map.environment || {};
+  const env = {
+    ...BASE, ...layout, ...own,
+    weather: { ...BASE.weather, ...layout.weather, ...own.weather },
+    density: { ...BASE.density, ...layout.density, ...own.density }
+  };
+  const main = { pts: MAIN_ROAD[map.layout] || MAIN_ROAD.desert, curve: true, width: 76, shoulder: 105, surface: '#343f3288', edge: '#9a96754a', centre: true };
+  const secondary = { pts: [[.72, -.04], [.72, .4], [.84, .48]], curve: false, width: 39, shoulder: 39, surface: '#424c3855', edge: null, centre: false };
+  if (!own.roads) env.roads = [main, secondary];
+  env.time = TIME_OF_DAY[env.time] ? env.time : 'day';
+  env.weather.type = WEATHER_TYPES.includes(env.weather.type) ? env.weather.type : 'none';
+  env.weather.intensity = clamp(Number(env.weather.intensity) || 0, 0, 1);
+  return env;
+}
+
+const bezier = (a, b, c, d, t) => {
+  const u = 1 - t;
+  return [u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0],
+    u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1]];
+};
+// Flattens a chain of cubic segments (curve) or a polyline into pixel points.
+function sampleShape(pts, curve, W, H, steps = 24) {
+  const px = pts.map(([x, y]) => [x * W, y * H]), out = [px[0]];
+  if (!curve) return px;
+  for (let i = 0; i + 3 < px.length; i += 3) {
+    for (let s = 1; s <= steps; s++) out.push(bezier(px[i], px[i + 1], px[i + 2], px[i + 3], s / steps));
+  }
+  return out;
+}
+
+function distanceToPoints(points, x, y) {
+  let best = Infinity;
+  for (const [px, py] of points) best = Math.min(best, Math.hypot(px - x, py - y));
+  return best;
+}
+
+function intersection(a, b, c, d) {
+  const r = [b[0] - a[0], b[1] - a[1]], s = [d[0] - c[0], d[1] - c[1]], den = r[0] * s[1] - r[1] * s[0];
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((c[0] - a[0]) * s[1] - (c[1] - a[1]) * s[0]) / den, u = ((c[0] - a[0]) * r[1] - (c[1] - a[1]) * r[0]) / den;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { x: a[0] + t * r[0], y: a[1] + t * r[1], angle: Math.atan2(r[1], r[0]) } : null;
+}
+
+// Pixel-space geometry shared by the renderer (drawing) and prop placement.
+function environmentGeometry(env, W, H) {
+  const roads = env.roads.map(road => ({ ...road, points: sampleShape(road.pts, road.curve, W, H) }));
+  const rivers = env.rivers.map(river => ({ ...river, points: sampleShape(river.pts, true, W, H) }));
+  const lakes = env.lakes.map(([x, y, rx, ry, rotation]) => ({ x: x * W, y: y * H, rx: rx * W, ry: ry * W, rotation }));
+  const compounds = env.compounds.map(([x, y, scale]) => ({ x: x * W, y: y * H, scale }));
+  const landing = { x: env.landing[0] * W, y: env.landing[1] * H };
+  const bridges = [];
+  for (const road of roads) {
+    for (const river of rivers) {
+      let found = null;
+      for (let i = 1; i < road.points.length && !found; i++) {
+        for (let j = 1; j < river.points.length && !found; j++) {
+          found = intersection(road.points[i - 1], road.points[i], river.points[j - 1], river.points[j]);
+        }
+      }
+      if (found) bridges.push({ ...found, length: river.width + 70, width: road.width });
+    }
+  }
+  const blocked = (x, y, { margin = 0, roads: avoidRoads = true } = {}) => {
+    if (x < 50 || y < 110 || x > W - 50 || y > H - 50) return true;
+    if (Math.hypot(x - landing.x, y - landing.y) < 135 + margin) return true;
+    for (const compound of compounds) if (Math.hypot(x - compound.x, y - compound.y) < 150 * compound.scale + margin) return true;
+    for (const lake of lakes) {
+      const cos = Math.cos(-lake.rotation), sin = Math.sin(-lake.rotation), dx = x - lake.x, dy = y - lake.y;
+      const lx = (dx * cos - dy * sin) / (lake.rx + margin + 10), ly = (dx * sin + dy * cos) / (lake.ry + margin + 10);
+      if (lx * lx + ly * ly < 1) return true;
+    }
+    for (const river of rivers) if (distanceToPoints(river.points, x, y) < river.width / 2 + margin + 8) return true;
+    if (avoidRoads) for (const road of roads) if (distanceToPoints(road.points, x, y) < road.shoulder / 2 + margin) return true;
+    return false;
+  };
+  // Water that ground units cannot enter; bridge decks are walkable.
+  const onBridge = (x, y) => bridges.some(b => {
+    const cos = Math.cos(-b.angle), sin = Math.sin(-b.angle), dx = x - b.x, dy = y - b.y;
+    return Math.abs(dx * cos - dy * sin) < b.length / 2 && Math.abs(dx * sin + dy * cos) < b.width / 2 + 4;
+  });
+  const inWater = (x, y, margin = 0) => {
+    if (onBridge(x, y)) return false;
+    for (const lake of lakes) {
+      const cos = Math.cos(-lake.rotation), sin = Math.sin(-lake.rotation), dx = x - lake.x, dy = y - lake.y;
+      const lx = (dx * cos - dy * sin) / (lake.rx + margin), ly = (dx * sin + dy * cos) / (lake.ry + margin);
+      if (lx * lx + ly * ly < 1) return true;
+    }
+    return rivers.some(river => distanceToPoints(river.points, x, y) < river.width / 2 + margin);
+  };
+  return { roads, rivers, lakes, compounds, landing, bridges, blocked, inWater, onBridge };
+}
+
+// Props are neutral by default; a mission may set `hostile` so destroying one awards its points.
+// Seeded props: clusters beside compounds and along the main road.
+// The same seed always yields the same layout, so missions can replay a map.
+function generateProps(env, W, H, seed = 1) {
+  const geometry = environmentGeometry(env, W, H), r = seededRandom((seed ^ 0x9e3779b9) >>> 0), props = [];
+  const density = clamp(env.density.props, 0, 3);
+  const place = (type, x, y, rot = r() * Math.PI * 2, avoidRoads = true) => {
+    if (geometry.blocked(x, y, { margin: PROP_TYPES[type].radius, roads: avoidRoads })) return;
+    if (props.some(p => Math.hypot(p.x - x, p.y - y) < p.radius + PROP_TYPES[type].radius + 3)) return;
+    const stats = PROP_TYPES[type];
+    props.push({ id: props.length, type, x, y, rot, health: stats.health, maxHealth: stats.health, radius: stats.radius, points: stats.points, hostile: false, destroyed: false });
+  };
+  for (const compound of geometry.compounds) {
+    const count = Math.round((3 + r() * 3) * density);
+    for (let i = 0; i < count; i++) {
+      const a = r() * Math.PI * 2, d = (150 + r() * 50) * compound.scale + 12, x = compound.x + Math.cos(a) * d, y = compound.y + Math.sin(a) * d;
+      const roll = r();
+      const type = roll < .4 ? 'crate' : roll < .7 ? 'barrel' : 'sandbags';
+      place(type, x, y, a + Math.PI / 2);
+      if (type === 'crate' && r() > .5) place('crate', x + 17, y + 3);
+      if (type === 'barrel') { place('barrel', x + 15, y + 6); if (r() > .6) place('barrel', x + 5, y + 17); }
+    }
+  }
+  const road = geometry.roads[0];
+  if (road) {
+    const count = Math.round(7 * density);
+    for (let i = 0; i < count; i++) {
+      const index = 2 + Math.floor(r() * (road.points.length - 4)), [x, y] = road.points[index], [nx, ny] = road.points[index + 1];
+      const angle = Math.atan2(ny - y, nx - x), side = r() > .5 ? 1 : -1, offset = road.shoulder / 2 + 14 + r() * 16;
+      const px = x - Math.sin(angle) * offset * side, py = y + Math.cos(angle) * offset * side;
+      const roll = r();
+      place(roll < .5 ? 'barrel' : roll < .8 ? 'crate' : 'sandbags', px, py, angle);
+    }
+  }
+  return props;
+}
+
 // audio/sound-data.js
 // Generated from sounds.csv by scripts/build-sounds.mjs. Do not edit.
 const SOUND_DATA = {
@@ -2106,47 +2298,36 @@ class Renderer {
       }
       c.restore();
     }
-    if(this.map.layout==='valley'){
-      c.beginPath();c.moveTo(W*.1,-60);c.bezierCurveTo(W*.3,H*.2,W*.06,H*.54,W*.32,H+60);
-      c.strokeStyle='#356b7b';c.lineWidth=105;c.stroke();c.strokeStyle='#75b5b566';c.lineWidth=70;c.stroke();
-      c.strokeStyle='#c2dfc655';c.lineWidth=2;c.setLineDash([25,35]);c.stroke();c.setLineDash([]);
-    }else if(this.map.layout==='canyon'){
+    if(this.map.layout==='canyon'){
       for(let i=0;i<7;i++){
         const x=W*(.06+i*.15);c.beginPath();c.moveTo(x,-30);c.bezierCurveTo(x+100,H*.25,x-100,H*.6,x+50,H+30);
         c.strokeStyle=i%2?'#563d4b44':'#e5a07844';c.lineWidth=25+i*5;c.stroke();
       }
     }
-    // Old supply road, tyre tracks, and dusty shoulders.
-    c.beginPath();
-    if(this.map.layout==='valley'){c.moveTo(-80,H*.25);c.bezierCurveTo(W*.3,H*.15,W*.45,H*.65,W*.72,H*.5);c.bezierCurveTo(W*.9,H*.4,W*.85,H*.75,W+100,H*.8);}
-    else if(this.map.layout==='canyon'){c.moveTo(W*.2,-80);c.bezierCurveTo(W*.6,H*.15,W*.28,H*.42,W*.52,H*.65);c.bezierCurveTo(W*.7,H*.85,W*.83,H*.65,W*.91,H+100);}
-    else{c.moveTo(-80,H*.68);c.bezierCurveTo(W*.24,H*.43,W*.43,H*.9,W*.65,H*.61);c.bezierCurveTo(W*.84,H*.36,W*.91,H*.56,W+100,H*.24);}
-    c.strokeStyle='#9a96754a';c.lineWidth=105;c.stroke();c.strokeStyle='#343f3288';c.lineWidth=76;c.stroke();
-    c.strokeStyle='#b4ac7733';c.lineWidth=2;c.setLineDash([18,24]);c.stroke();c.setLineDash([]);
-    // Secondary access road.
-    c.beginPath();c.moveTo(W*.72,-30);c.lineTo(W*.72,H*.4);c.lineTo(W*.84,H*.48);c.lineWidth=39;c.strokeStyle='#424c3855';c.stroke();
-    // Sparse scrub and rocks, kept low contrast so projectiles read clearly.
-    for(let i=0;i<210;i++){
+    const env=this.env=environmentFor(this.map),geo=this.geometry=environmentGeometry(env,W,H),density=env.density;
+    this.drawWater(c,geo);this.drawRoads(c,geo);this.drawBridges(c,geo);
+    // Craters and scorched ground, kept clear of roads, water and bases.
+    for(let i=0,n=Math.round(14*density.craters);i<n;i++){
+      const x=r()*W,y=r()*H,size=9+r()*20;if(geo.blocked(x,y,{margin:size}))continue;
+      ellipse(c,x+2,y+3,size*1.25,size*.8,'#0c140e30');ellipse(c,x,y,size*1.12,size*.72,'#2a2c20aa');ellipse(c,x,y,size*.85,size*.54,'#15190f');ellipse(c,x-size*.2,y-size*.12,size*.5,size*.3,'#06080466');
+      c.strokeStyle='#b8b08a30';c.lineWidth=1.2;c.beginPath();c.ellipse(x,y,size*1.12,size*.72,0,Math.PI*.9,Math.PI*1.9);c.stroke();
+    }
+    // Rock clusters and ground cover, kept low contrast so projectiles read clearly.
+    for(let i=0,n=Math.round(150*density.rocks);i<n;i++){
       const x=r()*W,y=r()*H,size=2+r()*11;
-      if(r()>.44){ellipse(c,x+3,y+4,size*1.2,size*.65,'#24322630');ellipse(c,x,y,size,size*.63,'#46523a');ellipse(c,x-2,y-2,size*.62,size*.4,'#7e8461');}
+      if(geo.blocked(x,y,{margin:size,roads:false}))continue;
+      if(r()>.44){ellipse(c,x+3,y+4,size*1.2,size*.65,'#24322630');ellipse(c,x,y,size,size*.63,'#46523a');ellipse(c,x-2,y-2,size*.62,size*.4,'#7e8461');
+        if(r()>.6)for(let j=0;j<2;j++){const s=size*(.4+r()*.3),ox=(r()-.5)*size*2.4,oy=(r()-.5)*size;ellipse(c,x+ox+2,y+oy+2,s*1.1,s*.6,'#24322630');ellipse(c,x+ox,y+oy,s,s*.63,'#4c583f');}}
       else {for(let j=0;j<3;j++)ellipse(c,x+r()*9,y+r()*9,size*.5,size*.35,'#35463250');}
     }
+    this.drawVegetation(c,geo,env,r);
     // Concrete landing area.
-    const landing=this.map.layout==='valley'?[.68,.22]:this.map.layout==='canyon'?[.24,.68]:[.35,.37];
-    c.save();c.translate(W*landing[0],H*landing[1]);c.rotate(-.13);c.fillStyle='#1b281c22';c.fillRect(-92,-83,200,186);c.fillStyle='#85867244';c.fillRect(-99,-94,188,176);
+    c.save();c.translate(geo.landing.x,geo.landing.y);c.rotate(-.13);c.fillStyle='#1b281c22';c.fillRect(-92,-83,200,186);c.fillStyle='#85867244';c.fillRect(-99,-94,188,176);
     c.strokeStyle='#d2d1a44d';c.lineWidth=2;c.strokeRect(-87,-82,164,152);c.beginPath();c.arc(-5,-6,57,0,TAU);c.stroke();
     c.fillStyle='#d1d0a45c';c.font='bold 63px Arial';c.textAlign='center';c.fillText('H',-5,16);
     c.font='8px monospace';c.fillStyle='#c4c69a77';c.fillText('NIGHTHAWK / 07',-5,63);c.restore();
-    if(this.map.layout==='valley'){
-      this.compound(c,W*.78,H*.76,.84);this.compound(c,W*.38,H*.24,.72);
-      this.compound(c,W*.17,H*.7,.5);this.compound(c,W*.57,H*.52,.48);
-    }else if(this.map.layout==='canyon'){
-      this.compound(c,W*.72,H*.25,.84);this.compound(c,W*.53,H*.82,.72);
-      this.compound(c,W*.17,H*.32,.5);this.compound(c,W*.84,H*.65,.48);
-    }else{
-      this.compound(c,W*.8,H*.2,.84);this.compound(c,W*.14,H*.8,.72);
-      this.compound(c,W*.52,H*.3,.5);this.compound(c,W*.68,H*.68,.48);
-    }
+    for(const k of geo.compounds)this.compound(c,k.x,k.y,k.scale);
+    this.drawLighting(c,env,W,H);
     // Sector grid and survey marks.
     c.strokeStyle='#e4edb009';c.lineWidth=1;
     for(let x=0;x<W;x+=100){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();}
@@ -2154,6 +2335,127 @@ class Renderer {
     c.font='8px monospace';c.fillStyle='#d3d6b533';c.textAlign='left';
     for(let x=90;x<W;x+=260)for(let y=150;y<H-100;y+=250){c.fillText('+',x,y);c.fillText(`${Math.round(x/10)}.${Math.round(y/10)}`,x+10,y+2);}
     c.save();c.translate(W*.69,H*.85);c.rotate(-.2);c.font='bold 45px Arial';c.fillStyle='#d7d8b620';c.fillText(this.mapLabel||this.map.name,0,0);c.restore();
+  }
+  traceLine(c,points){c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));}
+  drawWater(c,geo){
+    for(const river of geo.rivers){
+      this.traceLine(c,river.points);c.lineCap='round';c.lineJoin='round';
+      c.strokeStyle='#2c5a4a55';c.lineWidth=river.width+22;c.stroke();
+      c.strokeStyle='#356b7b';c.lineWidth=river.width;c.stroke();c.strokeStyle='#75b5b566';c.lineWidth=river.width*.67;c.stroke();
+      c.strokeStyle='#c2dfc655';c.lineWidth=2;c.setLineDash([25,35]);c.stroke();c.setLineDash([]);c.lineCap='butt';
+    }
+    for(const lake of geo.lakes){
+      c.save();c.translate(lake.x,lake.y);c.rotate(lake.rotation);
+      ellipse(c,0,0,lake.rx+14,lake.ry+12,'#8c8a5f44');ellipse(c,0,0,lake.rx+5,lake.ry+4,'#2c5a4a88');
+      ellipse(c,0,0,lake.rx,lake.ry,'#356b7b');ellipse(c,-lake.rx*.08,-lake.ry*.1,lake.rx*.72,lake.ry*.68,'#75b5b566');
+      c.restore();
+    }
+  }
+  drawRoads(c,geo){
+    c.lineCap='round';c.lineJoin='round';
+    for(const road of geo.roads){
+      this.traceLine(c,road.points);
+      if(road.edge){c.strokeStyle=road.edge;c.lineWidth=road.shoulder;c.stroke();}
+      c.strokeStyle=road.surface;c.lineWidth=road.width;c.stroke();
+      if(road.centre){c.strokeStyle='#b4ac7733';c.lineWidth=2;c.setLineDash([18,24]);c.stroke();c.setLineDash([]);}
+    }
+    c.lineCap='butt';
+  }
+  drawBridges(c,geo){
+    for(const b of geo.bridges){
+      c.save();c.translate(b.x,b.y);c.rotate(b.angle);
+      const L=b.length/2,Wd=b.width/2;
+      c.fillStyle='#10201a40';c.fillRect(-L+6,-Wd+5,b.length,b.width);
+      c.fillStyle='#6b6a55';c.fillRect(-L,-Wd-5,b.length,b.width+10);
+      c.fillStyle='#4a4d40';c.fillRect(-L,-Wd,b.length,b.width);
+      c.strokeStyle='#9a96757a';c.lineWidth=3;c.beginPath();c.moveTo(-L,-Wd-5);c.lineTo(L,-Wd-5);c.moveTo(-L,Wd+5);c.lineTo(L,Wd+5);c.stroke();
+      c.strokeStyle='#2b2e2640';c.lineWidth=1;for(let i=-L+8;i<L;i+=12){c.beginPath();c.moveTo(i,-Wd);c.lineTo(i,Wd);c.stroke();}
+      c.restore();
+    }
+  }
+  drawVegetation(c,geo,env,r){
+    const types=env.vegetation,n=Math.round(60*env.density.vegetation);
+    for(let i=0;i<n;i++){
+      const x=r()*this.world.width,y=r()*this.world.height,kind=types[i%types.length],s=5+r()*9;
+      if(geo.blocked(x,y,{margin:s}))continue;
+      if(kind==='tree'){ellipse(c,x+s*.7,y+s*.8,s*1.5,s*.9,'#0d1a1244');ellipse(c,x,y,s*1.3,s*1.1,'#2c4a2c');ellipse(c,x-s*.25,y-s*.3,s*.85,s*.7,'#3e6638');ellipse(c,x-s*.4,y-s*.45,s*.35,s*.28,'#6f9650');}
+      else if(kind==='deadtree'){c.strokeStyle='#3a3126';c.lineWidth=1.6;c.beginPath();for(let j=0;j<4;j++){const a=j*1.6+r(),l=s*1.2;c.moveTo(x,y);c.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l*.7);}c.stroke();ellipse(c,x,y,1.8,1.4,'#2a231b');}
+      else if(kind==='cactus'){c.strokeStyle='#4f6d3a';c.lineWidth=2.4;c.lineCap='round';c.beginPath();c.moveTo(x,y+s*.4);c.lineTo(x,y-s*.5);c.moveTo(x-s*.5,y);c.lineTo(x-s*.5,y-s*.35);c.moveTo(x-s*.5,y);c.lineTo(x,y);c.stroke();c.lineCap='butt';}
+      else{for(let j=0;j<5;j++){c.strokeStyle=j%2?'#5d6b3f':'#6e7a4b';c.lineWidth=1.2;c.beginPath();c.moveTo(x,y);c.lineTo(x+(j-2)*s*.35,y-s*.8+Math.abs(j-2)*2);c.stroke();}}
+    }
+  }
+  drawLighting(c,env,W,H){
+    const tod=TIME_OF_DAY[env.time];
+    if(tod.tintAlpha){c.globalAlpha=tod.tintAlpha;c.fillStyle=tod.tint;c.fillRect(0,0,W,H);c.globalAlpha=1;}
+    const v=c.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.hypot(W,H)*.55);
+    v.addColorStop(0,'#00000000');v.addColorStop(1,`rgba(4,8,6,${tod.vignette})`);c.fillStyle=v;c.fillRect(0,0,W,H);
+  }
+  prop(c,p,t) {
+    c.save();c.translate(p.x,p.y);c.rotate(p.rot);
+    const shadow=this.env?TIME_OF_DAY[this.env.time].shadow:[6,8],flash=p.hitFlash>0;
+    if(p.hitFlash>0)p.hitFlash=Math.max(0,p.hitFlash-1/60);
+    if(p.destroyed){
+      c.rotate(-p.rot);
+      if(p.scorch){ellipse(c,0,0,p.radius*2.1,p.radius*1.6,'#0a0c0877');ellipse(c,0,0,p.radius*1.3,p.radius,'#050604aa');}
+      else ellipse(c,0,0,p.radius*1.3,p.radius*.9,'#1a1c1488');
+      for(let i=0;i<5;i++){const a=i*1.3+p.id;ellipse(c,Math.cos(a)*p.radius*.8,Math.sin(a)*p.radius*.6,2.5,1.6,p.type==='sandbags'?'#6e654a':p.type==='crate'?'#4a3a26':'#3a3d36');}
+      c.restore();return;
+    }
+    c.save();c.rotate(-p.rot);c.translate(shadow[0]*.55,shadow[1]*.55);c.globalAlpha=.4;
+    if(p.type==='barrel')ellipse(c,0,0,p.radius,p.radius,'#0a120c');else c.fillRect(-p.radius,-p.radius*.7,p.radius*2,p.radius*1.4);
+    c.restore();
+    const damaged=p.health<p.maxHealth;
+    if(p.type==='crate'){
+      const r=p.radius;c.fillStyle=flash?'#e8d9aa':'#7a6240';c.fillRect(-r,-r,r*2,r*2);c.fillStyle=flash?'#fff1c8':'#95794e';c.fillRect(-r+2,-r+2,r*2-4,r*2-4);
+      c.strokeStyle='#5a4630';c.lineWidth=1.5;c.beginPath();c.moveTo(-r+2,-r+2);c.lineTo(r-2,r-2);c.moveTo(r-2,-r+2);c.lineTo(-r+2,r-2);c.stroke();
+      c.strokeStyle='#4b3a27';c.lineWidth=1;c.strokeRect(-r,-r,r*2,r*2);
+      if(damaged){c.strokeStyle='#1a140c';c.beginPath();c.moveTo(-r*.6,-r);c.lineTo(-r*.2,0);c.lineTo(-r*.7,r*.5);c.stroke();}
+    }else if(p.type==='barrel'){
+      const r=p.radius;c.rotate(-p.rot);
+      ellipse(c,0,0,r,r,flash?'#ff9d80':'#9c3d2e');ellipse(c,0,0,r*.78,r*.78,flash?'#ffd0b0':'#c25a44');
+      c.strokeStyle='#5c2118';c.lineWidth=1;c.beginPath();c.arc(0,0,r*.5,0,TAU);c.stroke();
+      c.fillStyle='#e6c04a';c.fillRect(-r*.35,-1,r*.7,2);
+    }else{
+      const r=p.radius;
+      for(let i=0;i<3;i++){const x=-r+i*r*.67;ellipse(c,x+r*.34,-2,r*.42,r*.34,flash?'#e8dcb4':'#a89868');ellipse(c,x+r*.34,3,r*.42,r*.3,flash?'#f4ecc8':'#b8a878');}
+      c.strokeStyle='#6c6044';c.lineWidth=1;c.beginPath();c.moveTo(-r,0.5);c.lineTo(r,0.5);c.stroke();
+    }
+    c.restore();
+  }
+  // Weather is an overlay in world space, so it scrolls with the camera. It is skipped when effects are off.
+  weather(c,g,t,dt) {
+    const env=this.env;if(!this.settings.effects||!env||env.weather.type==='none'||!env.weather.intensity)return;
+    const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches,time=reduced?0:t;
+    const {type,intensity,wind}=env.weather,cam=g.camera,W=g.world.width,H=g.world.height,zoom=cam.zoom||1;
+    const left=cam.x,top=cam.y,vw=W/zoom,vh=H/zoom;
+    c.save();
+    if(type==='fog'||type==='dust'){
+      const colour=type==='fog'?'220,232,226':'196,160,106',count=Math.round(9*intensity+3),cell=260;
+      this.hazeSprite??={};
+      const key=colour;if(!this.hazeSprite[key]){const h=document.createElement('canvas');h.width=h.height=128;const hc=h.getContext('2d'),gr=hc.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,`rgba(${colour},.5)`);gr.addColorStop(1,`rgba(${colour},0)`);hc.fillStyle=gr;hc.fillRect(0,0,128,128);this.hazeSprite[key]=h;}
+      for(let i=0;i<count;i++){
+        const size=240+(i*97%160),speed=(wind[0]||8)*.6;
+        const x=((i*317+time*speed+i*i*13)%(vw+size*2))-size+left,y=top+((i*211%1000)/1000)*vh+Math.sin(time*.15+i)*20;
+        c.globalAlpha=(type==='fog'?.2:.14)*intensity;c.drawImage(this.hazeSprite[key],x-size,y-size*.6,size*2,size*1.2);
+      }
+      if(type==='dust'){
+        c.strokeStyle='#d8bd8a';c.lineWidth=1;c.globalAlpha=.16*intensity;c.beginPath();
+        for(let i=0;i<Math.round(40*intensity);i++){
+          const x=left+((i*173+time*(wind[0]||30)*(1+i%3*.4))%(vw+60)),y=top+(i*89%100)/100*vh,len=14+i%5*7;
+          c.moveTo(x,y);c.lineTo(x-len,y-len*(wind[1]||0)/(wind[0]||1));
+        }
+        c.stroke();
+      }
+    }else if(type==='rain'){
+      c.strokeStyle='#bfd4e0';c.lineWidth=1;c.globalAlpha=.3*intensity;c.beginPath();
+      const slant=(wind[0]||0)*.012;
+      for(let i=0,n=Math.round(140*intensity);i<n;i++){
+        const x=left+((i*131+time*(wind[0]||0)*.5+slant*(time*400+i*37)%vh)%vw+vw)%vw,y=top+((i*97+time*520*(1+i%4*.15))%vh);
+        c.moveTo(x,y);c.lineTo(x+slant*14,y+14);
+      }
+      c.stroke();
+    }
+    c.restore();
   }
   compound(c,x,y,s) {
     c.save();c.translate(x,y);c.scale(s,s);c.rotate(.08);
@@ -2496,12 +2798,14 @@ class Renderer {
       const length=mark.trackLength||16,width=mark.trackWidth||6,offset=mark.trackOffset||18;
       c.fillStyle='#111812';c.fillRect(-length/2,-offset-width/2,length,width);c.fillRect(-length/2,offset-width/2,length,width);c.restore();
     }
+    for(const prop of g.props||[])this.prop(c,prop,t);
     for(const d of g.decals){
       if(d.wreck)this.wreck(c,d);
       else{c.save();c.translate(d.x,d.y);c.rotate(d.angle);ellipse(c,0,0,d.size,d.size*.66,'#1c211c88');ellipse(c,0,0,d.size*.65,d.size*.42,'#0c150d66');c.fillStyle='#4a4b37';c.fillRect(-11,-6,21,12);c.restore();}
     }
     // A very slow cloud shadow drifts over the map.
     if(this.settings.effects){c.save();c.translate(camera.x*.3,camera.y*.3);const x=(t*12)%(W+600)-300,cloud=c.createRadialGradient(x,H*.35,30,x,H*.35,380);cloud.addColorStop(0,'#14231524');cloud.addColorStop(1,'#14231500');c.fillStyle=cloud;c.fillRect(-W,-H,W*3,H*3);c.restore();}
+    this.weather(c,g,t,dt);
     for(const p of g.pickups){
       const bob=Math.sin(t*3+p.x)*2;c.strokeStyle='#d7ed9c44';c.lineWidth=1;c.beginPath();c.arc(p.x,p.y,23+Math.sin(t*3)*3,0,TAU);c.stroke();
       c.save();c.translate(p.x,p.y+bob);c.rotate(Math.PI/4);c.fillStyle='#1c321d';c.fillRect(-12,-12,24,24);c.strokeStyle='#d4e89a';c.strokeRect(-12,-12,24,24);c.rotate(-Math.PI/4);
@@ -2573,20 +2877,20 @@ function createState(){
   const sound=new SoundEngine(settings),renderer=new Renderer(canvas,settings),keys=new Set();
   const pointer={x:600,y:230,screenX:null,screenY:null,down:false};
   const bestValue=read('blackout.best',0);
-  const g={world:{width:1600,height:900},state:'ready',pointer,touch:matchMedia('(pointer:coarse)').matches,enemies:[],bullets:[],particles:[],pickups:[],explosions:[],deathBursts:[],warnings:[],floaters:[],decals:[],treadMarks:[],wreckSmoke:[],cannonTracersEnabled:true,time:0,visualTime:0,shake:0,wave:1,score:0,kills:0,best:typeof bestValue==='number'&&Number.isFinite(bestValue)?Math.max(0,bestValue):0,combo:0,comboTimer:0,spawnRemaining:0,spawnTimer:0,waveWait:-1,bannerTime:0,hudTimer:0,testRange:null,camera:{x:0,y:0,zoom:1},map:mapForWave(1)};
+  const g={world:{width:1600,height:900},state:'ready',pointer,touch:matchMedia('(pointer:coarse)').matches,enemies:[],bullets:[],particles:[],pickups:[],explosions:[],deathBursts:[],warnings:[],floaters:[],decals:[],props:[],treadMarks:[],wreckSmoke:[],cannonTracersEnabled:true,time:0,visualTime:0,shake:0,wave:1,score:0,kills:0,best:typeof bestValue==='number'&&Number.isFinite(bestValue)?Math.max(0,bestValue):0,combo:0,comboTimer:0,spawnRemaining:0,spawnTimer:0,waveWait:-1,bannerTime:0,hudTimer:0,testRange:null,camera:{x:0,y:0,zoom:1},map:mapForWave(1)};
   const runtime={$,canvas,arena,overlay,dialog,panels,settings,read,write,saveSettings:()=>write('blackout.settings',settings),sound,renderer,keys,pointer,g,pad:(n,length=6)=>String(Math.floor(n)).padStart(length,'0'),clock:value=>`${String(Math.floor(value/60)).padStart(2,'0')}:${String(Math.floor(value%60)).padStart(2,'0')}`,t,upgrades:{},choices:[],joystick:{x:0,y:0,id:null},firePointer:null,gamePointer:null,lastTime:0,settingsPaused:false,starting:false};
   function newPlayer(){return{x:g.world.width*.43,y:g.world.height*.52,vx:0,vy:0,angle:-Math.PI/2,cannonAngle:-Math.PI/2,bank:0,pitch:0,health:100,maxHealth:100,cooldown:0,heat:0,overheated:false,invulnerable:0,dashTime:0,dashCooldown:0,flareCooldown:0,lowHealthAlarm:0,missileAlarm:0,rockets:3,maxRockets:3,rocketTimer:0,rocketCooldown:0,rocketSide:-1,muzzle:0,cannonShotIndex:0};}
   function readTestRange(){const enemy=$('test-enemy').value,validEnemy=Object.hasOwn(ENEMIES,enemy)?enemy:'tank';const number=(id,fallback,min,max)=>clamp(Number($(`test-${id}`).value)||fallback,min,max);return {enemy:validEnemy,interval:number('interval',1,.2,5),maxActive:number('max-active',3,1,20),health:number('health',1,.25,5),distance:number('distance',350,120,700),upgrades:{damage:number('damage',0,0,4),fireRate:number('fire-rate',0,0,4),armor:number('armor',0,0,4),engine:number('engine',0,0,3),rockets:number('rockets',0,0,3)}};}
   function applyStartingUpgrades(){const p=g.player;p.maxHealth+=25*(runtime.upgrades.armor||0);p.health=p.maxHealth;p.maxRockets+=runtime.upgrades.rockets||0;p.rockets=p.maxRockets;}
   g.player=newPlayer();
-  function resize(){const rect=arena.getBoundingClientRect(),old={...g.world};g.touch=matchMedia('(pointer:coarse), (max-width:600px)').matches;g.world.width=clamp(rect.width*1.3,680,1700);g.world.height=g.world.width*rect.height/rect.width;if(old.width&&old.height){for(const obj of [g.player,...g.enemies,...g.pickups,...g.decals,...g.treadMarks,...g.bullets,...g.particles,...g.floaters,...g.explosions,...g.deathBursts,...g.warnings,...g.wreckSmoke]){obj.x=obj.x/old.width*g.world.width;obj.y=obj.y/old.height*g.world.height;}pointer.x=pointer.x/old.width*g.world.width;pointer.y=pointer.y/old.height*g.world.height;if(pointer.screenX!==null){pointer.screenX=pointer.screenX/old.width*g.world.width;pointer.screenY=pointer.screenY/old.height*g.world.height;}}renderer.resize(g.world,rect,g.map);runtime.updateCamera(0,true);}
+  function resize(){const rect=arena.getBoundingClientRect(),old={...g.world};g.touch=matchMedia('(pointer:coarse), (max-width:600px)').matches;g.world.width=clamp(rect.width*1.3,680,1700);g.world.height=g.world.width*rect.height/rect.width;if(old.width&&old.height){for(const obj of [g.player,...g.enemies,...g.pickups,...g.decals,...g.props,...g.treadMarks,...g.bullets,...g.particles,...g.floaters,...g.explosions,...g.deathBursts,...g.warnings,...g.wreckSmoke]){obj.x=obj.x/old.width*g.world.width;obj.y=obj.y/old.height*g.world.height;}pointer.x=pointer.x/old.width*g.world.width;pointer.y=pointer.y/old.height*g.world.height;if(pointer.screenX!==null){pointer.screenX=pointer.screenX/old.width*g.world.width;pointer.screenY=pointer.screenY/old.height*g.world.height;}}renderer.resize(g.world,rect,g.map);runtime.refreshGeometry?.();runtime.updateCamera(0,true);}
   function clearInput(){keys.clear();pointer.down=false;runtime.gamePointer=null;runtime.firePointer=null;runtime.joystick={x:0,y:0,id:null};$('joystick-knob').style.transform='';}
   function updateStateText(){$('feed-status').textContent=t(`status.${g.state}`);$('mission-status').textContent=t(`mission.${g.state}`);}
   function setState(state,panel){g.state=state;clearInput();overlay.hidden=!panel;panels.forEach(id=>$(id).hidden=id!==panel);$('pause').hidden=state!=='playing';$('touch-controls').hidden=state!=='playing';$('bottom-hud').hidden=!['playing','ready'].includes(state);arena.classList.toggle('playing',state==='playing');sound.setActive(state==='playing');updateStateText();if(state==='ready'||state==='over')sound.setMusicScene('menu');}
   function focusPanel(id){requestAnimationFrame(()=>$(id).focus({preventScroll:true}));}
   function announce(tag,title,note='',duration=2.5){$('announcement-tag').textContent=tag;$('announcement-title').textContent=title;$('announcement-note').textContent=note;g.bannerTime=duration;$('announcement').classList.add('visible');}
   function activateMenuMusic(){if(g.state==='ready'||g.state==='over')void sound.init();}
-  async function start(mode='operation'){if(dialog.open||runtime.starting)return;runtime.starting=true;await sound.init();g.testRange=mode==='test'?readTestRange():null;g.player=newPlayer();runtime.upgrades=g.testRange?{...g.testRange.upgrades}:{};applyStartingUpgrades();for(const key of ['enemies','bullets','particles','pickups','explosions','deathBursts','warnings','floaters','decals','treadMarks','wreckSmoke'])g[key]=[];g.time=0;g.wave=0;g.score=0;g.kills=0;g.combo=0;g.comboTimer=0;g.shake=0;g.waveWait=-1;pointer.x=g.player.x;pointer.y=g.player.y-150;pointer.screenX=null;pointer.screenY=null;runtime.updateCamera(0,true);setState('playing');if(g.testRange){g.wave=1;g.plan=wavePlan(1,settings.difficulty);g.spawnRemaining=0;g.spawnTimer=0;g.map=mapForWave(1);renderer.setMap(g.map);renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;$('wave').innerHTML='TEST RANGE';sound.setMusicScene('waves');}else runtime.nextWave();runtime.updateHud();canvas.focus({preventScroll:true});runtime.starting=false;}
+  async function start(mode='operation'){if(dialog.open||runtime.starting)return;runtime.starting=true;await sound.init();g.testRange=mode==='test'?readTestRange():null;g.player=newPlayer();runtime.upgrades=g.testRange?{...g.testRange.upgrades}:{};applyStartingUpgrades();for(const key of ['enemies','bullets','particles','pickups','explosions','deathBursts','warnings','floaters','decals','props','treadMarks','wreckSmoke'])g[key]=[];g.time=0;g.wave=0;g.score=0;g.kills=0;g.combo=0;g.comboTimer=0;g.shake=0;g.waveWait=-1;pointer.x=g.player.x;pointer.y=g.player.y-150;pointer.screenX=null;pointer.screenY=null;runtime.updateCamera(0,true);setState('playing');if(g.testRange){g.wave=1;g.plan=wavePlan(1,settings.difficulty);g.spawnRemaining=0;g.spawnTimer=0;g.map=mapForWave(1);renderer.setMap(g.map);runtime.buildProps();renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;$('wave').innerHTML='TEST RANGE';sound.setMusicScene('waves');}else runtime.nextWave();runtime.updateHud();canvas.focus({preventScroll:true});runtime.starting=false;}
   function applyLanguage(){setLocale(settings.language);document.documentElement.lang=settings.language;document.querySelectorAll('[data-i18n]').forEach(element=>{element.innerHTML=t(element.dataset.i18n);});document.querySelectorAll('[data-i18n-aria]').forEach(element=>element.setAttribute('aria-label',t(element.dataset.i18nAria)));document.querySelectorAll('[data-difficulty]').forEach(button=>{button.textContent=t(`difficulty.${button.dataset.difficulty}`);});$('language').value=settings.language;$('language').setAttribute('aria-label',t('nav.language'));$('settings-open').setAttribute('aria-label',t('settings.label'));$('settings-open').title=t('settings.label');$('fullscreen').setAttribute('aria-label',t('settings.fullscreen'));$('fullscreen').title=t('settings.fullscreen');$('fullscreen-exit').textContent=t('frame.exit');$('sound-toggle').title=`${t(settings.muted?'nav.soundOn':'nav.soundOff')} (M)`;renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;updateStateText();runtime.updateSettingsUI();runtime.updateHud();}
   function initialize(){new ResizeObserver(resize).observe(arena);resize();applyLanguage();requestAnimationFrame(runtime.frame);}
   return Object.assign(runtime,{newPlayer,readTestRange,applyStartingUpgrades,resize,clearInput,updateStateText,setState,focusPanel,announce,activateMenuMusic,start,applyLanguage,initialize});
@@ -2736,7 +3040,7 @@ function createWaves(runtime){
   const announce=(...args)=>runtime.announce(...args);
 function nextWave(){
   g.wave++;g.plan=wavePlan(g.wave,settings.difficulty);g.spawnRemaining=g.plan.count;g.spawnIndex=0;g.spawnTimer=2.4;g.waveWait=-1;
-  g.map=mapForWave(g.wave);g.decals=[];g.treadMarks=[];g.wreckSmoke=[];g.particles=g.particles.filter(particle=>!particle.smoke);renderer.setMap(g.map);
+  g.map=mapForWave(g.wave);g.decals=[];g.treadMarks=[];g.wreckSmoke=[];g.particles=g.particles.filter(particle=>!particle.smoke);renderer.setMap(g.map);runtime.buildProps();
   renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;
   $('wave').innerHTML=`${t('hud.wave')} <b>${pad(g.wave,2)}</b>`;
   announce(t(g.plan.boss?'wave.bossTag':'wave.enemyTag'),t(g.plan.boss?'wave.bossTitle':'wave.title',{wave:pad(g.wave,2)}),`${renderer.mapLabel} · ${t(g.plan.boss?'wave.bossNote':g.wave===1?'wave.firstNote':'wave.note')}`,3.2);
@@ -2892,8 +3196,50 @@ function damagePlayer(amount){
     else runtime.endGame();
   }runtime.updateHud();
 }
+// Props are plain data from environment.js so missions and generated levels can rebuild them for any map.
+function refreshGeometry(){g.geometry=environmentGeometry(environmentFor(g.map),g.world.width,g.world.height);}
+function buildProps(){refreshGeometry();g.props=generateProps(environmentFor(g.map),g.world.width,g.world.height,g.map.seed);}
+function damageProp(prop,damage){
+  if(prop.destroyed)return;
+  prop.health-=damage;prop.hitFlash=.12;
+  burst(prop.x,prop.y,prop.type==='sandbags'?'#b9a779':'#c9b27c',3,.2);
+  if(prop.health>0)return;
+  prop.destroyed=true;prop.scorch=prop.type==='barrel';
+  if(prop.hostile){g.score+=prop.points;float(`+${prop.points}`,prop.x,prop.y-20,'#e0efa6');}
+  if(prop.type!=='barrel')return;
+  explosion(prop.x,prop.y,85);
+  for(const e of g.enemies)if(e.health>0&&distance(e,prop)<85+e.radius)hitEnemy(e,40,'other');
+  for(const other of g.props)if(!other.destroyed&&distance(other,prop)<85)damageProp(other,2);
+}
+// Ground units cannot wade through rivers or lakes: they steer to a bridge when water blocks the way
+// and are stopped at the shore otherwise. Air units ignore water.
+const flying=e=>e.type==='drone'||e.type==='kamikaze';
+function crossesWater(e,target){
+  const w=g.geometry;
+  for(let i=1;i<=12;i++){const f=i/12;if(w.inWater(e.x+(target.x-e.x)*f,e.y+(target.y-e.y)*f,e.radius*.5))return true;}
+  return false;
+}
+function groundGoal(e,target){
+  const w=g.geometry;
+  if(!w||flying(e)||!w.bridges.length||!crossesWater(e,target))return target;
+  let best=null,bestCost=Infinity;
+  for(const b of w.bridges){const cost=distance(e,b)+distance(b,target);if(cost<bestCost){best=b;bestCost=cost;}}
+  const half=best.length/2,ends=[-1,1].map(k=>({x:best.x+Math.cos(best.angle)*half*k,y:best.y+Math.sin(best.angle)*half*k}));
+  const [near,far]=distance(e,ends[0])<distance(e,ends[1])?ends:[ends[1],ends[0]];
+  return w.onBridge(e.x,e.y)||distance(e,near)<18?far:near;
+}
+function groundMove(e,vx,vy,dt){
+  const w=g.geometry,r=e.radius*.5,{width:W,height:H}=g.world;
+  if(!w||flying(e)||w.inWater(e.x,e.y,r))return [vx,vy];
+  const wet=(x,y)=>x>0&&x<W&&y>0&&y<H&&w.inWater(x,y,r);
+  if(!wet(e.x+vx*dt,e.y+vy*dt))return [vx,vy];
+  if(!wet(e.x+vx*dt,e.y))return [vx,0];
+  if(!wet(e.x,e.y+vy*dt))return [0,vy];
+  return [0,0];
+}
 function detonate(b){
   explosion(b.x,b.y,135);
+  for(const prop of g.props)if(!prop.destroyed&&distance(prop,b)<135)damageProp(prop,4);
   for(const e of g.enemies){const d=distance(e,b);if(d<135+e.radius)hitEnemy(e,b.damage*(1-clamp(d/230,0,.65)),'rocket');}
   g.bullets.forEach(other=>{if(!other.friendly&&distance(other,b)<135)other.life=0;});
 }
@@ -3010,10 +3356,12 @@ function update(dt){
     if(e.weaponMuzzle>0){e.weaponMuzzle-=dt;if(e.weaponMuzzle<=0)delete e.weaponMuzzle;}
     const stats=ENEMIES[e.type],a=Math.atan2(p.y-e.y,p.x-e.x),d=distance(e,p),stop=stats.stopDistance;
     let vx=0,vy=0;
-    if(d>stop){vx=Math.cos(a)*e.speed;vy=Math.sin(a)*e.speed;}
+    const goal=groundGoal(e,p),ga=goal===p?a:Math.atan2(goal.y-e.y,goal.x-e.x);
+    if(d>stop||goal!==p){vx=Math.cos(ga)*e.speed;vy=Math.sin(ga)*e.speed;}
     if(stats.strafeSpeed){vx+=Math.cos(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;vy+=Math.sin(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;}
     // Gentle separation keeps armor from stacking into one unreadable target.
     for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
+    [vx,vy]=groundMove(e,vx,vy,dt);
     e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
     if(e.type==='drone'||e.type==='kamikaze')updateDroneVisual(e,dt,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
     const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
@@ -3076,7 +3424,9 @@ function update(dt){
     if(b.friendly){
       let target=null,nearest=Infinity;
       for(const e of g.enemies)if(e.health>0&&segmentHitsCircle(ox,oy,b.x,b.y,e.x,e.y,e.radius+(b.kind==='rocket'?8:2))){const d=Math.hypot(e.x-ox,e.y-oy);if(d<nearest){target=e;nearest=d;}}
+      const prop=target?null:g.props.find(q=>!q.destroyed&&segmentHitsCircle(ox,oy,b.x,b.y,q.x,q.y,q.radius+2));
       if(target){b.life=0;if(b.kind==='rocket')detonate(b);else hitEnemy(target,b.damage,b.kind==='gun'?'cannon':'other');}
+      else if(prop){b.life=0;if(b.kind==='rocket')detonate(b);else damageProp(prop,1);}
       else if(b.kind==='rocket'&&b.life<=0)detonate(b);
     }else if(segmentHitsCircle(ox,oy,b.x,b.y,p.x,p.y,17)){
       if(b.kind==='enemyRocket'){
@@ -3110,7 +3460,7 @@ function update(dt){
   if(g.bannerTime>0){g.bannerTime-=dt;if(g.bannerTime<=0)$('announcement').classList.remove('visible');}
   g.hudTimer-=dt;if(g.hudTimer<=0){runtime.updateHud();g.hudTimer=.08;}
 }
-  return {gun,rocketRecharge,launchRocket,dash,movement,updateCamera,hitEnemy,damagePlayer,detonate,fireEnemy,incomingMissile,deployFlares,update};
+  return {buildProps,refreshGeometry,damageProp,gun,rocketRecharge,launchRocket,dash,movement,updateCamera,hitEnemy,damagePlayer,detonate,fireEnemy,incomingMissile,deployFlares,update};
 }
 
 // game/upgrades.js
