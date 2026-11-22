@@ -551,7 +551,7 @@ test('explosions emit fire splinters and Goliath ruptures in stages',async()=>{
   const boss=enemy({type:'boss',health:1,maxHealth:1,points:2500,radius:49});
   game.g.enemies=[boss];game.hitEnemy(boss,100);
   assert.equal(game.g.deathBursts.length,5);
-  const explosions=game.g.explosions.length;game.updateEffects(.2);
+  const explosions=game.g.explosions.length;game.updateEffects(.4);
   assert.ok(game.g.explosions.length>explosions);
 });
 test('player rockets leave a thick enemy-style smoke trail after ignition',async()=>{

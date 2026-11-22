@@ -18,6 +18,11 @@ export const PROP_TYPES = {
   sandbags: { health: 4, radius: 14, points: 15 }
 };
 
+// Solid footprints inside a compound, in its local units: [x, y, width, height]. Keep in step with Renderer.compound.
+export const COMPOUND_BUILDINGS = [[-100, -82, 108, 62], [25, -80, 84, 116], [-100, 0, 62, 82], [-19, 62, 94, 48]];
+export const COMPOUND_TILT = .08;
+export const COMPOUND_SCALE = 1.3;
+
 const BASE = {
   time: 'day',
   weather: { type: 'none', intensity: 0, wind: [0, 0] },
@@ -44,7 +49,7 @@ const LAYOUTS = {
   },
   valley: {
     time: 'dawn', weather: { type: 'fog', intensity: .5, wind: [10, 3] },
-    density: { rocks: .6, vegetation: 1.5, craters: .4, props: 1 }, vegetation: ['tree', 'scrub'],
+    density: { rocks: .6, vegetation: 1.5, craters: .4, props: 1 }, vegetation: ['tree', 'pine', 'scrub'],
     landing: [.68, .22],
     compounds: [[.78, .76, .84], [.38, .24, .72], [.17, .7, .5], [.57, .52, .48]],
     rivers: [{ pts: [[.1, -.07], [.3, .2], [.06, .54], [.32, 1.07]], width: 105 }],
@@ -68,7 +73,7 @@ export function environmentFor(map) {
     density: { ...BASE.density, ...layout.density, ...own.density }
   };
   const main = { pts: MAIN_ROAD[map.layout] || MAIN_ROAD.desert, curve: true, width: 76, shoulder: 105, surface: '#343f3288', edge: '#9a96754a', centre: true };
-  const secondary = { pts: [[.72, -.04], [.72, .4], [.84, .48]], curve: false, width: 39, shoulder: 39, surface: '#424c3855', edge: null, centre: false };
+  const secondary = { pts: [[.72, -.04], [.72, .4], [.84, .48]], curve: false, width: 39, shoulder: 53, surface: '#424c3877', edge: '#9a967530', centre: false };
   if (!own.roads) env.roads = [main, secondary];
   env.time = TIME_OF_DAY[env.time] ? env.time : 'day';
   env.weather.type = WEATHER_TYPES.includes(env.weather.type) ? env.weather.type : 'none';
@@ -105,11 +110,11 @@ function intersection(a, b, c, d) {
 }
 
 // Pixel-space geometry shared by the renderer (drawing) and prop placement.
-export function environmentGeometry(env, W, H) {
+export function environmentGeometry(env, W, H, seed = 1) {
   const roads = env.roads.map(road => ({ ...road, points: sampleShape(road.pts, road.curve, W, H) }));
   const rivers = env.rivers.map(river => ({ ...river, points: sampleShape(river.pts, true, W, H) }));
   const lakes = env.lakes.map(([x, y, rx, ry, rotation]) => ({ x: x * W, y: y * H, rx: rx * W, ry: ry * W, rotation }));
-  const compounds = env.compounds.map(([x, y, scale]) => ({ x: x * W, y: y * H, scale }));
+  const compounds = env.compounds.map(([x, y, scale]) => ({ x: x * W, y: y * H, scale: scale * COMPOUND_SCALE }));
   const landing = { x: env.landing[0] * W, y: env.landing[1] * H };
   const bridges = [];
   for (const road of roads) {
@@ -150,7 +155,33 @@ export function environmentGeometry(env, W, H) {
     }
     return rivers.some(river => distanceToPoints(river.points, x, y) < river.width / 2 + margin);
   };
-  return { roads, rivers, lakes, compounds, landing, bridges, blocked, inWater, onBridge };
+  // World-space rectangles (centre, half size, rotation) used for ground collision.
+  const buildings = compounds.flatMap(k => COMPOUND_BUILDINGS.map(([bx, by, bw, bh]) => {
+    const cos = Math.cos(COMPOUND_TILT), sin = Math.sin(COMPOUND_TILT), mx = bx + bw / 2, my = by + bh / 2;
+    return { x: k.x + (mx * cos - my * sin) * k.scale, y: k.y + (mx * sin + my * cos) * k.scale, hw: bw / 2 * k.scale, hh: bh / 2 * k.scale, angle: COMPOUND_TILT };
+  }));
+  const inBuilding = (x, y, margin = 0) => buildings.some(b => {
+    const cos = Math.cos(-b.angle), sin = Math.sin(-b.angle), dx = x - b.x, dy = y - b.y;
+    return Math.abs(dx * cos - dy * sin) < b.hw + margin && Math.abs(dx * sin + dy * cos) < b.hh + margin;
+  });
+  // Trees are placed from the seed so the renderer draws them and ground units collide with the same set.
+  const trees = [], woods = env.vegetation.filter(k => k === 'tree' || k === 'pine');
+  if (woods.length) {
+    const r = seededRandom((seed ^ 0x51ed270b) >>> 0), amount = env.density.vegetation;
+    const add = (x, y, size) => {
+      if (!blocked(x, y, { margin: size })) trees.push({ x, y, size, kind: woods[Math.floor(r() * woods.length)], seed: r(), radius: size * .6 });
+    };
+    for (let g = 0, groves = Math.round(4 * amount); g < groves; g++) {
+      const cx = r() * W, cy = r() * H, spread = 70 + r() * 80, count = 6 + Math.floor(r() * 7);
+      for (let i = 0; i < count; i++) {
+        const a = r() * Math.PI * 2, d = Math.sqrt(r()) * spread;
+        add(cx + Math.cos(a) * d, cy + Math.sin(a) * d * .8, 19 + r() * 18);
+      }
+    }
+    for (let i = 0, loners = Math.round(10 * amount); i < loners; i++) add(r() * W, r() * H, 15 + r() * 14);
+    trees.sort((p, q) => p.y - q.y);
+  }
+  return { roads, rivers, lakes, compounds, landing, bridges, trees, buildings, blocked, inWater, inBuilding, onBridge };
 }
 
 // Props are neutral by default; a mission may set `hostile` so destroying one awards its points.

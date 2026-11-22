@@ -17,7 +17,7 @@ function spawnEnemy(forced){
   const {width:W,height:H}=g.world,p=g.player;let x,y;
   for(let attempt=0;attempt<8;attempt++){
     const side=Math.floor(Math.random()*4);x=side===0?-45:side===1?W+45:60+Math.random()*(W-120);y=side===2?-45:side===3?H+45:110+Math.random()*(H-170);
-    if(Math.hypot(x-p.x,y-p.y)>(g.testRange?.distance??300))break;
+    if(Math.hypot(x-p.x,y-p.y)>(g.testRange?.distance??300)&&!g.geometry?.inWater(x,y,30))break;
   }
   const type=forced||enemyType(g.wave,g.spawnIndex++);
   const stats=ENEMIES[type],health=(stats.health+stats.healthPerWave*g.wave)*g.plan.health;

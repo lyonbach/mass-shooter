@@ -35,14 +35,19 @@ if(!enemies.aa.warningDelay||!enemies.aa.explosionRadius||!enemies.aa.burstInter
   throw new Error('Invalid special enemy configuration');
 const levelCsv=(await readFile(new URL('levels.csv',root),'utf8')).trim().split(/\r?\n/);
 const levelColumns=levelCsv.shift().split(',');
-const expectedLevelColumns='name,layout,seed,color1,color2,color3,accent';
+const expectedLevelColumns='name,layout,seed,color1,color2,color3,accent,time,weather';
 if(levelColumns.join(',')!==expectedLevelColumns)throw new Error('Invalid levels.csv header');
-const layouts=new Set(['desert','valley','canyon']),levels=[];
+const layouts=new Set(['desert','valley','canyon']),times=new Set(['day','dawn','dusk','night']),weathers=new Set(['none','dust','fog','rain']),levels=[];
 for(const line of levelCsv){
-  const [name,layout,seed,...colors]=line.split(',');
-  if(!name||!layouts.has(layout)||colors.length!==4||!colors.every(color=>/^#[\da-f]{6}$/i.test(color))||!Number.isInteger(Number(seed))||Number(seed)<0)
+  // time and weather are optional; blank keeps the layout default.
+  const [name,layout,seed,c1,c2,c3,accent,time='',weather='']=line.split(',');
+  const colors=[c1,c2,c3,accent];
+  if(!name||!layouts.has(layout)||!colors.every(color=>/^#[\da-f]{6}$/i.test(color))||!Number.isInteger(Number(seed))||Number(seed)<0||(time&&!times.has(time))||(weather&&!weathers.has(weather)))
     throw new Error(`Invalid level row: ${line}`);
-  levels.push({name,layout,seed:Number(seed),colors:colors.slice(0,3),accent:colors[3]});
+  const environment={};
+  if(time)environment.time=time;
+  if(weather)environment.weather={type:weather,intensity:weather==='none'?0:.7};
+  levels.push({name,layout,seed:Number(seed),colors:colors.slice(0,3),accent,...(Object.keys(environment).length?{environment}:{})});
 }
 if(!levels.length)throw new Error('Missing levels');
 await writeFile(new URL('level-data.js',root),`// Generated from levels.csv by scripts/build.mjs. Do not edit.\nexport const LEVEL_DATA = ${JSON.stringify(levels,null,2)};\n`);

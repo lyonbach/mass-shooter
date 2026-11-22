@@ -32,5 +32,23 @@ export const LEVEL_DATA = [
       "#51485a"
     ],
     "accent": "#f1a984"
+  },
+  {
+    "name": "NIGHT WATCH",
+    "layout": "valley",
+    "seed": 40519,
+    "colors": [
+      "#3f5c52",
+      "#31504c",
+      "#1d3640"
+    ],
+    "accent": "#6fc4e8",
+    "environment": {
+      "time": "night",
+      "weather": {
+        "type": "rain",
+        "intensity": 0.7
+      }
+    }
   }
 ];

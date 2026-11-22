@@ -38,12 +38,12 @@ animation loop. No settings are saved or applied to the game.
 
 ```js
 { time: 'day|dawn|dusk|night', weather: { type: 'none|dust|fog|rain', intensity: 0..1, wind: [x, y] },
-  density: { rocks, vegetation, craters, props }, vegetation: ['scrub', 'tree', 'deadtree', 'cactus'],
+  density: { rocks, vegetation, craters, props }, vegetation: ['scrub', 'tree', 'pine', 'deadtree', 'cactus'],
   landing: [x, y], compounds: [[x, y, scale]], roads: [{ pts, curve, width, shoulder, surface, edge, centre }],
   rivers: [{ pts, width }], lakes: [[x, y, rx, ry, rotation]] }
 ```
 
-Coordinates are fractions of the world size. Roads that cross rivers get bridges automatically; ground enemies cannot enter water and route to a bridge, while drones and kamikazes fly over. `generateProps` places seeded destructible props (crates, barrels, sandbags); explosive barrels chain-damage enemies and other props but never the player. Wave mode still takes its levels from `levels.csv`.
+Coordinates are fractions of the world size. Roads that cross rivers get bridges automatically; ground enemies cannot enter water and route to a bridge, while drones and kamikazes fly over. `generateProps` places seeded destructible props (crates, barrels, sandbags); explosive barrels chain-damage enemies and other props but never the player. Wave mode still takes its levels from `levels.csv`, whose optional `time` (`day|dawn|dusk|night`) and `weather` (`none|dust|fog|rain`) columns override the layout defaults when filled in (e.g. `NIGHT WATCH` is a rainy night).
 
 ## Controls
 

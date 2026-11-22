@@ -81,11 +81,11 @@ function hitEnemy(e,damage,source='other'){
     float(`+${points}${multiplier>1?' ×'+multiplier:''}`,e.x,e.y-35,'#e0efa6',multiplier>1);
     const stats=ENEMIES[e.type];
     if(cannonWreck)runtime.destructionSound(e.x,e.y);
-    else explosion(e.x,e.y,stats.deathExplosion);
+    else explosion(e.x,e.y,stats.deathExplosion,e.type==='boss'?BOSS_EXPLOSION_LIFE:undefined);
     if(e.type==='boss'&&!cannonWreck){
       for(let i=0;i<5;i++){
         const a=Math.random()*TAU,distance=10+Math.random()*38;
-        g.deathBursts.push({x:e.x+Math.cos(a)*distance,y:e.y+Math.sin(a)*distance,size:58+Math.random()*28,delay:.1+i*.12+Math.random()*.05});
+        g.deathBursts.push({x:e.x+Math.cos(a)*distance,y:e.y+Math.sin(a)*distance,size:58+Math.random()*28,life:BOSS_EXPLOSION_LIFE,delay:(.1+i*.12+Math.random()*.05)*2});
       }
     }
     if(e.type==='kamikaze'&&distance(e,g.player)<stats.explosionRadius+17)damagePlayer(stats.projectileDamage);
@@ -114,7 +114,8 @@ function damagePlayer(amount){
   }runtime.updateHud();
 }
 // Props are plain data from environment.js so missions and generated levels can rebuild them for any map.
-function refreshGeometry(){g.geometry=environmentGeometry(environmentFor(g.map),g.world.width,g.world.height);}
+const BOSS_EXPLOSION_LIFE=1.3;
+function refreshGeometry(){g.geometry=environmentGeometry(environmentFor(g.map),g.world.width,g.world.height,g.map.seed);}
 function buildProps(){refreshGeometry();g.props=generateProps(environmentFor(g.map),g.world.width,g.world.height,g.map.seed);}
 function damageProp(prop,damage){
   if(prop.destroyed)return;
@@ -145,13 +146,32 @@ function groundGoal(e,target){
   const [near,far]=distance(e,ends[0])<distance(e,ends[1])?ends:[ends[1],ends[0]];
   return w.onBridge(e.x,e.y)||distance(e,near)<18?far:near;
 }
+// Water, trees and buildings are solid for ground units; a unit already inside one may still walk out of it.
 function groundMove(e,vx,vy,dt){
-  const w=g.geometry,r=e.radius*.5,{width:W,height:H}=g.world;
-  if(!w||flying(e)||w.inWater(e.x,e.y,r))return [vx,vy];
-  const wet=(x,y)=>x>0&&x<W&&y>0&&y<H&&w.inWater(x,y,r);
-  if(!wet(e.x+vx*dt,e.y+vy*dt))return [vx,vy];
-  if(!wet(e.x+vx*dt,e.y))return [vx,0];
-  if(!wet(e.x,e.y+vy*dt))return [0,vy];
+  const w=g.geometry,r=e.radius*.5,bm=e.radius+22,{width:W,height:H}=g.world;
+  if(!w||flying(e))return [vx,vy];
+  const treeAt=(x,y)=>w.trees.find(t=>Math.hypot(t.x-x,t.y-y)<t.radius+r);
+  // Clearance zones around obstacles: full margin, 60% and the bare footprint. A unit already inside a
+  // zone may only move without entering the next, deeper one, so it can slide along walls and back out.
+  const at=(x,y,k)=>w.inWater(x,y,r*k)||w.trees.some(t=>Math.hypot(t.x-x,t.y-y)<t.radius+r*k)||w.inBuilding(x,y,bm*k);
+  const zone=at(e.x,e.y,1)?(at(e.x,e.y,.6)?(at(e.x,e.y,0)?3:2):1):0;
+  // Distance outside the nearest building footprint; used so a unit pressed into a wall may only back away or slide.
+  const gap=(x,y)=>w.buildings.reduce((best,b)=>{const cos=Math.cos(-b.angle),sin=Math.sin(-b.angle),dx=x-b.x,dy=y-b.y;return Math.min(best,Math.max(Math.abs(dx*cos-dy*sin)-b.hw,Math.abs(dx*sin+dy*cos)-b.hh));},Infinity);
+  const wallOnly=zone===2&&!w.inWater(e.x,e.y,r*.6)&&!w.trees.some(t=>Math.hypot(t.x-e.x,t.y-e.y)<t.radius+r*.6),here=wallOnly?gap(e.x,e.y):0;
+  const solid=(x,y)=>x>0&&x<W&&y>0&&y<H&&(zone===3?false:wallOnly?at(x,y,0)||(at(x,y,.6)&&gap(x,y)<here-.01):at(x,y,[1,.6,0][zone]));
+  if(!solid(e.x+vx*dt,e.y+vy*dt)){e.detour=0;return [vx,vy];}
+  if(!solid(e.x+vx*dt,e.y))return [vx,0];
+  if(!solid(e.x,e.y+vy*dt))return [0,vy];
+  // Wedged against an obstacle: slide around a tree trunk, or along a wall in a remembered direction.
+  const tree=treeAt(e.x+vx*dt,e.y+vy*dt),speed=Math.hypot(vx,vy);
+  if(tree){
+    const side=Math.sign((e.x-tree.x)*vy-(e.y-tree.y)*vx)||1,nx=-(e.y-tree.y),ny=e.x-tree.x,len=Math.hypot(nx,ny)||1;
+    const sx=nx/len*side*speed,sy=ny/len*side*speed;
+    if(!solid(e.x+sx*dt,e.y+sy*dt))return [sx,sy];
+  }
+  if(!e.detour)e.detour=Math.sign(vx*(g.player.y-e.y)-vy*(g.player.x-e.x))||1;
+  const px=-vy/(speed||1)*e.detour*speed,py=vx/(speed||1)*e.detour*speed;
+  if(!solid(e.x+px*dt,e.y+py*dt))return [px,py];
   return [0,0];
 }
 function detonate(b){

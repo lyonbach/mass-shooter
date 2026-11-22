@@ -39,9 +39,9 @@ test('terrain seeds reproduce the same map with values in range',()=>{
   const a=seededRandom(73),b=seededRandom(73);
   for(let i=0;i<100;i++){const value=a();assert.equal(value,b());assert.ok(value>=0&&value<1);}
 });
-test('waves rotate through three distinct deterministic sectors',()=>{
-  assert.equal(MAPS.length,3);
-  assert.equal(new Set([1,2,3].map(w=>mapForWave(w).seed)).size,3);
-  assert.equal(mapForWave(4),mapForWave(1));
-  assert.equal(mapForWave(5),mapForWave(2));
+test('waves rotate through four distinct deterministic sectors',()=>{
+  assert.equal(MAPS.length,4);
+  assert.equal(new Set([1,2,3,4].map(w=>mapForWave(w).seed)).size,4);
+  assert.equal(mapForWave(5),mapForWave(1));
+  assert.equal(mapForWave(6),mapForWave(2));
 });
