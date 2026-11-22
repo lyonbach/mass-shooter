@@ -352,10 +352,15 @@ export class Renderer {
     }
     c.fillStyle='#435a46';for(let x=-18;x<=-12;x+=3)c.fillRect(x,3,1,4);
     path(c,[[7,-12],[24,-9],[32,-4],[35,0],[32,4],[24,9],[7,12],[9,0]],'#435b4c','#b9c9a477');
-    path(c,[[10,-10],[24,-7],[30,-2],[11,-2]],'#263e35','#bbd9b144');
-    path(c,[[11,2],[30,2],[24,7],[10,10]],'#2e4c3d','#bbd9b144');
-    path(c,[[12,-9],[21,-7],[25,-4],[13,-4]],'#7aa18a66');
-    path(c,[[12,4],[24,4],[20,6],[12,8]],'#7aa18a44');
+    // Wraparound windshield: dark tinted panes, bright sky bands, a centre post and glints.
+    path(c,[[9,-11],[24,-8],[31,-3],[32,0],[31,3],[24,8],[9,11],[11,0]],'#16302c','#c8e6c466');
+    path(c,[[11,-9],[24,-6],[29,-2],[12,-1]],'#2c5e57');
+    path(c,[[12,1],[29,2],[24,6],[11,9]],'#1f453f');
+    path(c,[[13,-8],[22,-6],[26,-3],[14,-3]],'#8fd0c088');
+    path(c,[[14,-6],[19,-5],[17,-4],[14,-4]],'#e6fff0aa');
+    path(c,[[13,4],[24,4],[21,6],[13,7]],'#6fb3a855');
+    c.strokeStyle='#a9bc92';c.lineWidth=1.2;c.beginPath();c.moveTo(11,0);c.lineTo(32,0);c.stroke();
+    c.fillStyle='#e9ffe8';c.fillRect(27,-3,1,1);c.fillRect(22,5,2,1);
     c.fillStyle='#b5c096';c.fillRect(-8,-10,3,20);c.fillStyle='#3c503f';c.fillRect(-14,-7,5,14);
     c.fillStyle='#d2d7ad';c.fillRect(4,-12,1,2);c.fillRect(4,10,1,2);
     // Small landing rails and armored belly accents improve the grounded silhouette.

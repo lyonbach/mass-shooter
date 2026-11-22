@@ -327,6 +327,8 @@ test('helicopter has layered cockpit glass, landing rails, and a detailed rotor 
   const c=context();
   renderer.helicopter(c,{x:100,y:100,angle:0,bank:0,pitch:0},0);
   assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#18382fbb'));
+  assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#2c5e57'));
+  assert.ok(c.calls.some(call=>call.name==='fill'&&call.fillStyle==='#e6fff0aa'));
   assert.ok(c.calls.some(call=>call.name==='fillRect'&&call.fillStyle==='#718469'));
   assert.ok(c.calls.some(call=>call.name==='ellipse'&&call.fillStyle==='#233a30'&&call.args[2]===6));
 });
