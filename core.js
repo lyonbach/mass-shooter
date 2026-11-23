@@ -4,12 +4,19 @@ import { WEAPON_DATA } from './weapon-data.js';
 export const ENEMIES = ENEMY_DATA;
 export const MAPS = LEVEL_DATA;
 export const WEAPONS = WEAPON_DATA;
-export const COMMANDER = {wave:15,healthMultiplier:5,speed:16,radius:112,scale:1.8,shellCount:6,shellInterval:.3,reloadTime:4,cannonCount:30,advanceTime:3,trackOffset:72,trackLength:96,trackWidth:24};
+export const COMMANDER = {wave:15,healthMultiplier:5,speed:16,radius:112,scale:1.8,shellCount:12,shellInterval:.3,shellBarrelTip:15+49*1.3,shellSpeedMultiplier:1.8,shellDamageMultiplier:2,reloadTime:1,cannonCount:30,cannonOffset:5,advanceTime:3,turnMultiplier:.125,spotlightFlickerTime:1.2,exhaustForward:-66,exhaustOffset:24,trackOffset:72,trackLength:96,trackWidth:24};
 export const ROCKET_IGNITION_DELAY = .3;
 export const TAU = Math.PI * 2;
 export const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const lerp = (a, b, t) => a + (b - a) * t;
+export function armorDamageMultiplier(enemy,origin){
+  if(!origin||!['tank','boss','artillery','aa'].includes(enemy.type))return 1;
+  const dx=origin.x-enemy.x,dy=origin.y-enemy.y,length=Math.hypot(dx,dy);
+  if(!length)return 1;
+  const facing=(dx*Math.cos(enemy.angle)+dy*Math.sin(enemy.angle))/length;
+  return facing>=Math.SQRT1_2?1:facing<=-Math.SQRT1_2?1.7:1.4;
+}
 export function turn(current, target, rate) {
   const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
   return current + delta * clamp(rate, 0, 1);

@@ -20,24 +20,150 @@ function canvasDocument(){
   return {created,stops,createElement:()=>{const pc=context();pc.createRadialGradient=(...args)=>{pc.calls.push({name:'createRadialGradient',args});return{addColorStop:(...stop)=>stops.push(stop)};};const canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
 }
 
-test('commander has four separate tracks, independent twin-barrel flashes and a top cannon in live and wreck poses',()=>{
+test('commander has four separate tracks and four independently recoiling barrels in live and wreck poses',()=>{
   const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
-  const base={x:200,y:200,angle:.4,turret:1.2,type:'boss',specialBoss:true,health:100,maxHealth:100,leftTrackPhase:1,rightTrackPhase:3};
+  const base={x:200,y:200,angle:.4,turret:1.2,cannonAngle:-.6,type:'boss',specialBoss:true,health:100,maxHealth:100,leftTrackPhase:1,rightTrackPhase:3};
   const idle=context();renderer.enemy(idle,base,0);
   const tracks=idle.calls.filter(call=>call.name==='fillRect'&&call.fillStyle==='#27352a');
   assert.equal(tracks.length,4);
+  const offsets=idle.calls.filter(call=>call.name==='translate'&&call.args[1]===0&&(call.args[0]===-33||call.args[0]===33));
+  assert.deepEqual(offsets.map(call=>call.args[0]),[-33,33]);
+  assert.ok(idle.calls.some(call=>call.name==='rotate'&&call.args[0]===base.cannonAngle-base.angle));
   assert.deepEqual(tracks.map(call=>call.args),[[-30,-47,57,14],[-30,33,57,14],[-30,-47,57,14],[-30,33,57,14]]);
   const flashes=[];renderer.muzzleEffect=(c,life,tip,size)=>flashes.push({life,tip,size});
-  for(const [barrel,cannon] of [[0,false],[1,false],[0,true]]){
+  for(const [barrel,cannon] of [[0,false],[1,false],[0,true],[1,true]]){
     const e={...base,commanderMuzzle:{barrel,cannon,life:.1}},before=structuredClone(e),c=context();
     renderer.enemy(c,e,0);assert.deepEqual(e,before);
-    assert.deepEqual(flashes.pop(),{life:.1,tip:cannon?39:64,size:cannon?7:17});
+    assert.deepEqual(flashes.pop(),{life:.1,tip:cannon?39:COMMANDER.shellBarrelTip,size:cannon?7:17});
+    assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]<0&&call.args[1]===(barrel?1:-1)*(cannon?COMMANDER.cannonOffset:9)));
     assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
     assert.deepEqual(c.calls.find(call=>call.name==='scale').args,[COMMANDER.scale,COMMANDER.scale]);
     renderer.enemy(context(),{...e,wreck:true,health:0},0);assert.equal(flashes.length,0);
   }
   const moving=context();renderer.enemy(moving,{...base,leftTrackPhase:4,rightTrackPhase:0},0);
   assert.notDeepEqual(moving.calls.filter(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582').map(call=>call.args),idle.calls.filter(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582').map(call=>call.args));
+});
+
+test('commander rounds distinguish shorter helicopter-style cannon streaks from large heavy shells',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true});
+  const b={x:100,y:100,vx:100,vy:0,friendly:false};
+  const small=context(),large=context();
+  renderer.bullet(small,{...b,kind:'enemyGun'});renderer.bullet(large,{...b,kind:'heavyShell'});
+  assert.deepEqual(small.calls.find(call=>call.name==='moveTo').args,[90,100]);
+  assert.equal(small.calls.find(call=>call.name==='stroke').lineWidth,2);
+  assert.equal(small.calls.find(call=>call.name==='stroke').strokeStyle,'#f4f1ab');
+  assert.equal(small.calls.some(call=>call.name==='ellipse'),false);
+  assert.deepEqual(large.calls.find(call=>call.name==='moveTo').args,[74,100]);
+  assert.equal(large.calls.find(call=>call.name==='stroke').lineWidth,5);
+  assert.deepEqual(large.calls.find(call=>call.name==='ellipse').args.slice(0,4),[100,100,5,5]);
+});
+
+test('heavy turret muzzle uses the helicopter flash and additive glow, cached and anchored to its recoiling barrel',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  const c=context();
+  renderer.muzzleEffect(c,.2,64,17,.075,true);
+  const draws=c.calls.filter(call=>call.name==='drawImage');
+  assert.ok(draws.some(call=>call.args[0]===renderer.playerFlashGlow));
+  assert.ok(draws.some(call=>call.args[0]===renderer.playerFlash));
+  assert.equal(renderer.launchFlame,undefined);
+  assert.ok(c.calls.some(call=>call.name==='translate'&&call.args[0]===64-42*.8));
+  assert.deepEqual(c.calls.filter(call=>call.name==='rotate').map(call=>call.args[0]),[-Math.PI/2,Math.PI/2]);
+  assert.equal(draws.filter(call=>call.args[0]===renderer.playerFlash).length,3);
+  const created=document.created.length;renderer.muzzleEffect(context(),.2,64,17,.075,true);
+  assert.equal(document.created.length,created);
+  const cooling=context();renderer.muzzleEffect(cooling,.1,64,17,.075,true);
+  assert.equal(cooling.calls.some(call=>call.name==='drawImage'&&call.args[0]===renderer.playerFlash),false);
+  const e={x:0,y:0,angle:0,turret:0,type:'boss',specialBoss:true,health:100,maxHealth:100,commanderMuzzle:{barrel:0,cannon:false,life:.2}};
+  const before=globalThis.matchMedia;
+  try{
+    globalThis.matchMedia=()=>({matches:true});
+    const reduced=context();renderer.enemy(reduced,e,0);
+    assert.equal(reduced.calls.some(call=>call.name==='drawImage'),false);
+  }finally{if(before===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=before;}
+});
+
+test('commander engine smoke uses a cached near-black texture independent of helicopter fumes',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  const particle={x:10,y:20,size:8,life:.5,maxLife:1,smokeVariant:0};
+  renderer.smoke(context(),{...particle,tankFume:true});
+  assert.deepEqual(document.stops.slice(0,3),[[0,'#101310e8'],[.5,'#181c18c0'],[1,'#20242000']]);
+  renderer.smoke(context(),{...particle,tankFume:true});assert.equal(document.created.length,1);
+  renderer.smoke(context(),{...particle,fume:true});assert.equal(document.created.length,2);
+});
+
+test('commander wreck burns with many smaller fires spread over the hull',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  const wreck={x:200,y:200,angle:0,turret:0,type:'boss',specialBoss:true,wreck:true,health:0,age:8,burnTime:6,seed:0};
+  const fire=wreckFireState(wreck);
+  assert.equal(fire.points.length,15);assert.ok(fire.points.every(p=>Number.isFinite(p.strength)&&p.strength>0));
+  assert.ok(fire.points.some(p=>p.x<-50&&p.y<-34));assert.ok(fire.points.some(p=>p.x>50&&p.y>34));
+  const locations=points=>points.map(p=>[p.x,p.y]);
+  assert.deepEqual(locations(wreckFireState({...wreck,age:9}).points),locations(fire.points));
+  assert.notDeepEqual(locations(wreckFireState({...wreck,seed:1}).points),locations(fire.points));
+  const boss=context(),normal=context();renderer.wreck(boss,wreck);renderer.wreck(normal,{...wreck,specialBoss:false});
+  const flames=c=>c.calls.filter(call=>call.name==='drawImage'&&call.args[0]===renderer.wreckFlame);
+  assert.equal(flames(boss).length,30);assert.equal(flames(normal).length,10);
+  assert.ok(flames(boss)[0].args[3]<flames(normal)[0].args[3]);
+  assert.equal(boss.calls.filter(call=>call.name==='save').length,boss.calls.filter(call=>call.name==='restore').length);
+});
+
+test('commander strobes alternate slowly, stay steady under reduced motion, and stop on wrecks',()=>{
+  const renderer=new Renderer({getContext:()=>context()},{effects:true}),e={x:200,y:200,angle:0,turret:0,type:'boss',specialBoss:true,health:100,maxHealth:100,phase:'shells',cooldown:.1};
+  const lights=(t)=>{const c=context();renderer.enemy(c,e,t);return c.calls.filter(call=>call.name==='fill'&&call.fillStyle==='#ffc46b').map(call=>call.alpha);};
+  assert.notDeepEqual(lights(.5),lights(1.5));
+  const before=globalThis.matchMedia;
+  try{
+    globalThis.matchMedia=()=>({matches:true});
+    assert.deepEqual(lights(.5),[.6,.6]);assert.deepEqual(lights(1.5),[.6,.6]);
+    const c=context();renderer.enemy(c,{...e,commanderMuzzle:{barrel:0,cannon:false,life:.1}},0);
+    assert.equal(c.calls.some(call=>call.name==='translate'&&call.args[0]<0&&Math.abs(call.args[1])===9),false);
+  }finally{if(before===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=before;}
+  const dead=context();renderer.enemy(dead,{...e,wreck:true},0);
+  assert.equal(dead.calls.some(call=>call.name==='fill'&&call.fillStyle==='#ffc46b'),false);
+  const ready=context();renderer.enemy(ready,e,0);
+  assert.ok(ready.calls.some(call=>call.name==='fill'&&call.fillStyle==='#ffb46b'&&call.alpha>0));
+});
+
+test('commander damage fires follow the hull and spotlight flickers twice unless reduced motion is enabled',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  renderer.env={time:'night'};
+  const e={x:200,y:200,angle:Math.PI/2,turret:0,type:'boss',specialBoss:true,health:200,maxHealth:300,damageFires:[{x:-42,y:20,strength:.55}]};
+  const c=context(),before=structuredClone(e);renderer.enemy(c,e,2);
+  assert.deepEqual(e,before);
+  assert.equal(c.calls.filter(call=>call.name==='drawImage'&&call.args[0]===renderer.wreckFlame).length,2);
+  assert.ok(c.calls.some(call=>call.name==='translate'&&Math.abs(call.args[0]+20)<1e-9&&Math.abs(call.args[1]+42)<1e-9));
+  const alpha=timer=>{
+    const beam=context();renderer.commanderSpotlight(beam,{...e,spotlightFlicker:timer},{x:700,y:300,health:100});
+    return beam.calls.filter(call=>call.name==='drawImage').at(-1).alpha;
+  };
+  for(const timer of [1.2,.6,0])assert.ok(Math.abs(alpha(timer)-.25)<1e-9);
+  for(const timer of [.9,.3])assert.ok(Math.abs(alpha(timer)-.075)<1e-9);
+  const original=globalThis.matchMedia;
+  try{globalThis.matchMedia=()=>({matches:true});assert.equal(alpha(.9),.25);}
+  finally{if(original===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=original;}
+});
+
+test('commander spotlight tracks the player, brightens at night, and renders below vehicles and bullets',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true}),e={x:200,y:200,angle:0,turret:0,type:'boss',specialBoss:true,health:100};
+  const day=context(),night=context(),target={x:700,y:300,health:100},before=structuredClone(e);
+  renderer.env={time:'day'};renderer.commanderSpotlight(day,e,target);
+  renderer.env={time:'night'};renderer.commanderSpotlight(night,e,target);
+  assert.deepEqual(e,before);
+  assert.equal(day.calls.filter(call=>call.name==='drawImage').at(-1).alpha,.1);
+  assert.equal(night.calls.filter(call=>call.name==='drawImage').at(-1).alpha,.25);
+  assert.equal(document.created.length,1);
+  const slices=renderer.spotlightBeam.pc.calls.filter(call=>call.name==='fillRect');
+  assert.ok(slices.at(-1).alpha<slices[128].alpha*.001);
+  assert.ok(slices[0].alpha<slices[128].alpha);
+  const mount=day.calls.find(call=>call.name==='translate').args;
+  assert.ok(Math.abs(day.calls.find(call=>call.name==='rotate').args[0]-Math.atan2(target.y-mount[1],target.x-mount[0]))<1e-9);
+  const dead=context();renderer.commanderSpotlight(dead,{...e,wreck:true},target);assert.equal(dead.calls.length,0);
+  const order=[],scene=makeScene(DEFAULTS);
+  scene.enemies=[e];scene.bullets=[{kind:'enemyGun'}];
+  renderer.ctx=context();renderer.scale=1;renderer.settings.effects=false;renderer.terrain={};
+  renderer.commanderSpotlight=()=>order.push('spotlight');renderer.enemy=()=>order.push('enemy');renderer.bullet=()=>order.push('bullet');
+  renderer.waterGlints=()=>{};renderer.weather=()=>{};renderer.helicopter=()=>{};
+  renderer.draw(scene,0);assert.deepEqual(order,['spotlight','enemy','bullet']);
 });
 
 test('ordinary bullets retain base stroke and tracers share its geometry with a bounded glow',()=>{

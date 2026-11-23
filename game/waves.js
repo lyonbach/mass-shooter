@@ -17,6 +17,9 @@ function nextWave(){
 }
 function spawnEnemy(forced){
   const specialBoss=forced==='commander';
+  if(specialBoss&&g.map.environment?.time!=='night'){
+    g.map={...g.map,environment:{...g.map.environment,time:'night'}};renderer.setMap(g.map);
+  }
   const {width:W,height:H}=g.world,p=g.player;let x,y;
   for(let attempt=0;attempt<8;attempt++){
     const side=Math.floor(Math.random()*4);x=side===0?-45:side===1?W+45:60+Math.random()*(W-120);y=side===2?-45:side===3?H+45:110+Math.random()*(H-170);
@@ -28,7 +31,8 @@ function spawnEnemy(forced){
   if(specialBoss){
     enemy.specialBoss=true;enemy.health*=COMMANDER.healthMultiplier;enemy.maxHealth=enemy.health;
     enemy.speed=COMMANDER.speed;enemy.radius=COMMANDER.radius;enemy.points*=COMMANDER.healthMultiplier;
-    enemy.turret=enemy.angle;enemy.phase='entry';enemy.shotsFired=0;
+    enemy.turret=enemy.angle;enemy.cannonAngle=enemy.angle;enemy.phase='entry';enemy.shotsFired=0;
+    enemy.damageStage=0;enemy.damageFires=[];
   }
   if(type==='tank'){
     enemy.smokeScreen=Math.random()<SCREEN_SMOKE_CHANCE;

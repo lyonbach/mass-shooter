@@ -77,6 +77,31 @@ function emitScreenSmoke(tank){
   }
   tank.screenSmokeTimer=(settings.effects&&!reduced?SCREEN_SMOKE_INTERVAL:SCREEN_SMOKE_LOW_INTERVAL);
 }
+function emitCommanderFume(tank,dt){
+  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!settings.effects||reduced)return;
+  tank.engineFumeTimer=(tank.engineFumeTimer||0)-dt;
+  if(tank.engineFumeTimer>0)return;
+  tank.engineFumeTimer=.09;
+  const cos=Math.cos(tank.angle),sin=Math.sin(tank.angle),forward=COMMANDER.exhaustForward*COMMANDER.scale;
+  for(const side of [-1,1]){
+    if(g.particles.length>=650)return;
+    const n=tank.engineFumeCount=(tank.engineFumeCount||0)+1,lateral=side*COMMANDER.exhaustOffset*COMMANDER.scale,life=.8+(Math.sin(n*4.1)+1)*.2;
+    g.particles.push({x:tank.x+forward*cos-lateral*sin,y:tank.y+forward*sin+lateral*cos,
+      vx:-cos*22+Math.sin(n*12.9898)*4,vy:-sin*22-5+Math.sin(n*78.233)*4,
+      life,maxLife:life,smoke:true,tankFume:true,smokeVariant:n%3,size:5+(Math.sin(n*2.3)+1)*1.5});
+  }
+}
+function emitCommanderSparks(tank,dt){
+  if(!tank.damageFires?.length)return;
+  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!settings.effects||reduced)return;
+  tank.damageSparkTimer=(tank.damageSparkTimer||0)-dt;
+  if(tank.damageSparkTimer>0)return;
+  tank.damageSparkTimer=1.3+Math.random()*2;
+  const point=tank.damageFires[Math.floor(Math.random()*tank.damageFires.length)],x=point.x*COMMANDER.scale,y=point.y*COMMANDER.scale;
+  burst(tank.x+x*Math.cos(tank.angle)-y*Math.sin(tank.angle),tank.y+x*Math.sin(tank.angle)+y*Math.cos(tank.angle),'#ffc66d',5,.35);
+}
 function updateEffects(dt){
   for(const burst of g.deathBursts)burst.delay-=dt;
   const pendingBursts=[];
@@ -109,7 +134,12 @@ function updateEffects(dt){
     decal.age=newAge;decal.burnTime=Math.max(0,WRECK_FIRE_TIME-newAge);
   }
   for(const enemy of g.enemies){
-    if(!enemy.smokeScreen||enemy.health<=0)continue;
+    if(enemy.health<=0)continue;
+    if(enemy.specialBoss){
+      enemy.spotlightFlicker=Math.max(0,(enemy.spotlightFlicker||0)-dt);
+      emitCommanderFume(enemy,dt);emitCommanderSparks(enemy,dt);
+    }
+    if(!enemy.smokeScreen)continue;
     enemy.screenSmokeTimer-=dt;
     if(enemy.screenSmokeTimer<=0)emitScreenSmoke(enemy);
   }

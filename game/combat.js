@@ -1,5 +1,5 @@
 import { environmentFor, environmentGeometry, generateProps } from '../environment.js';
-import { TAU, clamp, distance, turn, segmentHitsCircle, ENEMIES, WEAPONS, COMMANDER, ROCKET_IGNITION_DELAY } from '../core.js';
+import { TAU, clamp, distance, turn, segmentHitsCircle, armorDamageMultiplier, ENEMIES, WEAPONS, COMMANDER, ROCKET_IGNITION_DELAY } from '../core.js';
 import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
 import { MUZZLE_FUME_OFFSET, HELICOPTER_FUME_INTERVAL, HELICOPTER_FUME_OFFSET, AA_MUZZLE_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './constants.js';
 export function updateDroneVisual(e,dt,reduced=false){
@@ -69,20 +69,39 @@ function updateCamera(dt,instant=false){
   camera.y=clamp(camera.y+(y-camera.y)*response,0,H-H/camera.zoom);
   if(pointer.screenX!==null){pointer.x=camera.x+pointer.screenX/camera.zoom;pointer.y=camera.y+pointer.screenY/camera.zoom;}
 }
-function hitEnemy(e,damage,source='other'){
+function hitEnemy(e,damage,source='other',origin){
   if(e.health<=0)return;
-  e.health-=damage;e.hit=.12;
+  e.health-=damage*armorDamageMultiplier(e,origin);e.hit=.12;
   const ground=e.type!=='drone'&&e.type!=='kamikaze',cannonWreck=ground&&source==='cannon'&&e.health<=0;
   if(!cannonWreck)burst(e.x,e.y,'#ebd99c',4,.5);
+  if(e.specialBoss&&e.health>0){
+    const stage=e.health<=e.maxHealth/3?2:e.health<=e.maxHealth*2/3?1:0;
+    while((e.damageStage||0)<stage){
+      e.damageStage=(e.damageStage||0)+1;e.damageFires??=[];
+      e.spotlightFlicker=COMMANDER.spotlightFlickerTime;e.damageSparkTimer=.4;
+      for(let i=0;i<3;i++){
+        const x=(e.damageStage===1?-42:14)+(i-1)*14+(Math.random()-.5)*6,y=(i%2?1:-1)*(19+Math.random()*5);
+        e.damageFires.push({x,y,strength:.55});
+        const sx=x*COMMANDER.scale,sy=y*COMMANDER.scale;
+        explosion(e.x+sx*Math.cos(e.angle)-sy*Math.sin(e.angle),e.y+sx*Math.sin(e.angle)+sy*Math.cos(e.angle),28+Math.random()*14,.6);
+      }
+    }
+  }
   if(e.health<=0){
     delete e.aaMuzzle;delete e.launchIgnition;delete e.weaponMuzzle;delete e.commanderMuzzle;
     g.kills++;g.combo=g.comboTimer>0?g.combo+1:1;g.comboTimer=4;
     const multiplier=Math.min(5,1+Math.floor(g.combo/3)),points=e.points*multiplier;g.score+=points;
     float(`+${points}${multiplier>1?' ×'+multiplier:''}`,e.x,e.y-35,'#e0efa6',multiplier>1);
     const stats=ENEMIES[e.type];
-    if(cannonWreck)runtime.destructionSound(e.x,e.y);
-    else explosion(e.x,e.y,stats.deathExplosion,e.type==='boss'?BOSS_EXPLOSION_LIFE:undefined);
-    if(e.type==='boss'&&!cannonWreck){
+    if(cannonWreck&&!e.specialBoss)runtime.destructionSound(e.x,e.y);
+    else explosion(e.x,e.y,stats.deathExplosion,e.specialBoss?BOSS_EXPLOSION_LIFE*2:e.type==='boss'?BOSS_EXPLOSION_LIFE:undefined);
+    if(e.specialBoss){
+      const largeBursts=new Set([2+Math.floor(Math.random()*3),7+Math.floor(Math.random()*3),12+Math.floor(Math.random()*3)]);
+      for(let i=0;i<15;i++){
+        const x=((i%5-2)*24+(Math.random()-.5)*8)*COMMANDER.scale,y=((Math.floor(i/5)-1)*24+(Math.random()-.5)*8)*COMMANDER.scale;
+        g.deathBursts.push({x:e.x+x*Math.cos(e.angle)-y*Math.sin(e.angle),y:e.y+x*Math.sin(e.angle)+y*Math.cos(e.angle),size:largeBursts.has(i)?72+Math.random()*28:24+Math.random()*18,life:1.3,delay:.16+i*.13});
+      }
+    }else if(e.type==='boss'&&!cannonWreck){
       for(let i=0;i<5;i++){
         const a=Math.random()*TAU,distance=10+Math.random()*38;
         g.deathBursts.push({x:e.x+Math.cos(a)*distance,y:e.y+Math.sin(a)*distance,size:58+Math.random()*28,life:BOSS_EXPLOSION_LIFE,delay:(.1+i*.12+Math.random()*.05)*2});
@@ -177,7 +196,7 @@ function groundMove(e,vx,vy,dt){
 function detonate(b){
   explosion(b.x,b.y,135);
   for(const prop of g.props)if(!prop.destroyed&&distance(prop,b)<135)damageProp(prop,4);
-  for(const e of g.enemies){const d=distance(e,b);if(d<135+e.radius)hitEnemy(e,b.damage*(1-clamp(d/230,0,.65)),'rocket');}
+  for(const e of g.enemies){const d=distance(e,b);if(d<135+e.radius)hitEnemy(e,b.damage*(1-clamp(d/230,0,.65)),'rocket',b);}
   g.bullets.forEach(other=>{if(!other.friendly&&distance(other,b)<135)other.life=0;});
 }
 function fireEnemy(e){
@@ -188,17 +207,18 @@ function fireEnemy(e){
     if(e.phase==='advance'){e.phase='shells';e.shotsFired=0;}
     if(e.phase==='reload'){e.phase='cannon';e.shotsFired=0;}
     const cannon=e.phase==='cannon',barrel=e.shotsFired%2;
-    const side=cannon?0:(barrel?9:-9)*COMMANDER.scale,forward=(cannon?39:64)*COMMANDER.scale;
-    const angle=a+(cannon?(Math.random()-.5)*WEAPONS.gun.spread:0);
-    const speed=cannon?WEAPONS.gun.speed:stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
-    const x=e.x+Math.cos(a)*forward-Math.sin(a)*side,y=e.y+Math.sin(a)*forward+Math.cos(a)*side;
-    g.bullets.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:cannon?WEAPONS.gun.life:stats.projectileLife,friendly:false,kind:cannon?'enemyGun':'shell',damage:cannon?WEAPONS.gun.damage:stats.projectileDamage});
+    const aim=cannon?(e.cannonAngle??a):a;
+    const side=(barrel?1:-1)*(cannon?COMMANDER.cannonOffset:9)*COMMANDER.scale,forward=(cannon?39:COMMANDER.shellBarrelTip)*COMMANDER.scale;
+    const angle=aim+(cannon?(Math.random()-.5)*WEAPONS.gun.spread:0);
+    const speed=cannon?WEAPONS.gun.speed:(stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap))*COMMANDER.shellSpeedMultiplier;
+    const x=e.x+Math.cos(aim)*forward-Math.sin(aim)*side,y=e.y+Math.sin(aim)*forward+Math.cos(aim)*side;
+    g.bullets.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:cannon?WEAPONS.gun.life:stats.projectileLife,friendly:false,kind:cannon?'enemyGun':'heavyShell',damage:cannon?WEAPONS.gun.damage:stats.projectileDamage*COMMANDER.shellDamageMultiplier});
     e.commanderMuzzle={barrel,cannon,life:WEAPON_MUZZLE_TIME};
     e.shotsFired++;
     if(e.shotsFired===(cannon?COMMANDER.cannonCount:COMMANDER.shellCount)){
       e.phase=cannon?'advance':'reload';e.cooldown=cannon?COMMANDER.advanceTime:COMMANDER.reloadTime;
     }else e.cooldown=cannon?WEAPONS.gun.cooldown:COMMANDER.shellInterval;
-    burst(x,y,'#f0c185',cannon?2:4,.3);
+    burst(x,y,'#ffd28b',cannon?6:14,cannon?.35:.65);
     const audio=positionalAudio(e);sound.play(cannon?'shot':'enemy',audio.pan,audio.gain);
     return;
   }
@@ -324,7 +344,8 @@ function update(dt){
     e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
     if(e.type==='drone'||e.type==='kamikaze')updateDroneVisual(e,dt,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
     const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
-    e.angle=turn(e.angle,heading,dt*stats.turnRate);
+    const turnMultiplier=e.specialBoss?COMMANDER.turnMultiplier:1;
+    e.angle=turn(e.angle,heading,dt*stats.turnRate*turnMultiplier);
     if(e.type!=='drone'&&e.type!=='kamikaze'){
       const forwardDistance=(vx*Math.cos(previousAngle)+vy*Math.sin(previousAngle))*dt;
       const turnDistance=Math.atan2(Math.sin(e.angle-previousAngle),Math.cos(e.angle-previousAngle))*(e.specialBoss?COMMANDER.trackOffset:e.type==='boss'?GOLIATH_TRACK_HALF_WIDTH:TANK_TRACK_HALF_WIDTH);
@@ -341,7 +362,9 @@ function update(dt){
         if(g.treadMarks.length>TREAD_MARK_LIMIT)g.treadMarks.shift();
       }
     }
-    e.turret=turn(e.turret,a,dt*stats.turretRate);e.cooldown-=dt;e.charge=clamp(1-e.cooldown/.7,0,1);
+    e.turret=turn(e.turret,a,dt*stats.turretRate);
+    if(e.specialBoss)e.cannonAngle=turn(e.cannonAngle??e.turret,a,dt*PLAYER_CANNON_TURN_RATE);
+    e.cooldown-=dt;e.charge=clamp(1-e.cooldown/.7,0,1);
     if(e.type!=='kamikaze'&&e.cooldown<=0&&e.x>0&&e.x<W&&e.y>60&&e.y<H)fireEnemy(e);
     if(distance(e,p)<e.radius+22){if(e.type==='kamikaze')hitEnemy(e,e.health);else damagePlayer(stats.contactDamage);}
     if(g.state!=='playing')return;
@@ -384,15 +407,17 @@ function update(dt){
       let target=null,nearest=Infinity;
       for(const e of g.enemies)if(e.health>0&&segmentHitsCircle(ox,oy,b.x,b.y,e.x,e.y,e.radius+(b.kind==='rocket'?8:2))){const d=Math.hypot(e.x-ox,e.y-oy);if(d<nearest){target=e;nearest=d;}}
       const prop=target?null:g.props.find(q=>!q.destroyed&&segmentHitsCircle(ox,oy,b.x,b.y,q.x,q.y,q.radius+2));
-      if(target){b.life=0;if(b.kind==='rocket')detonate(b);else hitEnemy(target,b.damage,b.kind==='gun'?'cannon':'other');}
+      if(target){b.life=0;if(b.kind==='rocket')detonate(b);else hitEnemy(target,b.damage,b.kind==='gun'?'cannon':'other',{x:target.x-b.vx,y:target.y-b.vy});}
       else if(prop){b.life=0;if(b.kind==='rocket')detonate(b);else damageProp(prop,1);}
       else if(b.kind==='rocket'&&b.life<=0)detonate(b);
     }else if(segmentHitsCircle(ox,oy,b.x,b.y,p.x,p.y,17)){
-      if(b.kind==='enemyRocket'){
+      if(b.kind==='enemyRocket'||b.kind==='heavyShell'){
         const dx=b.x-ox,dy=b.y-oy,fx=ox-p.x,fy=oy-p.y,a=dx*dx+dy*dy;
         const projection=fx*dx+fy*dy,discriminant=projection*projection-a*(fx*fx+fy*fy-17*17);
         const contact=a>0?clamp((-projection-Math.sqrt(Math.max(0,discriminant)))/a,0,1):0;
-        runtime.missileContact(ox+dx*contact,oy+dy*contact);
+        const x=ox+dx*contact,y=oy+dy*contact;
+        if(b.kind==='heavyShell')explosion(x,y,55,.45);
+        else runtime.missileContact(x,y);
       }
       b.life=0;damagePlayer(b.damage);if(g.state!=='playing')return;
     }
@@ -416,7 +441,7 @@ function update(dt){
       g.specialBossPending=false;g.bullets=g.bullets.filter(b=>b.friendly);
       runtime.spawnEnemy('commander');sound.play('alert');sound.setMusicScene('boss');
       runtime.announce(t('wave.bossTag'),t('wave.commanderTitle'),t('wave.commanderNote'),4);
-    }else if(g.waveWait<0){g.waveWait=1.4;g.bullets=g.bullets.filter(b=>b.friendly);g.score+=g.wave*100;float(t('wave.cleared',{score:g.wave*100}),p.x,p.y-65,'#e5f1ac',true);}
+    }else if(g.waveWait<0){g.waveWait=g.decals.some(d=>d.specialBoss)?Math.max(1.4,...g.deathBursts.map(b=>b.delay+b.life)):1.4;g.bullets=g.bullets.filter(b=>b.friendly);g.score+=g.wave*100;float(t('wave.cleared',{score:g.wave*100}),p.x,p.y-65,'#e5f1ac',true);}
     else{g.waveWait-=dt;if(g.waveWait<=0){runtime.showUpgrades();return;}}
   }
   g.comboTimer-=dt;if(g.comboTimer<=0)g.combo=0;
