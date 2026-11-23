@@ -4,6 +4,7 @@ import { WEAPON_DATA } from './weapon-data.js';
 export const ENEMIES = ENEMY_DATA;
 export const MAPS = LEVEL_DATA;
 export const WEAPONS = WEAPON_DATA;
+export const COMMANDER = {wave:15,healthMultiplier:5,speed:16,radius:112,scale:1.8,shellCount:6,shellInterval:.3,reloadTime:4,cannonCount:30,advanceTime:3,trackOffset:72,trackLength:96,trackWidth:24};
 export const ROCKET_IGNITION_DELAY = .3;
 export const TAU = Math.PI * 2;
 export const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -21,7 +22,8 @@ export function segmentHitsCircle(ax, ay, bx, by, cx, cy, radius) {
 export function wavePlan(wave, difficulty = 'normal') {
   const factor = { easy: 0.8, normal: 1, hard: 1.2 }[difficulty] || 1;
   const boss = wave % 5 === 0;
-  return { count: boss ? 5 + Math.floor(wave / 2) : Math.round((4 + wave * 2) * factor),
+  const specialBoss=wave===COMMANDER.wave;
+  return { count: boss&&!specialBoss ? 5 + Math.floor(wave / 2) : Math.round((4 + wave * 2) * factor),specialBoss,
     interval: Math.max(0.4, 1.6 - wave * 0.065), boss,
     health: 1 + Math.floor((wave - 1) / 5) * 0.18,
     damage: { easy: 0.7, normal: 1, hard: 1.3 }[difficulty] || 1 };

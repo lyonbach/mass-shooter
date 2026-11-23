@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Renderer, wreckFireState } from '../renderer.js';
-import { ENEMIES } from '../core.js';
+import { ENEMIES, COMMANDER } from '../core.js';
 import { DEFAULTS, makeScene } from '../visual-review.js';
 
 const linearGradient={addColorStop(){}};
@@ -19,6 +19,26 @@ function canvasDocument(){
   const created=[],stops=[];
   return {created,stops,createElement:()=>{const pc=context();pc.createRadialGradient=(...args)=>{pc.calls.push({name:'createRadialGradient',args});return{addColorStop:(...stop)=>stops.push(stop)};};const canvas={getContext:()=>pc,pc};created.push(canvas);return canvas;}};
 }
+
+test('commander has four separate tracks, independent twin-barrel flashes and a top cannon in live and wreck poses',()=>{
+  const document=canvasDocument(),renderer=new Renderer({getContext:()=>context(),ownerDocument:document},{effects:true});
+  const base={x:200,y:200,angle:.4,turret:1.2,type:'boss',specialBoss:true,health:100,maxHealth:100,leftTrackPhase:1,rightTrackPhase:3};
+  const idle=context();renderer.enemy(idle,base,0);
+  const tracks=idle.calls.filter(call=>call.name==='fillRect'&&call.fillStyle==='#27352a');
+  assert.equal(tracks.length,4);
+  assert.deepEqual(tracks.map(call=>call.args),[[-30,-47,57,14],[-30,33,57,14],[-30,-47,57,14],[-30,33,57,14]]);
+  const flashes=[];renderer.muzzleEffect=(c,life,tip,size)=>flashes.push({life,tip,size});
+  for(const [barrel,cannon] of [[0,false],[1,false],[0,true]]){
+    const e={...base,commanderMuzzle:{barrel,cannon,life:.1}},before=structuredClone(e),c=context();
+    renderer.enemy(c,e,0);assert.deepEqual(e,before);
+    assert.deepEqual(flashes.pop(),{life:.1,tip:cannon?39:64,size:cannon?7:17});
+    assert.equal(c.calls.filter(call=>call.name==='save').length,c.calls.filter(call=>call.name==='restore').length);
+    assert.deepEqual(c.calls.find(call=>call.name==='scale').args,[COMMANDER.scale,COMMANDER.scale]);
+    renderer.enemy(context(),{...e,wreck:true,health:0},0);assert.equal(flashes.length,0);
+  }
+  const moving=context();renderer.enemy(moving,{...base,leftTrackPhase:4,rightTrackPhase:0},0);
+  assert.notDeepEqual(moving.calls.filter(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582').map(call=>call.args),idle.calls.filter(call=>call.name==='fillRect'&&call.fillStyle==='#a1a582').map(call=>call.args));
+});
 
 test('ordinary bullets retain base stroke and tracers share its geometry with a bounded glow',()=>{
   const document=canvasDocument(),c=context(),renderer=new Renderer({getContext:()=>c,ownerDocument:document},{effects:true});

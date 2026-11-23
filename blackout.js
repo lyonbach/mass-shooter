@@ -441,6 +441,8 @@ const translations = {
     'flight.label':'FLIGHT','dash.ready':'READY','heat.cooling':'COOLING','hull.repairing':'CRITICAL HULL DAMAGE',
     'supply.collect':'COLLECT SUPPLIES','supply.note':'Green supply crates repair your hull.',
     'wave.bossTag':'COMMAND VEHICLE DETECTED','wave.enemyTag':'ENEMY FORCE ON THE MOVE','wave.bossTitle':'GOLIATH INBOUND',
+    'hud.commander':'GOLIATH COMMANDER / FOUR-HULL SIEGE TANK',
+    'wave.commanderTitle':'THE GOLIATH COMMANDER','wave.commanderNote':'Four Goliaths. One mad commander.',
     'wave.title':'WAVE {wave}','wave.bossNote':'Prepare your rockets.','wave.firstNote':'Keep moving. Maintain your distance.','wave.note':'New targets. Same mission.',
     'wave.cleared':'WAVE CLEARED +{score}','upgrade.note':'Wave {wave} cleared. Choose an upgrade to continue.',
     'record.new':'NEW RECORD. The skies will remember you.','record.again':'Every flight makes you stronger. Take off again.',
@@ -484,6 +486,8 @@ const translations = {
     'flight.label':'UÇUŞ','dash.ready':'HAZIR','heat.cooling':'SOĞUYOR','hull.repairing':'KRİTİK GÖVDE HASARI',
     'supply.collect':'İKMAL TOPLA','supply.note':'Yeşil ikmal paketleri gövdeyi onarır.',
     'wave.bossTag':'KOMUTA ARACI TESPİT EDİLDİ','wave.enemyTag':'DÜŞMAN HATTI HAREKETLENDİ','wave.bossTitle':'GOLIATH YAKLAŞIYOR',
+    'hud.commander':'GOLIATH KOMUTANI / DÖRT GÖVDELİ KUŞATMA TANKI',
+    'wave.commanderTitle':'GOLIATH KOMUTANI','wave.commanderNote':'Dört Goliath. Bir çılgın komutan.',
     'wave.title':'DALGA {wave}','wave.bossNote':'Roketlerini hazırla.','wave.firstNote':'Hareket et. Mesafeni koru.','wave.note':'Yeni hedefler. Aynı görev.',
     'wave.cleared':'DALGA TAMAMLANDI +{score}','upgrade.note':'Dalga {wave} tamamlandı. Bir geliştirme seç, uçuşa devam et.',
     'record.new':'YENİ REKOR. Bu gökyüzü seni hatırlayacak.','record.again':'Her uçuş bir tecrübe. Tekrar havalan.',
@@ -527,6 +531,8 @@ const translations = {
     'flight.label':'FLUG','dash.ready':'BEREIT','heat.cooling':'KÜHLT AB','hull.repairing':'KRITISCHER RUMPF-SCHADEN',
     'supply.collect':'NACHSCHUB SAMMELN','supply.note':'Grüne Versorgungskisten reparieren den Rumpf.',
     'wave.bossTag':'KOMMANDOFAHRZEUG ENTDECKT','wave.enemyTag':'FEINDKRÄFTE IN BEWEGUNG','wave.bossTitle':'GOLIATH IM ANFLUG',
+    'hud.commander':'GOLIATH-KOMMANDANT / VIER-RUMPF-BELAGERUNGSPANZER',
+    'wave.commanderTitle':'DER GOLIATH-KOMMANDANT','wave.commanderNote':'Vier Goliaths. Ein wahnsinniger Kommandant.',
     'wave.title':'WELLE {wave}','wave.bossNote':'Bereite deine Raketen vor.','wave.firstNote':'Bleib in Bewegung und auf Abstand.','wave.note':'Neue Ziele. Derselbe Auftrag.',
     'wave.cleared':'WELLE GESCHAFFT +{score}','upgrade.note':'Welle {wave} geschafft. Wähle eine Verbesserung.',
     'record.new':'NEUER REKORD. Der Himmel wird sich an dich erinnern.','record.again':'Jeder Flug macht dich stärker. Heb wieder ab.',
@@ -570,6 +576,8 @@ const translations = {
     'flight.label':'VUELO','dash.ready':'LISTO','heat.cooling':'ENFRIANDO','hull.repairing':'DAÑO CRÍTICO EN EL CASCO',
     'supply.collect':'RECOGE SUMINISTROS','supply.note':'Las cajas verdes reparan el casco.',
     'wave.bossTag':'VEHÍCULO DE MANDO DETECTADO','wave.enemyTag':'FUERZAS ENEMIGAS EN MOVIMIENTO','wave.bossTitle':'GOLIATH EN CAMINO',
+    'hud.commander':'COMANDANTE GOLIATH / TANQUE DE ASEDIO DE CUATRO CASCOS',
+    'wave.commanderTitle':'EL COMANDANTE GOLIATH','wave.commanderNote':'Cuatro Goliaths. Un comandante demente.',
     'wave.title':'OLEADA {wave}','wave.bossNote':'Prepara tus cohetes.','wave.firstNote':'No dejes de moverte. Mantén la distancia.','wave.note':'Nuevos objetivos. La misma misión.',
     'wave.cleared':'OLEADA COMPLETADA +{score}','upgrade.note':'Oleada {wave} completada. Elige una mejora.',
     'record.new':'NUEVO RÉCORD. El cielo te recordará.','record.again':'Cada vuelo te hace más fuerte. Vuelve a despegar.',
@@ -613,6 +621,8 @@ const translations = {
     'flight.label':'VOL','dash.ready':'PRÊT','heat.cooling':'REFROIDISSEMENT','hull.repairing':'DÉGÂTS CRITIQUES À LA CARLINGUE',
     'supply.collect':'RÉCUPÉREZ LE RAVITAILLEMENT','supply.note':'Les caisses vertes réparent la carlingue.',
     'wave.bossTag':'VÉHICULE DE COMMANDEMENT REPÉRÉ','wave.enemyTag':'FORCES ENNEMIES EN MOUVEMENT','wave.bossTitle':'GOLIATH EN APPROCHE',
+    'hud.commander':'COMMANDANT GOLIATH / CHAR DE SIÈGE À QUATRE COQUES',
+    'wave.commanderTitle':'LE COMMANDANT GOLIATH','wave.commanderNote':'Quatre Goliaths. Un commandant fou.',
     'wave.title':'VAGUE {wave}','wave.bossNote':'Préparez vos roquettes.','wave.firstNote':'Restez en mouvement et gardez vos distances.','wave.note':'De nouvelles cibles. La même mission.',
     'wave.cleared':'VAGUE TERMINÉE +{score}','upgrade.note':'Vague {wave} terminée. Choisissez une amélioration.',
     'record.new':'NOUVEAU RECORD. Le ciel se souviendra de vous.','record.again':'Chaque vol vous rend plus fort. Redécollez.',
@@ -638,6 +648,7 @@ function t(key,values={}){
 const ENEMIES = ENEMY_DATA;
 const MAPS = LEVEL_DATA;
 const WEAPONS = WEAPON_DATA;
+const COMMANDER = {wave:15,healthMultiplier:5,speed:16,radius:112,scale:1.8,shellCount:6,shellInterval:.3,reloadTime:4,cannonCount:30,advanceTime:3,trackOffset:72,trackLength:96,trackWidth:24};
 const ROCKET_IGNITION_DELAY = .3;
 const TAU = Math.PI * 2;
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -655,7 +666,8 @@ function segmentHitsCircle(ax, ay, bx, by, cx, cy, radius) {
 function wavePlan(wave, difficulty = 'normal') {
   const factor = { easy: 0.8, normal: 1, hard: 1.2 }[difficulty] || 1;
   const boss = wave % 5 === 0;
-  return { count: boss ? 5 + Math.floor(wave / 2) : Math.round((4 + wave * 2) * factor),
+  const specialBoss=wave===COMMANDER.wave;
+  return { count: boss&&!specialBoss ? 5 + Math.floor(wave / 2) : Math.round((4 + wave * 2) * factor),specialBoss,
     interval: Math.max(0.4, 1.6 - wave * 0.065), boss,
     health: 1 + Math.floor((wave - 1) / 5) * 0.18,
     damage: { easy: 0.7, normal: 1, hard: 1.3 }[difficulty] || 1 };
@@ -2844,6 +2856,7 @@ class Renderer {
     c.restore();
   }
   tank(c,e,boss,char) {
+    if(e.specialBoss){this.commanderTank(c,e,char);return;}
     c.fillStyle='#14231655';c.fillRect(-22+6,-21+7,47,46);
     this.tankTracks(c,e,boss,char);
     if(boss)this.goliathHull(c,char);
@@ -2851,8 +2864,52 @@ class Renderer {
     this.tankTurret(c,e,char);
     if(!boss){c.strokeStyle='#c5b78866';c.lineWidth=1;c.beginPath();c.moveTo(-14,-12);c.lineTo(-18,-32);c.stroke();}
   }
-  tankTracks(c,e,boss,char) {
-    const trackLeft=boss?-30:-23,trackRight=boss?27:20,trackOuter=boss?27:22,trackInner=boss?13:11,trackHeight=trackOuter-trackInner;
+  commanderTank(c,e,char){
+    c.fillStyle='#14231655';c.fillRect(-57,-43,124,96);
+    for(const x of [-30,30]){
+      c.save();c.translate(x,0);this.tankTracks(c,e,true,char,{left:-30,right:27,outer:47,inner:33});c.restore();
+    }
+    path(c,[[-61,-28],[-53,-34],[49,-34],[59,-25],[61,25],[49,34],[-53,34],[-61,28]],char?'#30392f':'#59664c','#19261d');
+    for(const x of [-30,30])for(const y of [-17,17]){
+      c.save();c.translate(x,y);this.goliathHull(c,char);c.restore();
+    }
+    c.fillStyle=char?'#262e26':'#414e3a';c.fillRect(-5,-33,10,66);c.fillRect(-55,-3,108,6);
+    c.fillStyle=char?'#565b4a':'#aaa078';
+    for(const x of [-48,-12,12,48])for(const y of [-29,29])c.fillRect(x,y,3,2);
+    c.strokeStyle=char?'#626451':'#c5b78899';c.lineWidth=1;
+    for(const side of [-1,1]){
+      c.beginPath();c.moveTo(-48,side*25);c.lineTo(-61,side*52);c.stroke();
+      ellipse(c,-61,side*52,1.5,1.5,char?'#565b4a':'#e2c482');
+    }
+    c.save();c.rotate((e.turret??e.angle)-e.angle);
+    path(c,[[-23,-17],[-12,-23],[19,-21],[29,-12],[29,12],[19,21],[-12,23],[-23,17]],char?'#4b503d':'#a49f75','#202b20');
+    path(c,[[-23,-17],[-12,-23],[19,-21],[29,-12],[29,12],[19,21],[-12,23],[-23,17]],this.tankShade(c));
+    const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const muzzle=!e.wreck&&!char&&e.health>0?e.commanderMuzzle:null;
+    for(let barrel=0;barrel<2;barrel++){
+      const life=muzzle&&!muzzle.cannon&&muzzle.barrel===barrel?muzzle.life:0;
+      c.save();c.translate(reduced?0:-5*clamp(life/WEAPON_MUZZLE_TIME,0,1),barrel?9:-9);
+      c.fillStyle=char?'#363d30':'#b5ac7b';c.fillRect(15,-4,49,8);
+      c.fillStyle=char?'#666959':'#d0c799';c.fillRect(19,-4,37,2);
+      c.fillStyle='#4c5940';c.fillRect(58,-5,6,10);
+      if(life&&!reduced)this.muzzleEffect(c,life,64,17,.075);
+      c.restore();
+    }
+    ellipse(c,-5,0,10,10,char?'#30392f':'#5e6a4e');
+    ellipse(c,-5,0,7,7,char?'#565b4a':'#b2a57d');
+    c.fillStyle=char?'#252d25':'#8e4738';c.fillRect(-18,-10,6,20);
+    c.fillStyle=char?'#626451':'#d6c48e';c.fillRect(-17,-8,2,16);
+    const cannonLife=muzzle?.cannon?muzzle.life:0;
+    c.save();c.translate(reduced?0:-2*clamp(cannonLife/WEAPON_MUZZLE_TIME,0,1),0);
+    c.fillStyle=char?'#363d30':'#69775b';c.fillRect(-1,-3,40,6);
+    c.fillStyle=char?'#666959':'#d0c799';c.fillRect(3,-3,30,1);
+    c.fillStyle='#28362a';c.fillRect(34,-4,5,8);
+    if(cannonLife&&!reduced)this.muzzleEffect(c,cannonLife,39,7,.075);
+    c.restore();c.restore();
+  }
+  tankTracks(c,e,boss,char,dimensions) {
+    const {left:trackLeft,right:trackRight,outer:trackOuter,inner:trackInner}=dimensions||{left:boss?-30:-23,right:boss?27:20,outer:boss?27:22,inner:boss?13:11};
+    const trackHeight=trackOuter-trackInner;
     c.fillStyle='#27352a';c.fillRect(trackLeft,-trackOuter,trackRight-trackLeft,trackHeight);c.fillRect(trackLeft,trackInner,trackRight-trackLeft,trackHeight);
     c.fillStyle=char?'#4b5041':'#a1a582';
     const drawTrack=(phase,y)=>{
@@ -2959,7 +3016,7 @@ class Renderer {
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
     if(drone){c.save();c.translate(e.x+5,e.y+8);c.rotate(e.visualHeading??e.angle);c.scale(ENEMIES[e.type].scale,ENEMIES[e.type].scale);ellipse(c,0,0,23,14,'#10231638');ellipse(c,0,0,16,9,'#10231620');c.restore();}
     c.save();c.translate(e.x,e.y);c.rotate(drone?(e.visualHeading??e.angle):e.angle);
-    const boss=e.type==='boss',char=e.charred;c.scale(ENEMIES[e.type].scale,ENEMIES[e.type].scale);
+    const boss=e.type==='boss',char=e.charred,scale=e.specialBoss?COMMANDER.scale:ENEMIES[e.type].scale;c.scale(scale,scale);
     if(drone){
       const bank=reduced?0:(e.visualBank||0),pitch=reduced?0:(e.visualPitch||0);
       c.translate(pitch*4,bank*4+(reduced?0:Math.sin(t*2+(e.seed||0))*1.2));c.rotate(bank*.4);c.scale(1-Math.abs(pitch)*.2,1-Math.abs(bank)*.3);
@@ -3013,7 +3070,7 @@ class Renderer {
     const fire=wreckFireState(d);
     if(!fire.level)return;
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const age=d.age||0,seed=d.seed||0,scale=ENEMIES[d.type].scale,texture=this.wreckFlameTexture();
+    const age=d.age||0,seed=d.seed||0,scale=d.specialBoss?COMMANDER.scale:ENEMIES[d.type].scale,texture=this.wreckFlameTexture();
     c.save();c.translate(d.x,d.y);c.scale(scale,scale);
     for(let i=0;i<(this.settings.effects?fire.points.length:2);i++){
       const {x,y,strength}=fire.points[i];if(strength<=0)continue;
@@ -3125,7 +3182,7 @@ function createState(){
   const g={world:{width:1600,height:900},state:'ready',pointer,touch:matchMedia('(pointer:coarse)').matches,enemies:[],bullets:[],particles:[],pickups:[],explosions:[],deathBursts:[],warnings:[],floaters:[],decals:[],props:[],treadMarks:[],wreckSmoke:[],cannonTracersEnabled:true,time:0,visualTime:0,shake:0,wave:1,score:0,kills:0,best:typeof bestValue==='number'&&Number.isFinite(bestValue)?Math.max(0,bestValue):0,combo:0,comboTimer:0,spawnRemaining:0,spawnTimer:0,waveWait:-1,bannerTime:0,hudTimer:0,testRange:null,camera:{x:0,y:0,zoom:1},map:mapForWave(1)};
   const runtime={$,canvas,arena,overlay,dialog,panels,settings,read,write,saveSettings:()=>write('blackout.settings',settings),sound,renderer,keys,pointer,g,pad:(n,length=6)=>String(Math.floor(n)).padStart(length,'0'),clock:value=>`${String(Math.floor(value/60)).padStart(2,'0')}:${String(Math.floor(value%60)).padStart(2,'0')}`,t,upgrades:{},choices:[],joystick:{x:0,y:0,id:null},firePointer:null,gamePointer:null,lastTime:0,settingsPaused:false,starting:false};
   function newPlayer(){return{x:g.world.width*.43,y:g.world.height*.52,vx:0,vy:0,angle:-Math.PI/2,cannonAngle:-Math.PI/2,bank:0,pitch:0,health:100,maxHealth:100,cooldown:0,heat:0,overheated:false,invulnerable:0,dashTime:0,dashCooldown:0,flareCooldown:0,lowHealthAlarm:false,missileAlarm:0,rockets:3,maxRockets:3,rocketTimer:0,rocketCooldown:0,rocketSide:-1,muzzle:0,cannonShotIndex:0};}
-  function readTestRange(){const enemy=$('test-enemy').value,validEnemy=Object.hasOwn(ENEMIES,enemy)?enemy:'tank';const number=(id,fallback,min,max)=>clamp(Number($(`test-${id}`).value)||fallback,min,max);return {enemy:validEnemy,interval:number('interval',1,.2,5),maxActive:number('max-active',3,1,20),health:number('health',1,.25,5),distance:number('distance',350,120,700),upgrades:{damage:number('damage',0,0,4),fireRate:number('fire-rate',0,0,4),armor:number('armor',0,0,4),engine:number('engine',0,0,3),rockets:number('rockets',0,0,3)}};}
+  function readTestRange(){const enemy=$('test-enemy').value,validEnemy=Object.hasOwn(ENEMIES,enemy)||enemy==='commander'?enemy:'tank';const number=(id,fallback,min,max)=>clamp(Number($(`test-${id}`).value)||fallback,min,max);return {enemy:validEnemy,interval:number('interval',1,.2,5),maxActive:number('max-active',3,1,20),health:number('health',1,.25,5),distance:number('distance',350,120,700),upgrades:{damage:number('damage',0,0,4),fireRate:number('fire-rate',0,0,4),armor:number('armor',0,0,4),engine:number('engine',0,0,3),rockets:number('rockets',0,0,3)}};}
   function applyStartingUpgrades(){const p=g.player;p.maxHealth+=25*(runtime.upgrades.armor||0);p.health=p.maxHealth;p.maxRockets+=runtime.upgrades.rockets||0;p.rockets=p.maxRockets;}
   g.player=newPlayer();
   function resize(){const rect=arena.getBoundingClientRect(),old={...g.world};g.touch=matchMedia('(pointer:coarse), (max-width:600px)').matches;g.world.width=clamp(rect.width*1.3,680,1700);g.world.height=g.world.width*rect.height/rect.width;if(old.width&&old.height){for(const obj of [g.player,...g.enemies,...g.pickups,...g.decals,...g.props,...g.treadMarks,...g.bullets,...g.particles,...g.floaters,...g.explosions,...g.deathBursts,...g.warnings,...g.wreckSmoke]){obj.x=obj.x/old.width*g.world.width;obj.y=obj.y/old.height*g.world.height;}pointer.x=pointer.x/old.width*g.world.width;pointer.y=pointer.y/old.height*g.world.height;if(pointer.screenX!==null){pointer.screenX=pointer.screenX/old.width*g.world.width;pointer.screenY=pointer.screenY/old.height*g.world.height;}}renderer.resize(g.world,rect,g.map);runtime.refreshGeometry?.();runtime.updateCamera(0,true);}
@@ -3135,7 +3192,7 @@ function createState(){
   function focusPanel(id){requestAnimationFrame(()=>$(id).focus({preventScroll:true}));}
   function announce(tag,title,note='',duration=2.5){$('announcement-tag').textContent=tag;$('announcement-title').textContent=title;$('announcement-note').textContent=note;g.bannerTime=duration;$('announcement').classList.add('visible');}
   function activateMenuMusic(){if(g.state==='ready'||g.state==='over')void sound.init();}
-  async function start(mode='operation'){if(dialog.open||runtime.starting)return;runtime.starting=true;await sound.init();g.testRange=mode==='test'?readTestRange():null;g.player=newPlayer();runtime.upgrades=g.testRange?{...g.testRange.upgrades}:{};applyStartingUpgrades();for(const key of ['enemies','bullets','particles','pickups','explosions','deathBursts','warnings','floaters','decals','props','treadMarks','wreckSmoke'])g[key]=[];g.time=0;g.wave=0;g.score=0;g.kills=0;g.combo=0;g.comboTimer=0;g.shake=0;g.waveWait=-1;pointer.x=g.player.x;pointer.y=g.player.y-150;pointer.screenX=null;pointer.screenY=null;runtime.updateCamera(0,true);setState('playing');if(g.testRange){g.wave=1;g.plan=wavePlan(1,settings.difficulty);g.spawnRemaining=0;g.spawnTimer=0;g.map=mapForWave(1);renderer.setMap(g.map);runtime.buildProps();renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;$('wave').innerHTML='TEST RANGE';sound.setMusicScene('waves');}else runtime.nextWave();runtime.updateHud();canvas.focus({preventScroll:true});runtime.starting=false;}
+  async function start(mode='operation'){if(dialog.open||runtime.starting)return;runtime.starting=true;await sound.init();g.testRange=mode==='test'?readTestRange():null;g.player=newPlayer();runtime.upgrades=g.testRange?{...g.testRange.upgrades}:{};applyStartingUpgrades();for(const key of ['enemies','bullets','particles','pickups','explosions','deathBursts','warnings','floaters','decals','props','treadMarks','wreckSmoke'])g[key]=[];g.time=0;g.wave=0;g.score=0;g.kills=0;g.combo=0;g.comboTimer=0;g.shake=0;g.waveWait=-1;g.specialBossPending=false;pointer.x=g.player.x;pointer.y=g.player.y-150;pointer.screenX=null;pointer.screenY=null;runtime.updateCamera(0,true);setState('playing');if(g.testRange){g.wave=1;g.plan=wavePlan(1,settings.difficulty);g.spawnRemaining=0;g.spawnTimer=0;g.map=mapForWave(1);renderer.setMap(g.map);runtime.buildProps();renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;$('wave').innerHTML='TEST RANGE';sound.setMusicScene('waves');}else runtime.nextWave();runtime.updateHud();canvas.focus({preventScroll:true});runtime.starting=false;}
   function applyLanguage(){setLocale(settings.language);document.documentElement.lang=settings.language;document.querySelectorAll('[data-i18n]').forEach(element=>{element.innerHTML=t(element.dataset.i18n);});document.querySelectorAll('[data-i18n-aria]').forEach(element=>element.setAttribute('aria-label',t(element.dataset.i18nAria)));document.querySelectorAll('[data-difficulty]').forEach(button=>{button.textContent=t(`difficulty.${button.dataset.difficulty}`);});$('language').value=settings.language;$('language').setAttribute('aria-label',t('nav.language'));$('settings-open').setAttribute('aria-label',t('settings.label'));$('settings-open').title=t('settings.label');$('fullscreen').setAttribute('aria-label',t('settings.fullscreen'));$('fullscreen').title=t('settings.fullscreen');$('fullscreen-exit').textContent=t('frame.exit');$('sound-toggle').title=`${t(settings.muted?'nav.soundOn':'nav.soundOff')} (M)`;renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;updateStateText();runtime.updateSettingsUI();runtime.updateHud();}
   function initialize(){new ResizeObserver(resize).observe(arena);resize();applyLanguage();requestAnimationFrame(runtime.frame);}
   return Object.assign(runtime,{newPlayer,readTestRange,applyStartingUpgrades,resize,clearInput,updateStateText,setState,focusPanel,announce,activateMenuMusic,start,applyLanguage,initialize});
@@ -3232,14 +3289,14 @@ function updateEffects(dt){
       const travel=(end-start)-(end*end-start*start)/(2*WRECK_COAST_TIME);
       const dx=decal.initialVx*travel,dy=decal.initialVy*travel,x=decal.x,y=decal.y;
       decal.x+=dx;decal.y+=dy;
-      const forward=dx*Math.cos(decal.angle)+dy*Math.sin(decal.angle),scale=decal.type==='boss'?1.8:1;
+      const forward=dx*Math.cos(decal.angle)+dy*Math.sin(decal.angle),scale=decal.specialBoss?COMMANDER.scale:decal.type==='boss'?1.8:1;
       decal.leftTrackPhase=((decal.leftTrackPhase??decal.trackPhase??0)+forward/scale)%6;
       decal.rightTrackPhase=((decal.rightTrackPhase??decal.trackPhase??0)+forward/scale)%6;
       decal.trackPhase=((decal.trackPhase||0)+forward/scale)%6;
       const distance=Math.abs(forward),previous=decal.treadDistance||0;
       for(let at=TREAD_MARK_SPACING-previous;at<=distance;at+=TREAD_MARK_SPACING){
         const boss=decal.type==='boss',fraction=at/distance;
-        g.treadMarks.push({x:x+dx*fraction,y:y+dy*fraction,angle:decal.angle,life:TREAD_MARK_LIFETIME,maxLife:TREAD_MARK_LIFETIME,trackOffset:boss?36:18,trackLength:boss?30:16,trackWidth:boss?24:6});
+        g.treadMarks.push({x:x+dx*fraction,y:y+dy*fraction,angle:decal.angle,life:TREAD_MARK_LIFETIME,maxLife:TREAD_MARK_LIFETIME,trackOffset:decal.specialBoss?COMMANDER.trackOffset:boss?36:18,trackLength:decal.specialBoss?COMMANDER.trackLength:boss?30:16,trackWidth:boss?24:6});
         if(g.treadMarks.length>TREAD_MARK_LIMIT)g.treadMarks.shift();
       }
       decal.treadDistance=(previous+distance)%TREAD_MARK_SPACING;
@@ -3285,23 +3342,31 @@ function createWaves(runtime){
   const announce=(...args)=>runtime.announce(...args);
 function nextWave(){
   g.wave++;g.plan=wavePlan(g.wave,settings.difficulty);g.spawnRemaining=g.plan.count;g.spawnIndex=0;g.spawnTimer=2.4;g.waveWait=-1;
+  g.specialBossPending=g.plan.specialBoss;
   g.map=mapForWave(g.wave);g.decals=[];g.treadMarks=[];g.wreckSmoke=[];g.particles=g.particles.filter(particle=>!particle.smoke);renderer.setMap(g.map);runtime.buildProps();
   renderer.mapLabel=t(`map.${g.map.layout}`);$('sector-name').textContent=renderer.mapLabel;
   $('wave').innerHTML=`${t('hud.wave')} <b>${pad(g.wave,2)}</b>`;
-  announce(t(g.plan.boss?'wave.bossTag':'wave.enemyTag'),t(g.plan.boss?'wave.bossTitle':'wave.title',{wave:pad(g.wave,2)}),`${renderer.mapLabel} · ${t(g.plan.boss?'wave.bossNote':g.wave===1?'wave.firstNote':'wave.note')}`,3.2);
-  sound.play(g.plan.boss?'alert':'wave');
-  if(g.plan.boss)runtime.spawnEnemy('boss');
-  sound.setMusicScene(g.plan.boss?'boss':'waves');
+  const boss=g.plan.boss&&!g.plan.specialBoss;
+  announce(t(boss?'wave.bossTag':'wave.enemyTag'),t(boss?'wave.bossTitle':'wave.title',{wave:pad(g.wave,2)}),`${renderer.mapLabel} · ${t(boss?'wave.bossNote':g.wave===1?'wave.firstNote':'wave.note')}`,3.2);
+  sound.play(boss?'alert':'wave');
+  if(boss)runtime.spawnEnemy('boss');
+  sound.setMusicScene(boss?'boss':'waves');
 }
 function spawnEnemy(forced){
+  const specialBoss=forced==='commander';
   const {width:W,height:H}=g.world,p=g.player;let x,y;
   for(let attempt=0;attempt<8;attempt++){
     const side=Math.floor(Math.random()*4);x=side===0?-45:side===1?W+45:60+Math.random()*(W-120);y=side===2?-45:side===3?H+45:110+Math.random()*(H-170);
     if(Math.hypot(x-p.x,y-p.y)>(g.testRange?.distance??300)&&!g.geometry?.inWater(x,y,30))break;
   }
-  const type=forced||enemyType(g.wave,g.spawnIndex++);
+  const type=specialBoss?'boss':forced||enemyType(g.wave,g.spawnIndex++);
   const stats=ENEMIES[type],health=(stats.health+stats.healthPerWave*g.wave)*g.plan.health;
   const enemy={x,y,type,health,maxHealth:health,speed:(stats.speed+Math.min(g.wave*stats.speedPerWave,stats.speedWaveCap))*stats.speedMultiplier,points:stats.points,radius:stats.radius,angle:Math.atan2(p.y-y,p.x-x),turret:0,cooldown:stats.initialCooldown+Math.random()*stats.initialRandom,charge:0,hit:0,seed:Math.random()*TAU};
+  if(specialBoss){
+    enemy.specialBoss=true;enemy.health*=COMMANDER.healthMultiplier;enemy.maxHealth=enemy.health;
+    enemy.speed=COMMANDER.speed;enemy.radius=COMMANDER.radius;enemy.points*=COMMANDER.healthMultiplier;
+    enemy.turret=enemy.angle;enemy.phase='entry';enemy.shotsFired=0;
+  }
   if(type==='tank'){
     enemy.smokeScreen=Math.random()<SCREEN_SMOKE_CHANCE;
     if(enemy.smokeScreen){enemy.screenSmokeTimer=0;runtime.emitScreenSmoke(enemy);}
@@ -3403,7 +3468,7 @@ function hitEnemy(e,damage,source='other'){
   const ground=e.type!=='drone'&&e.type!=='kamikaze',cannonWreck=ground&&source==='cannon'&&e.health<=0;
   if(!cannonWreck)burst(e.x,e.y,'#ebd99c',4,.5);
   if(e.health<=0){
-    delete e.aaMuzzle;delete e.launchIgnition;delete e.weaponMuzzle;
+    delete e.aaMuzzle;delete e.launchIgnition;delete e.weaponMuzzle;delete e.commanderMuzzle;
     g.kills++;g.combo=g.comboTimer>0?g.combo+1:1;g.comboTimer=4;
     const multiplier=Math.min(5,1+Math.floor(g.combo/3)),points=e.points*multiplier;g.score+=points;
     float(`+${points}${multiplier>1?' ×'+multiplier:''}`,e.x,e.y-35,'#e0efa6',multiplier>1);
@@ -3511,6 +3576,25 @@ function detonate(b){
 function fireEnemy(e){
   if(e.health<=0)return;
   const a=e.turret,p=g.player,kind=e.type,stats=ENEMIES[kind];
+  if(e.specialBoss){
+    if(e.phase==='entry')return;
+    if(e.phase==='advance'){e.phase='shells';e.shotsFired=0;}
+    if(e.phase==='reload'){e.phase='cannon';e.shotsFired=0;}
+    const cannon=e.phase==='cannon',barrel=e.shotsFired%2;
+    const side=cannon?0:(barrel?9:-9)*COMMANDER.scale,forward=(cannon?39:64)*COMMANDER.scale;
+    const angle=a+(cannon?(Math.random()-.5)*WEAPONS.gun.spread:0);
+    const speed=cannon?WEAPONS.gun.speed:stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
+    const x=e.x+Math.cos(a)*forward-Math.sin(a)*side,y=e.y+Math.sin(a)*forward+Math.cos(a)*side;
+    g.bullets.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:cannon?WEAPONS.gun.life:stats.projectileLife,friendly:false,kind:cannon?'enemyGun':'shell',damage:cannon?WEAPONS.gun.damage:stats.projectileDamage});
+    e.commanderMuzzle={barrel,cannon,life:WEAPON_MUZZLE_TIME};
+    e.shotsFired++;
+    if(e.shotsFired===(cannon?COMMANDER.cannonCount:COMMANDER.shellCount)){
+      e.phase=cannon?'advance':'reload';e.cooldown=cannon?COMMANDER.advanceTime:COMMANDER.reloadTime;
+    }else e.cooldown=cannon?WEAPONS.gun.cooldown:COMMANDER.shellInterval;
+    burst(x,y,'#f0c185',cannon?2:4,.3);
+    const audio=positionalAudio(e);sound.play(cannon?'shot':'enemy',audio.pan,audio.gain);
+    return;
+  }
   if(kind==='aa'){
     if(!e.burstRemaining)e.burstRemaining=stats.shotCount;
     e.aaMuzzle={barrel:(stats.shotCount-e.burstRemaining)%2,life:AA_MUZZLE_TIME};
@@ -3619,10 +3703,13 @@ function update(dt){
     if(e.aaMuzzle){e.aaMuzzle.life-=dt;if(e.aaMuzzle.life<=0)delete e.aaMuzzle;}
     if(e.launchIgnition>0){e.launchIgnition-=dt;if(e.launchIgnition<=0)delete e.launchIgnition;}
     if(e.weaponMuzzle>0){e.weaponMuzzle-=dt;if(e.weaponMuzzle<=0)delete e.weaponMuzzle;}
+    if(e.commanderMuzzle){e.commanderMuzzle.life-=dt;if(e.commanderMuzzle.life<=0)delete e.commanderMuzzle;}
     const stats=ENEMIES[e.type],a=Math.atan2(p.y-e.y,p.x-e.x),d=distance(e,p),stop=stats.stopDistance;
     let vx=0,vy=0;
     const goal=groundGoal(e,p),ga=goal===p?a:Math.atan2(goal.y-e.y,goal.x-e.x);
-    if(d>stop||goal!==p){vx=Math.cos(ga)*e.speed;vy=Math.sin(ga)*e.speed;}
+    if(e.specialBoss&&e.phase==='entry'&&e.x>0&&e.x<W&&e.y>60&&e.y<H){e.phase='shells';e.cooldown=2;}
+    const moving=e.specialBoss?e.phase==='entry'||e.phase==='advance':d>stop||goal!==p;
+    if(moving){vx=Math.cos(ga)*e.speed;vy=Math.sin(ga)*e.speed;}
     if(stats.strafeSpeed){vx+=Math.cos(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;vy+=Math.sin(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;}
     // Gentle separation keeps armor from stacking into one unreadable target.
     for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
@@ -3633,8 +3720,8 @@ function update(dt){
     e.angle=turn(e.angle,heading,dt*stats.turnRate);
     if(e.type!=='drone'&&e.type!=='kamikaze'){
       const forwardDistance=(vx*Math.cos(previousAngle)+vy*Math.sin(previousAngle))*dt;
-      const turnDistance=Math.atan2(Math.sin(e.angle-previousAngle),Math.cos(e.angle-previousAngle))*(e.type==='boss'?GOLIATH_TRACK_HALF_WIDTH:TANK_TRACK_HALF_WIDTH);
-      const trackScale=e.type==='boss'?1.8:1;
+      const turnDistance=Math.atan2(Math.sin(e.angle-previousAngle),Math.cos(e.angle-previousAngle))*(e.specialBoss?COMMANDER.trackOffset:e.type==='boss'?GOLIATH_TRACK_HALF_WIDTH:TANK_TRACK_HALF_WIDTH);
+      const trackScale=e.specialBoss?COMMANDER.scale:e.type==='boss'?1.8:1;
       const leftTrackDistance=forwardDistance+turnDistance,rightTrackDistance=forwardDistance-turnDistance;
       e.leftTrackPhase=((e.leftTrackPhase||0)+leftTrackDistance/trackScale)%6;
       e.rightTrackPhase=((e.rightTrackPhase||0)+rightTrackDistance/trackScale)%6;
@@ -3643,7 +3730,7 @@ function update(dt){
       if(e.treadDistance>=TREAD_MARK_SPACING){
         e.treadDistance%=TREAD_MARK_SPACING;
         const boss=e.type==='boss';
-        g.treadMarks.push({x:e.x,y:e.y,angle:e.angle,life:TREAD_MARK_LIFETIME,maxLife:TREAD_MARK_LIFETIME,trackOffset:boss?36:18,trackLength:boss?30:16,trackWidth:boss?24:6});
+        g.treadMarks.push({x:e.x,y:e.y,angle:e.angle,life:TREAD_MARK_LIFETIME,maxLife:TREAD_MARK_LIFETIME,trackOffset:e.specialBoss?COMMANDER.trackOffset:boss?36:18,trackLength:e.specialBoss?COMMANDER.trackLength:boss?30:16,trackWidth:boss?24:6});
         if(g.treadMarks.length>TREAD_MARK_LIMIT)g.treadMarks.shift();
       }
     }
@@ -3718,7 +3805,11 @@ function update(dt){
     return item.life>0;
   });
   if(!g.testRange&&!g.spawnRemaining&&!g.enemies.length&&!g.warnings.length){
-    if(g.waveWait<0){g.waveWait=1.4;g.bullets=g.bullets.filter(b=>b.friendly);g.score+=g.wave*100;float(t('wave.cleared',{score:g.wave*100}),p.x,p.y-65,'#e5f1ac',true);}
+    if(g.specialBossPending){
+      g.specialBossPending=false;g.bullets=g.bullets.filter(b=>b.friendly);
+      runtime.spawnEnemy('commander');sound.play('alert');sound.setMusicScene('boss');
+      runtime.announce(t('wave.bossTag'),t('wave.commanderTitle'),t('wave.commanderNote'),4);
+    }else if(g.waveWait<0){g.waveWait=1.4;g.bullets=g.bullets.filter(b=>b.friendly);g.score+=g.wave*100;float(t('wave.cleared',{score:g.wave*100}),p.x,p.y-65,'#e5f1ac',true);}
     else{g.waveWait-=dt;if(g.waveWait<=0){runtime.showUpgrades();return;}}
   }
   g.comboTimer-=dt;if(g.comboTimer<=0)g.combo=0;
@@ -3755,7 +3846,7 @@ function updateHud(){
   $('touch-flare').hidden=settings.difficulty!=='hard';$('touch-flare').disabled=p.flareCooldown>0;
   $('combo').hidden=multiplier<2;$('combo-value').textContent=`×${multiplier}`;
   const boss=g.enemies.find(e=>e.type==='boss');$('boss-hud').hidden=!boss||g.state==='over';
-  if(boss)$('boss-fill').style.width=`${clamp(boss.health/boss.maxHealth*100,0,100)}%`;
+  if(boss){$('boss-fill').style.width=`${clamp(boss.health/boss.maxHealth*100,0,100)}%`;$('boss-label').textContent=t(boss.specialBoss?'hud.commander':'hud.boss');}
 }
 function showUpgrades(){
   g.bullets=[];g.bannerTime=0;$('announcement').classList.remove('visible');

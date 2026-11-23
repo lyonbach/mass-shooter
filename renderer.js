@@ -1,4 +1,4 @@
-import { TAU, seededRandom, clamp, ENEMIES } from './core.js';
+import { TAU, seededRandom, clamp, ENEMIES, COMMANDER } from './core.js';
 import { environmentFor, environmentGeometry, TIME_OF_DAY } from './environment.js';
 import { WRECK_TRANSITION_TIME, WRECK_COAST_TIME, WRECK_FIRE_TIME, ROCKET_NOZZLE_OFFSET, AA_MUZZLE_TIME, AA_FLASH_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './game/constants.js';
 
@@ -637,6 +637,7 @@ export class Renderer {
     c.restore();
   }
   tank(c,e,boss,char) {
+    if(e.specialBoss){this.commanderTank(c,e,char);return;}
     c.fillStyle='#14231655';c.fillRect(-22+6,-21+7,47,46);
     this.tankTracks(c,e,boss,char);
     if(boss)this.goliathHull(c,char);
@@ -644,8 +645,52 @@ export class Renderer {
     this.tankTurret(c,e,char);
     if(!boss){c.strokeStyle='#c5b78866';c.lineWidth=1;c.beginPath();c.moveTo(-14,-12);c.lineTo(-18,-32);c.stroke();}
   }
-  tankTracks(c,e,boss,char) {
-    const trackLeft=boss?-30:-23,trackRight=boss?27:20,trackOuter=boss?27:22,trackInner=boss?13:11,trackHeight=trackOuter-trackInner;
+  commanderTank(c,e,char){
+    c.fillStyle='#14231655';c.fillRect(-57,-43,124,96);
+    for(const x of [-30,30]){
+      c.save();c.translate(x,0);this.tankTracks(c,e,true,char,{left:-30,right:27,outer:47,inner:33});c.restore();
+    }
+    path(c,[[-61,-28],[-53,-34],[49,-34],[59,-25],[61,25],[49,34],[-53,34],[-61,28]],char?'#30392f':'#59664c','#19261d');
+    for(const x of [-30,30])for(const y of [-17,17]){
+      c.save();c.translate(x,y);this.goliathHull(c,char);c.restore();
+    }
+    c.fillStyle=char?'#262e26':'#414e3a';c.fillRect(-5,-33,10,66);c.fillRect(-55,-3,108,6);
+    c.fillStyle=char?'#565b4a':'#aaa078';
+    for(const x of [-48,-12,12,48])for(const y of [-29,29])c.fillRect(x,y,3,2);
+    c.strokeStyle=char?'#626451':'#c5b78899';c.lineWidth=1;
+    for(const side of [-1,1]){
+      c.beginPath();c.moveTo(-48,side*25);c.lineTo(-61,side*52);c.stroke();
+      ellipse(c,-61,side*52,1.5,1.5,char?'#565b4a':'#e2c482');
+    }
+    c.save();c.rotate((e.turret??e.angle)-e.angle);
+    path(c,[[-23,-17],[-12,-23],[19,-21],[29,-12],[29,12],[19,21],[-12,23],[-23,17]],char?'#4b503d':'#a49f75','#202b20');
+    path(c,[[-23,-17],[-12,-23],[19,-21],[29,-12],[29,12],[19,21],[-12,23],[-23,17]],this.tankShade(c));
+    const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const muzzle=!e.wreck&&!char&&e.health>0?e.commanderMuzzle:null;
+    for(let barrel=0;barrel<2;barrel++){
+      const life=muzzle&&!muzzle.cannon&&muzzle.barrel===barrel?muzzle.life:0;
+      c.save();c.translate(reduced?0:-5*clamp(life/WEAPON_MUZZLE_TIME,0,1),barrel?9:-9);
+      c.fillStyle=char?'#363d30':'#b5ac7b';c.fillRect(15,-4,49,8);
+      c.fillStyle=char?'#666959':'#d0c799';c.fillRect(19,-4,37,2);
+      c.fillStyle='#4c5940';c.fillRect(58,-5,6,10);
+      if(life&&!reduced)this.muzzleEffect(c,life,64,17,.075);
+      c.restore();
+    }
+    ellipse(c,-5,0,10,10,char?'#30392f':'#5e6a4e');
+    ellipse(c,-5,0,7,7,char?'#565b4a':'#b2a57d');
+    c.fillStyle=char?'#252d25':'#8e4738';c.fillRect(-18,-10,6,20);
+    c.fillStyle=char?'#626451':'#d6c48e';c.fillRect(-17,-8,2,16);
+    const cannonLife=muzzle?.cannon?muzzle.life:0;
+    c.save();c.translate(reduced?0:-2*clamp(cannonLife/WEAPON_MUZZLE_TIME,0,1),0);
+    c.fillStyle=char?'#363d30':'#69775b';c.fillRect(-1,-3,40,6);
+    c.fillStyle=char?'#666959':'#d0c799';c.fillRect(3,-3,30,1);
+    c.fillStyle='#28362a';c.fillRect(34,-4,5,8);
+    if(cannonLife&&!reduced)this.muzzleEffect(c,cannonLife,39,7,.075);
+    c.restore();c.restore();
+  }
+  tankTracks(c,e,boss,char,dimensions) {
+    const {left:trackLeft,right:trackRight,outer:trackOuter,inner:trackInner}=dimensions||{left:boss?-30:-23,right:boss?27:20,outer:boss?27:22,inner:boss?13:11};
+    const trackHeight=trackOuter-trackInner;
     c.fillStyle='#27352a';c.fillRect(trackLeft,-trackOuter,trackRight-trackLeft,trackHeight);c.fillRect(trackLeft,trackInner,trackRight-trackLeft,trackHeight);
     c.fillStyle=char?'#4b5041':'#a1a582';
     const drawTrack=(phase,y)=>{
@@ -752,7 +797,7 @@ export class Renderer {
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
     if(drone){c.save();c.translate(e.x+5,e.y+8);c.rotate(e.visualHeading??e.angle);c.scale(ENEMIES[e.type].scale,ENEMIES[e.type].scale);ellipse(c,0,0,23,14,'#10231638');ellipse(c,0,0,16,9,'#10231620');c.restore();}
     c.save();c.translate(e.x,e.y);c.rotate(drone?(e.visualHeading??e.angle):e.angle);
-    const boss=e.type==='boss',char=e.charred;c.scale(ENEMIES[e.type].scale,ENEMIES[e.type].scale);
+    const boss=e.type==='boss',char=e.charred,scale=e.specialBoss?COMMANDER.scale:ENEMIES[e.type].scale;c.scale(scale,scale);
     if(drone){
       const bank=reduced?0:(e.visualBank||0),pitch=reduced?0:(e.visualPitch||0);
       c.translate(pitch*4,bank*4+(reduced?0:Math.sin(t*2+(e.seed||0))*1.2));c.rotate(bank*.4);c.scale(1-Math.abs(pitch)*.2,1-Math.abs(bank)*.3);
@@ -806,7 +851,7 @@ export class Renderer {
     const fire=wreckFireState(d);
     if(!fire.level)return;
     const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const age=d.age||0,seed=d.seed||0,scale=ENEMIES[d.type].scale,texture=this.wreckFlameTexture();
+    const age=d.age||0,seed=d.seed||0,scale=d.specialBoss?COMMANDER.scale:ENEMIES[d.type].scale,texture=this.wreckFlameTexture();
     c.save();c.translate(d.x,d.y);c.scale(scale,scale);
     for(let i=0;i<(this.settings.effects?fire.points.length:2);i++){
       const {x,y,strength}=fire.points[i];if(strength<=0)continue;
