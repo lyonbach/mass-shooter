@@ -411,8 +411,9 @@ const languages = { en:'English',tr:'Türkçe',de:'Deutsch',es:'Español',fr:'Fr
 
 const translations = {
   en:{
+    'help.label':'Help','help.close':'Close help',
     'nav.online':'SYSTEM ONLINE','nav.language':'Language','nav.soundOn':'Turn sound on','nav.soundOff':'Turn sound off',
-    'mission.tag':'OPERATION 001','mission.sector':'SECTOR 07','mission.heading':'AIR SUPERIORITY IS YOURS.','mission.note':'Retreat is not an option.',
+    'mission.sector':'SECTOR 07','mission.heading':'AIR SUPERIORITY IS YOURS.','mission.note':'Retreat is not an option.',
     'frame.label':'Blackout battlefield','frame.live':'LIVE FEED','frame.exit':'EXIT FULLSCREEN',
     'hud.hull':'HULL STATUS','hud.healthy':'HEALTHY','hud.damaged':'DAMAGED','hud.critical':'CRITICAL','hud.threat':'THREAT LEVEL',
     'hud.wave':'WAVE','hud.scanning':'SCANNING AREA','hud.hostiles':'HOSTILES REMAIN','hud.score':'OPERATION SCORE','hud.best':'BEST','hud.combo':'KILL STREAK',
@@ -456,8 +457,9 @@ const translations = {
     'map.desert':'DESERT FRONT','map.valley':'GREEN VALLEY','map.canyon':'RED ZONE'
   },
   tr:{
+    'help.label':'Yardım','help.close':'Yardımı kapat',
     'nav.online':'SİSTEM ÇEVRİMİÇİ','nav.language':'Dil','nav.soundOn':'Sesi aç','nav.soundOff':'Sesi kapat',
-    'mission.tag':'OPERASYON 001','mission.sector':'SEKTÖR 07','mission.heading':'HAVA ÜSTÜNLÜĞÜ SENDE.','mission.note':'Geri çekilmek bir seçenek değil.',
+    'mission.sector':'SEKTÖR 07','mission.heading':'HAVA ÜSTÜNLÜĞÜ SENDE.','mission.note':'Geri çekilmek bir seçenek değil.',
     'frame.label':'Blackout savaş alanı','frame.live':'CANLI BAĞLANTI','frame.exit':'TAM EKRANDAN ÇIK',
     'hud.hull':'GÖVDE DURUMU','hud.healthy':'SAĞLAM','hud.damaged':'HASARLI','hud.critical':'KRİTİK','hud.threat':'TEHDİT SEVİYESİ',
     'hud.wave':'DALGA','hud.scanning':'BÖLGE TARANIYOR','hud.hostiles':'DÜŞMAN KALDI','hud.score':'OPERASYON PUANI','hud.best':'REKOR','hud.combo':'İMHA SERİSİ',
@@ -501,8 +503,9 @@ const translations = {
     'map.desert':'ÇÖL HATTI','map.valley':'YEŞİL VADİ','map.canyon':'KIZIL BÖLGE'
   },
   de:{
+    'help.label':'Hilfe','help.close':'Hilfe schließen',
     'nav.online':'SYSTEM ONLINE','nav.language':'Sprache','nav.soundOn':'Ton einschalten','nav.soundOff':'Ton ausschalten',
-    'mission.tag':'OPERATION 001','mission.sector':'SEKTOR 07','mission.heading':'DIE LUFTHOHEIT GEHÖRT DIR.','mission.note':'Rückzug ist keine Option.',
+    'mission.sector':'SEKTOR 07','mission.heading':'DIE LUFTHOHEIT GEHÖRT DIR.','mission.note':'Rückzug ist keine Option.',
     'frame.label':'Blackout-Schlachtfeld','frame.live':'LIVE-ÜBERTRAGUNG','frame.exit':'VOLLbild VERLASSEN',
     'hud.hull':'RUMPFSTATUS','hud.healthy':'UNVERSEHRT','hud.damaged':'BESCHÄDIGT','hud.critical':'KRITISCH','hud.threat':'BEDROHUNGSSTUFE',
     'hud.wave':'WELLE','hud.scanning':'GEBIET WIRD GESCANNT','hud.hostiles':'FEINDE VERBLEIBEN','hud.score':'EINSATZPUNKTE','hud.best':'REKORD','hud.combo':'ABSCHUSSERIE',
@@ -546,8 +549,9 @@ const translations = {
     'map.desert':'WÜSTENFRONT','map.valley':'GRÜNES TAL','map.canyon':'ROTE ZONE'
   },
   es:{
+    'help.label':'Ayuda','help.close':'Cerrar ayuda',
     'nav.online':'SISTEMA EN LÍNEA','nav.language':'Idioma','nav.soundOn':'Activar sonido','nav.soundOff':'Desactivar sonido',
-    'mission.tag':'OPERACIÓN 001','mission.sector':'SECTOR 07','mission.heading':'LA SUPERIORIDAD AÉREA ES TUYA.','mission.note':'Retirarse no es una opción.',
+    'mission.sector':'SECTOR 07','mission.heading':'LA SUPERIORIDAD AÉREA ES TUYA.','mission.note':'Retirarse no es una opción.',
     'frame.label':'Campo de batalla Blackout','frame.live':'SEÑAL EN DIRECTO','frame.exit':'SALIR DE PANTALLA COMPLETA',
     'hud.hull':'ESTADO DEL CASCO','hud.healthy':'EN BUEN ESTADO','hud.damaged':'DAÑADO','hud.critical':'CRÍTICO','hud.threat':'NIVEL DE AMENAZA',
     'hud.wave':'OLEADA','hud.scanning':'ESCANEANDO ZONA','hud.hostiles':'HOSTILES RESTANTES','hud.score':'PUNTUACIÓN','hud.best':'RÉCORD','hud.combo':'RACHA DE BAJAS',
@@ -591,8 +595,9 @@ const translations = {
     'map.desert':'FRENTE DEL DESIERTO','map.valley':'VALLE VERDE','map.canyon':'ZONA ROJA'
   },
   fr:{
+    'help.label':'Aide','help.close':'Fermer l’aide',
     'nav.online':'SYSTÈME EN LIGNE','nav.language':'Langue','nav.soundOn':'Activer le son','nav.soundOff':'Couper le son',
-    'mission.tag':'OPÉRATION 001','mission.sector':'SECTEUR 07','mission.heading':'LA SUPÉRIORITÉ AÉRIENNE EST À VOUS.','mission.note':'Se replier n’est pas une option.',
+    'mission.sector':'SECTEUR 07','mission.heading':'LA SUPÉRIORITÉ AÉRIENNE EST À VOUS.','mission.note':'Se replier n’est pas une option.',
     'frame.label':'Champ de bataille Blackout','frame.live':'LIAISON EN DIRECT','frame.exit':'QUITTER LE PLEIN ÉCRAN',
     'hud.hull':'ÉTAT DE LA CARLINGUE','hud.healthy':'INTACTE','hud.damaged':'ENDOMMAGÉE','hud.critical':'CRITIQUE','hud.threat':'NIVEAU DE MENACE',
     'hud.wave':'VAGUE','hud.scanning':'SCAN DE LA ZONE','hud.hostiles':'ENNEMIS RESTANTS','hud.score':'SCORE DE L’OPÉRATION','hud.best':'RECORD','hud.combo':'SÉRIE D’ÉLIMINATIONS',
@@ -4035,13 +4040,23 @@ function endGame(){
   runtime.setState('over','over-panel');runtime.focusPanel('retry');
 }
 function updateSettingsUI(){
+  $('help-open').title=t('help.label');
   $('volume').value=settings.volume*100;$('volume-value').textContent=`${Math.round(settings.volume*100)}%`;
   ['music','shake','effects'].forEach(id=>$(id).checked=settings[id]);
   $('sound-toggle').setAttribute('aria-pressed',String(settings.muted));$('sound-toggle').setAttribute('aria-label',t(settings.muted?'nav.soundOn':'nav.soundOff'));$('sound-toggle').title=`${t(settings.muted?'nav.soundOn':'nav.soundOff')} (M)`;
   document.querySelectorAll('[data-difficulty]').forEach(button=>{const selected=button.dataset.difficulty===settings.difficulty;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});
 }
 function toggleMute(){settings.muted=!settings.muted;sound.init();sound.configure();saveSettings();updateSettingsUI();}
-function openSettings(){runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();sound.init();}
+function openSettings(view='settings'){
+  if(dialog.open)return;
+  const help=view==='help';
+  $('settings-content').hidden=help;$('help-content').hidden=!help;
+  const kicker=help?'manual.title':'settings.kicker',close=help?'help.close':'settings.close';
+  $('dialog-kicker').dataset.i18n=kicker;$('dialog-kicker').textContent=t(kicker);
+  $('settings-close').dataset.i18nAria=close;$('settings-close').setAttribute('aria-label',t(close));
+  dialog.setAttribute('aria-labelledby',help?'help-title':'settings-title');
+  runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();sound.init();
+}
 function closeSettings(){dialog.close();if(runtime.settingsPaused){runtime.settingsPaused=false;runtime.resume();}}
   return {updateHud,showUpgrades,selectUpgrade,pause,resume,endGame,updateSettingsUI,toggleMute,openSettings,closeSettings};
 }
@@ -4050,6 +4065,7 @@ function closeSettings(){dialog.close();if(runtime.settingsPaused){runtime.setti
 function createInput(runtime){
   const {g,settings,sound,$,canvas,dialog,keys,pointer,t}=runtime;
 $('settings-open').addEventListener('click',runtime.openSettings);$('settings-close').addEventListener('click',runtime.closeSettings);$('settings-done').addEventListener('click',runtime.closeSettings);
+$('help-open').addEventListener('click',()=>runtime.openSettings('help'));$('help-done').addEventListener('click',runtime.closeSettings);
 dialog.addEventListener('cancel',event=>{event.preventDefault();runtime.closeSettings();});
 $('volume').addEventListener('input',event=>{settings.volume=event.target.value/100;sound.init();sound.configure();runtime.saveSettings();runtime.updateSettingsUI();});
 for(const id of ['music','shake','effects'])$(id).addEventListener('change',()=>{settings[id]=$(id).checked;sound.configure();runtime.saveSettings();if(id==='effects')runtime.resize();});

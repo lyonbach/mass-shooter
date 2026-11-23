@@ -59,13 +59,23 @@ function endGame(){
   runtime.setState('over','over-panel');runtime.focusPanel('retry');
 }
 function updateSettingsUI(){
+  $('help-open').title=t('help.label');
   $('volume').value=settings.volume*100;$('volume-value').textContent=`${Math.round(settings.volume*100)}%`;
   ['music','shake','effects'].forEach(id=>$(id).checked=settings[id]);
   $('sound-toggle').setAttribute('aria-pressed',String(settings.muted));$('sound-toggle').setAttribute('aria-label',t(settings.muted?'nav.soundOn':'nav.soundOff'));$('sound-toggle').title=`${t(settings.muted?'nav.soundOn':'nav.soundOff')} (M)`;
   document.querySelectorAll('[data-difficulty]').forEach(button=>{const selected=button.dataset.difficulty===settings.difficulty;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});
 }
 function toggleMute(){settings.muted=!settings.muted;sound.init();sound.configure();saveSettings();updateSettingsUI();}
-function openSettings(){runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();sound.init();}
+function openSettings(view='settings'){
+  if(dialog.open)return;
+  const help=view==='help';
+  $('settings-content').hidden=help;$('help-content').hidden=!help;
+  const kicker=help?'manual.title':'settings.kicker',close=help?'help.close':'settings.close';
+  $('dialog-kicker').dataset.i18n=kicker;$('dialog-kicker').textContent=t(kicker);
+  $('settings-close').dataset.i18nAria=close;$('settings-close').setAttribute('aria-label',t(close));
+  dialog.setAttribute('aria-labelledby',help?'help-title':'settings-title');
+  runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();sound.init();
+}
 function closeSettings(){dialog.close();if(runtime.settingsPaused){runtime.settingsPaused=false;runtime.resume();}}
   return {updateHud,showUpgrades,selectUpgrade,pause,resume,endGame,updateSettingsUI,toggleMute,openSettings,closeSettings};
 }
