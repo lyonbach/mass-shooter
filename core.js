@@ -4,6 +4,7 @@ import { WEAPON_DATA } from './weapon-data.js';
 export const ENEMIES = ENEMY_DATA;
 export const MAPS = LEVEL_DATA;
 export const WEAPONS = WEAPON_DATA;
+export const ARTILLERY = {deploymentTime:2,volleyCount:9,repositionMargin:90};
 export const COMMANDER = {wave:15,healthMultiplier:5,speed:16,radius:112,scale:1.8,shellCount:12,shellInterval:.3,shellBarrelTip:15+49*1.3,shellSpeedMultiplier:1.8,shellDamageMultiplier:2,reloadTime:1,cannonCount:30,cannonOffset:5,advanceTime:3,turnMultiplier:.125,spotlightFlickerTime:1.2,exhaustForward:-66,exhaustOffset:24,trackOffset:72,trackLength:96,trackWidth:24};
 export const ROCKET_IGNITION_DELAY = .3;
 export const TAU = Math.PI * 2;

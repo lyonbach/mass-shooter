@@ -38,6 +38,7 @@ function spawnEnemy(forced){
     enemy.smokeScreen=Math.random()<SCREEN_SMOKE_CHANCE;
     if(enemy.smokeScreen){enemy.screenSmokeTimer=0;runtime.emitScreenSmoke(enemy);}
   }
+  if(type==='artillery'){enemy.artilleryPhase='moving';enemy.supportLegs=0;enemy.volleysFired=0;}
   if(g.testRange){enemy.health*=g.testRange.health;enemy.maxHealth=enemy.health;}
   g.enemies.push(enemy);return enemy;
 }

@@ -93,12 +93,12 @@ const ENEMY_DATA = {
   "artillery": {
     "health": 6,
     "healthPerWave": 0,
-    "speed": 28,
+    "speed": 22,
     "speedMultiplier": 1,
     "points": 200,
     "radius": 26,
     "scale": 1,
-    "stopDistance": 380,
+    "stopDistance": 800,
     "contactDamage": 15,
     "spawnWave": 3,
     "spawnModulo": 5,
@@ -108,14 +108,14 @@ const ENEMY_DATA = {
     "projectileSpeedPerWave": 3,
     "projectileSpeedCap": 50,
     "projectileLife": 6,
-    "fireInterval": 3.1,
-    "fireWaveReduction": 0.065,
-    "fireWaveReductionCap": 0.8,
-    "fireRandom": 0.7,
-    "initialCooldown": 2,
-    "initialRandom": 1.5,
-    "spread": 0.12,
-    "shotCount": 3,
+    "fireInterval": 0.5,
+    "fireWaveReduction": 0,
+    "fireWaveReductionCap": 0,
+    "fireRandom": 0,
+    "initialCooldown": 0,
+    "initialRandom": 0,
+    "spread": 0,
+    "shotCount": 1,
     "explosionRadius": 0,
     "warningDelay": 0,
     "warningSpread": 0,
@@ -126,8 +126,8 @@ const ENEMY_DATA = {
     "easyInterval": 1,
     "normalInterval": 1,
     "hardInterval": 1,
-    "speedPerWave": 1.5,
-    "speedWaveCap": 22,
+    "speedPerWave": 1,
+    "speedWaveCap": 14,
     "strafeSpeed": 0,
     "turnRate": 3,
     "turretRate": 2.5,
@@ -653,6 +653,7 @@ function t(key,values={}){
 const ENEMIES = ENEMY_DATA;
 const MAPS = LEVEL_DATA;
 const WEAPONS = WEAPON_DATA;
+const ARTILLERY = {deploymentTime:2,volleyCount:9,repositionMargin:90};
 const COMMANDER = {wave:15,healthMultiplier:5,speed:16,radius:112,scale:1.8,shellCount:12,shellInterval:.3,shellBarrelTip:15+49*1.3,shellSpeedMultiplier:1.8,shellDamageMultiplier:2,reloadTime:1,cannonCount:30,cannonOffset:5,advanceTime:3,turnMultiplier:.125,spotlightFlickerTime:1.2,exhaustForward:-66,exhaustOffset:24,trackOffset:72,trackLength:96,trackWidth:24};
 const ROCKET_IGNITION_DELAY = .3;
 const TAU = Math.PI * 2;
@@ -2889,12 +2890,26 @@ class Renderer {
   }
   tank(c,e,boss,char,t=0) {
     if(e.specialBoss){this.commanderTank(c,e,char,t);return;}
+    if(e.type==='artillery')this.artillerySupports(c,e,char);
     c.fillStyle='#14231655';c.fillRect(-22+6,-21+7,47,46);
     this.tankTracks(c,e,boss,char);
     if(boss)this.goliathHull(c,char);
     else this.tankHull(c,boss,char);
     this.tankTurret(c,e,char);
     if(!boss){c.strokeStyle='#c5b78866';c.lineWidth=1;c.beginPath();c.moveTo(-14,-12);c.lineTo(-18,-32);c.stroke();}
+  }
+  artillerySupports(c,e,char){
+    const extension=clamp(e.supportLegs||0,0,1);
+    for(const x of [-17,17])for(const side of [-1,1]){
+      const footX=x+Math.sign(x)*extension*10,footY=side*(18+extension*16);
+      c.strokeStyle=char?'#252d25':'#354532';c.lineWidth=6;
+      c.beginPath();c.moveTo(x,side*12);c.lineTo(footX,footY);c.stroke();
+      c.strokeStyle=char?'#565b4a':'#b2ad83';c.lineWidth=2;
+      c.beginPath();c.moveTo(x,side*14);c.lineTo(footX,footY);c.stroke();
+      c.fillStyle=char?'#30392f':'#58684d';c.fillRect(footX-5,footY-3,10,6);
+      c.fillStyle=char?'#565b4a':'#a6aa81';c.fillRect(footX-4,footY-3,8,1);
+      ellipse(c,x,side*13,3,3,char?'#30392f':'#7c8966');
+    }
   }
   spotlightTexture(){
     if(!this.spotlightBeam){
@@ -3506,6 +3521,7 @@ function spawnEnemy(forced){
     enemy.smokeScreen=Math.random()<SCREEN_SMOKE_CHANCE;
     if(enemy.smokeScreen){enemy.screenSmokeTimer=0;runtime.emitScreenSmoke(enemy);}
   }
+  if(type==='artillery'){enemy.artilleryPhase='moving';enemy.supportLegs=0;enemy.volleysFired=0;}
   if(g.testRange){enemy.health*=g.testRange.health;enemy.maxHealth=enemy.health;}
   g.enemies.push(enemy);return enemy;
 }
@@ -3730,6 +3746,7 @@ function detonate(b){
 function fireEnemy(e){
   if(e.health<=0)return;
   const a=e.turret,p=g.player,kind=e.type,stats=ENEMIES[kind];
+  if(kind==='artillery'&&(e.artilleryPhase!=='firing'||e.supportLegs!==1||Math.hypot(e.vx||0,e.vy||0)>0))return;
   if(e.specialBoss){
     if(e.phase==='entry')return;
     if(e.phase==='advance'){e.phase='shells';e.shotsFired=0;}
@@ -3762,13 +3779,19 @@ function fireEnemy(e){
     else if(kind==='tank'||kind==='artillery'||kind==='boss'||kind==='drone')e.weaponMuzzle=WEAPON_MUZZLE_TIME;
     for(let i=0;i<stats.shotCount;i++){
       const angle=a+(i-(stats.shotCount-1)/2)*stats.spread,speed=stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
-      g.bullets.push({x:e.x+Math.cos(a)*30,y:e.y+Math.sin(a)*30,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:kind==='rocketSemi'?'enemyRocket':'shell',damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
+      const tip=kind==='artillery'?42:30;
+      g.bullets.push({x:e.x+Math.cos(a)*tip,y:e.y+Math.sin(a)*tip,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:kind==='rocketSemi'?'enemyRocket':'shell',damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
     }
     const multiplier=kind==='rocketSemi'?stats[`${settings.difficulty}Interval`]:1;
     e.cooldown=(stats.fireInterval-Math.min(g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+Math.random()*stats.fireRandom)*multiplier;
+    if(kind==='artillery'){
+      e.volleysFired++;
+      if(e.volleysFired===ARTILLERY.volleyCount){e.artilleryPhase='reloading';e.cooldown*=ARTILLERY.volleyCount;}
+    }
   }
   const audio=positionalAudio(e);
-  burst(e.x+Math.cos(a)*33,e.y+Math.sin(a)*33,'#f0c185',4,.3);sound.play(kind==='rocketSemi'?'missile':kind==='aa'?'aa':'enemy',audio.pan,audio.gain);
+  const muzzle=kind==='artillery'?42:33;
+  burst(e.x+Math.cos(a)*muzzle,e.y+Math.sin(a)*muzzle,'#f0c185',4,.3);sound.play(kind==='rocketSemi'?'missile':kind==='aa'?'aa':'enemy',audio.pan,audio.gain);
 }
 function incomingMissile(){
   const p=g.player;let threat=null,nearest=FLARE_RANGE;
@@ -3863,17 +3886,31 @@ function update(dt){
     let vx=0,vy=0;
     const goal=groundGoal(e,p),ga=goal===p?a:Math.atan2(goal.y-e.y,goal.x-e.x);
     if(e.specialBoss&&e.phase==='entry'&&e.x>0&&e.x<W&&e.y>60&&e.y<H){e.phase='shells';e.cooldown=2;}
-    const moving=e.specialBoss?e.phase==='entry'||e.phase==='advance':d>stop||goal!==p;
+    if(e.type==='artillery'){
+      e.artilleryPhase??='moving';e.supportLegs??=0;e.volleysFired??=0;
+      const inField=e.x>0&&e.x<W&&e.y>60&&e.y<H;
+      const reposition=d>stop+(e.artilleryPhase==='moving'?0:ARTILLERY.repositionMargin)||goal!==p||!inField;
+      if(reposition&&e.artilleryPhase!=='moving'&&e.artilleryPhase!=='retracting')e.artilleryPhase='retracting';
+      if(e.artilleryPhase==='moving'&&!reposition){e.artilleryPhase='deploying';e.cooldown=0;}
+      if(e.artilleryPhase==='deploying'){
+        e.supportLegs=Math.min(1,e.supportLegs+dt/ARTILLERY.deploymentTime);
+        if(e.supportLegs===1){e.artilleryPhase='firing';e.volleysFired=0;e.cooldown=0;}
+      }else if(e.artilleryPhase==='retracting'){
+        e.supportLegs=Math.max(0,e.supportLegs-dt/ARTILLERY.deploymentTime);
+        if(e.supportLegs===0){e.artilleryPhase='moving';e.volleysFired=0;e.cooldown=0;}
+      }
+    }
+    const moving=e.type==='artillery'?e.artilleryPhase==='moving':e.specialBoss?e.phase==='entry'||e.phase==='advance':d>stop||goal!==p;
     if(moving){vx=Math.cos(ga)*e.speed;vy=Math.sin(ga)*e.speed;}
     if(stats.strafeSpeed){vx+=Math.cos(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;vy+=Math.sin(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;}
     // Gentle separation keeps armor from stacking into one unreadable target.
-    for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
+    if(e.type!=='artillery'||moving)for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
     [vx,vy]=groundMove(e,vx,vy,dt);
     e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
     if(e.type==='drone'||e.type==='kamikaze')updateDroneVisual(e,dt,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
     const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
     const turnMultiplier=e.specialBoss?COMMANDER.turnMultiplier:1;
-    e.angle=turn(e.angle,heading,dt*stats.turnRate*turnMultiplier);
+    if(e.type!=='artillery'||moving)e.angle=turn(e.angle,heading,dt*stats.turnRate*turnMultiplier);
     if(e.type!=='drone'&&e.type!=='kamikaze'){
       const forwardDistance=(vx*Math.cos(previousAngle)+vy*Math.sin(previousAngle))*dt;
       const turnDistance=Math.atan2(Math.sin(e.angle-previousAngle),Math.cos(e.angle-previousAngle))*(e.specialBoss?COMMANDER.trackOffset:e.type==='boss'?GOLIATH_TRACK_HALF_WIDTH:TANK_TRACK_HALF_WIDTH);
@@ -3893,6 +3930,10 @@ function update(dt){
     e.turret=turn(e.turret,a,dt*stats.turretRate);
     if(e.specialBoss)e.cannonAngle=turn(e.cannonAngle??e.turret,a,dt*PLAYER_CANNON_TURN_RATE);
     e.cooldown-=dt;e.charge=clamp(1-e.cooldown/.7,0,1);
+    if(e.type==='artillery'){
+      if(e.artilleryPhase==='reloading'&&e.cooldown<=0){e.artilleryPhase='firing';e.volleysFired=0;}
+      if(e.artilleryPhase!=='firing')e.charge=0;
+    }
     if(e.type!=='kamikaze'&&e.cooldown<=0&&e.x>0&&e.x<W&&e.y>60&&e.y<H)fireEnemy(e);
     if(distance(e,p)<e.radius+22){if(e.type==='kamikaze')hitEnemy(e,e.health);else damagePlayer(stats.contactDamage);}
     if(g.state!=='playing')return;

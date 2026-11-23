@@ -1,5 +1,5 @@
 import { environmentFor, environmentGeometry, generateProps } from '../environment.js';
-import { TAU, clamp, distance, turn, segmentHitsCircle, armorDamageMultiplier, ENEMIES, WEAPONS, COMMANDER, ROCKET_IGNITION_DELAY } from '../core.js';
+import { TAU, clamp, distance, turn, segmentHitsCircle, armorDamageMultiplier, ENEMIES, WEAPONS, COMMANDER, ARTILLERY, ROCKET_IGNITION_DELAY } from '../core.js';
 import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
 import { MUZZLE_FUME_OFFSET, HELICOPTER_FUME_INTERVAL, HELICOPTER_FUME_OFFSET, AA_MUZZLE_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './constants.js';
 export function updateDroneVisual(e,dt,reduced=false){
@@ -202,6 +202,7 @@ function detonate(b){
 function fireEnemy(e){
   if(e.health<=0)return;
   const a=e.turret,p=g.player,kind=e.type,stats=ENEMIES[kind];
+  if(kind==='artillery'&&(e.artilleryPhase!=='firing'||e.supportLegs!==1||Math.hypot(e.vx||0,e.vy||0)>0))return;
   if(e.specialBoss){
     if(e.phase==='entry')return;
     if(e.phase==='advance'){e.phase='shells';e.shotsFired=0;}
@@ -234,13 +235,19 @@ function fireEnemy(e){
     else if(kind==='tank'||kind==='artillery'||kind==='boss'||kind==='drone')e.weaponMuzzle=WEAPON_MUZZLE_TIME;
     for(let i=0;i<stats.shotCount;i++){
       const angle=a+(i-(stats.shotCount-1)/2)*stats.spread,speed=stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
-      g.bullets.push({x:e.x+Math.cos(a)*30,y:e.y+Math.sin(a)*30,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:kind==='rocketSemi'?'enemyRocket':'shell',damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
+      const tip=kind==='artillery'?42:30;
+      g.bullets.push({x:e.x+Math.cos(a)*tip,y:e.y+Math.sin(a)*tip,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:kind==='rocketSemi'?'enemyRocket':'shell',damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
     }
     const multiplier=kind==='rocketSemi'?stats[`${settings.difficulty}Interval`]:1;
     e.cooldown=(stats.fireInterval-Math.min(g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+Math.random()*stats.fireRandom)*multiplier;
+    if(kind==='artillery'){
+      e.volleysFired++;
+      if(e.volleysFired===ARTILLERY.volleyCount){e.artilleryPhase='reloading';e.cooldown*=ARTILLERY.volleyCount;}
+    }
   }
   const audio=positionalAudio(e);
-  burst(e.x+Math.cos(a)*33,e.y+Math.sin(a)*33,'#f0c185',4,.3);sound.play(kind==='rocketSemi'?'missile':kind==='aa'?'aa':'enemy',audio.pan,audio.gain);
+  const muzzle=kind==='artillery'?42:33;
+  burst(e.x+Math.cos(a)*muzzle,e.y+Math.sin(a)*muzzle,'#f0c185',4,.3);sound.play(kind==='rocketSemi'?'missile':kind==='aa'?'aa':'enemy',audio.pan,audio.gain);
 }
 function incomingMissile(){
   const p=g.player;let threat=null,nearest=FLARE_RANGE;
@@ -335,17 +342,31 @@ function update(dt){
     let vx=0,vy=0;
     const goal=groundGoal(e,p),ga=goal===p?a:Math.atan2(goal.y-e.y,goal.x-e.x);
     if(e.specialBoss&&e.phase==='entry'&&e.x>0&&e.x<W&&e.y>60&&e.y<H){e.phase='shells';e.cooldown=2;}
-    const moving=e.specialBoss?e.phase==='entry'||e.phase==='advance':d>stop||goal!==p;
+    if(e.type==='artillery'){
+      e.artilleryPhase??='moving';e.supportLegs??=0;e.volleysFired??=0;
+      const inField=e.x>0&&e.x<W&&e.y>60&&e.y<H;
+      const reposition=d>stop+(e.artilleryPhase==='moving'?0:ARTILLERY.repositionMargin)||goal!==p||!inField;
+      if(reposition&&e.artilleryPhase!=='moving'&&e.artilleryPhase!=='retracting')e.artilleryPhase='retracting';
+      if(e.artilleryPhase==='moving'&&!reposition){e.artilleryPhase='deploying';e.cooldown=0;}
+      if(e.artilleryPhase==='deploying'){
+        e.supportLegs=Math.min(1,e.supportLegs+dt/ARTILLERY.deploymentTime);
+        if(e.supportLegs===1){e.artilleryPhase='firing';e.volleysFired=0;e.cooldown=0;}
+      }else if(e.artilleryPhase==='retracting'){
+        e.supportLegs=Math.max(0,e.supportLegs-dt/ARTILLERY.deploymentTime);
+        if(e.supportLegs===0){e.artilleryPhase='moving';e.volleysFired=0;e.cooldown=0;}
+      }
+    }
+    const moving=e.type==='artillery'?e.artilleryPhase==='moving':e.specialBoss?e.phase==='entry'||e.phase==='advance':d>stop||goal!==p;
     if(moving){vx=Math.cos(ga)*e.speed;vy=Math.sin(ga)*e.speed;}
     if(stats.strafeSpeed){vx+=Math.cos(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;vy+=Math.sin(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;}
     // Gentle separation keeps armor from stacking into one unreadable target.
-    for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
+    if(e.type!=='artillery'||moving)for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
     [vx,vy]=groundMove(e,vx,vy,dt);
     e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
     if(e.type==='drone'||e.type==='kamikaze')updateDroneVisual(e,dt,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
     const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
     const turnMultiplier=e.specialBoss?COMMANDER.turnMultiplier:1;
-    e.angle=turn(e.angle,heading,dt*stats.turnRate*turnMultiplier);
+    if(e.type!=='artillery'||moving)e.angle=turn(e.angle,heading,dt*stats.turnRate*turnMultiplier);
     if(e.type!=='drone'&&e.type!=='kamikaze'){
       const forwardDistance=(vx*Math.cos(previousAngle)+vy*Math.sin(previousAngle))*dt;
       const turnDistance=Math.atan2(Math.sin(e.angle-previousAngle),Math.cos(e.angle-previousAngle))*(e.specialBoss?COMMANDER.trackOffset:e.type==='boss'?GOLIATH_TRACK_HALF_WIDTH:TANK_TRACK_HALF_WIDTH);
@@ -365,6 +386,10 @@ function update(dt){
     e.turret=turn(e.turret,a,dt*stats.turretRate);
     if(e.specialBoss)e.cannonAngle=turn(e.cannonAngle??e.turret,a,dt*PLAYER_CANNON_TURN_RATE);
     e.cooldown-=dt;e.charge=clamp(1-e.cooldown/.7,0,1);
+    if(e.type==='artillery'){
+      if(e.artilleryPhase==='reloading'&&e.cooldown<=0){e.artilleryPhase='firing';e.volleysFired=0;}
+      if(e.artilleryPhase!=='firing')e.charge=0;
+    }
     if(e.type!=='kamikaze'&&e.cooldown<=0&&e.x>0&&e.x<W&&e.y>60&&e.y<H)fireEnemy(e);
     if(distance(e,p)<e.radius+22){if(e.type==='kamikaze')hitEnemy(e,e.health);else damagePlayer(stats.contactDamage);}
     if(g.state!=='playing')return;
