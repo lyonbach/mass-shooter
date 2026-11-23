@@ -8,6 +8,30 @@
 .ability > span { font-size: 12px; }
 .ability b { font-size: 14px; }
 .ability kbd { font-size: 13px; }
+.location small { font-size: 11px; }
+
+.boss-hud > span {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: .04em;
+}
+
+.combo span, .announcement > span, .announcement small { font-size: 12px; }
+.frame-bar, .frame-footer { font-size: 11px; }
+.intro-kicker, .intro-note, .panel-kicker, .text-button,
+.results span, .settings-note { font-size: 11px; }
+.intro-note, .settings-note { line-height: 1.6; }
+.difficulty button { font-size: 11px; }
+.upgrade-card p { font-size: 12px; }
+.upgrade-card small, .upgrade-card kbd { font-size: 11px; }
+.test-grid label, .test-upgrades-title { font-size: 11px; }
+.test-grid select { font-size: 12px; }
+.manual-title > span, .control > span, .control small { font-size: 11px; }
+.key-cluster kbd, .wide { font-size: 10px; }
+.language-select { font-size: 11px; }
+.fullscreen-close { font-size: 11px; }
 
 /* The translated caption is not one of the decorative side rules. */
 .intro-kicker > span[data-i18n] {
@@ -22,7 +46,7 @@
   .hud-label { font-size: 10px; }
   .hull-reading strong, .score-hud > strong { font-size: 36px; }
   .hull-reading small { font-size: 13px; }
-  .hull-reading > span, .wave-hud > span:last-child, .score-hud > span:last-child { font-size: 9px; }
+  .hull-reading > span, .wave-hud > span:last-child, .score-hud > span:last-child { font-size: 10px; }
   .wave-hud > strong { font-size: 29px; }
   .ability { min-width: 145px; }
   .ability > span { font-size: 10px; }
@@ -31,15 +55,28 @@
 }
 
 @media (max-width: 520px) {
-  .hud-label { font-size: 8px; }
+  .hud-label { font-size: 10px; letter-spacing: .03em; }
   .hull-reading strong, .score-hud > strong { font-size: 25px; }
   .hull-reading small { font-size: 10px; }
-  .hull-reading > span, .wave-hud > span:last-child, .score-hud > span:last-child { font-size: 7px; }
+  .hull-reading { flex-wrap: wrap; }
+  .hull-reading > span { flex-basis: 100%; margin-left: 0; margin-top: 3px; }
+  .hull-reading > span, .wave-hud > span:last-child, .score-hud > span:last-child { font-size: 9px; letter-spacing: .02em; }
   .wave-hud > strong { font-size: 18px; }
   .ability { min-width: 90px; }
   .ability > span { font-size: 9px; }
   .ability b { font-size: 12px; }
   .ability kbd { font-size: 10px; }
+  .boss-hud > span { font-size: 14px; }
+  .combo span, .announcement > span, .announcement small { font-size: 10px; }
+  .frame-bar, .frame-footer, .feed-right #feed-status { font-size: 9px; }
+  .frame-bar, .frame-footer { letter-spacing: 0; }
+  .intro-kicker, .intro-note, .panel-kicker, .text-button,
+  .results span, .settings-note, .difficulty button { font-size: 10px; }
+  .upgrade-card { padding-right: 20px; }
+  .upgrade-card p { font-size: 11px; }
+  .upgrade-card small, .upgrade-card kbd { font-size: 10px; }
+  .test-grid label, .test-upgrades-title { font-size: 10px; }
+  .manual-title > span, .control > span, .control small { font-size: 10px; }
 }
 
 .hull.critical { animation: hull-critical-flash 1s steps(2, end) infinite; }
