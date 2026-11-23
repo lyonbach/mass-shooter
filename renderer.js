@@ -1,4 +1,4 @@
-import { TAU, seededRandom, clamp, ENEMIES, COMMANDER } from './core.js';
+import { TAU, seededRandom, clamp, ENEMIES, COMMANDER, ARTILLERY } from './core.js';
 import { environmentFor, environmentGeometry, TIME_OF_DAY } from './environment.js';
 import { WRECK_TRANSITION_TIME, WRECK_COAST_TIME, WRECK_FIRE_TIME, ROCKET_NOZZLE_OFFSET, AA_MUZZLE_TIME, AA_FLASH_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './game/constants.js';
 
@@ -662,22 +662,59 @@ export class Renderer {
     c.fillStyle='#14231655';c.fillRect(-22+6,-21+7,47,46);
     this.tankTracks(c,e,boss,char);
     if(boss)this.goliathHull(c,char);
+    else if(e.type==='artillery')this.artilleryHull(c,char);
     else this.tankHull(c,boss,char);
     this.tankTurret(c,e,char);
-    if(!boss){c.strokeStyle='#c5b78866';c.lineWidth=1;c.beginPath();c.moveTo(-14,-12);c.lineTo(-18,-32);c.stroke();}
+    if(!boss&&e.type!=='artillery'){c.strokeStyle='#c5b78866';c.lineWidth=1;c.beginPath();c.moveTo(-14,-12);c.lineTo(-18,-32);c.stroke();}
   }
   artillerySupports(c,e,char){
     const extension=clamp(e.supportLegs||0,0,1);
     for(const x of [-17,17])for(const side of [-1,1]){
       const footX=x+Math.sign(x)*extension*10,footY=side*(18+extension*16);
-      c.strokeStyle=char?'#252d25':'#354532';c.lineWidth=6;
+      c.strokeStyle=char?'#252d25':'#354532';c.lineWidth=8;
       c.beginPath();c.moveTo(x,side*12);c.lineTo(footX,footY);c.stroke();
       c.strokeStyle=char?'#565b4a':'#b2ad83';c.lineWidth=2;
       c.beginPath();c.moveTo(x,side*14);c.lineTo(footX,footY);c.stroke();
-      c.fillStyle=char?'#30392f':'#58684d';c.fillRect(footX-5,footY-3,10,6);
-      c.fillStyle=char?'#565b4a':'#a6aa81';c.fillRect(footX-4,footY-3,8,1);
+      c.fillStyle=char?'#30392f':'#58684d';c.fillRect(footX-6,footY-4,12,8);
+      c.fillStyle=char?'#565b4a':'#a6aa81';c.fillRect(footX-5,footY-4,10,1);
       ellipse(c,x,side*13,3,3,char?'#30392f':'#7c8966');
     }
+  }
+  artilleryHull(c,char){
+    const armor=char?'#354033':'#596b50',dark=char?'#252e24':'#354a35',light=char?'#555e4b':'#96a27b';
+    const hull=[[-32,-12],[-26,-16],[23,-16],[31,-10],[31,10],[23,16],[-26,16],[-32,12]];
+    path(c,hull,armor,'#1d2a2088');path(c,hull,this.tankShade(c));
+    c.fillStyle=dark;c.fillRect(-29,-10,11,20);c.fillRect(13,-11,14,22);
+    c.fillStyle=light;for(let y=-8;y<=8;y+=4)c.fillRect(16,y,9,1);
+    for(const side of [-1,1]){
+      const y=side<0?-15:8;
+      c.fillStyle=dark;c.fillRect(-28,y,14,7);
+      c.fillStyle=armor;c.fillRect(-27,y+1,12,5);
+      c.fillStyle=light;c.fillRect(-25,y+1,2,5);c.fillRect(-18,y+1,2,5);
+      c.fillStyle=char?'#545747':'#ce8e59';c.fillRect(3,side<0?-16:13,7,3);
+    }
+    c.fillStyle=light;c.fillRect(-13,-14,24,2);
+    c.strokeStyle=dark;c.lineWidth=1;c.strokeRect(-12,-11,20,22);
+  }
+  artilleryTurret(c,e,char){
+    c.save();c.translate(ARTILLERY.turretOffset,0);c.rotate((e.turret??e.angle)-e.angle);
+    const armor=char?'#414a39':'#7f8b65',dark=char?'#252e24':'#394b35',light=char?'#606651':'#b3b48b';
+    const housing=[[-14,-12],[7,-12],[15,-7],[15,7],[7,12],[-14,12],[-17,8],[-17,-8]];
+    path(c,housing,armor,'#1d2a2088');path(c,housing,this.tankShade(c));
+    c.fillStyle=dark;c.fillRect(-15,-8,6,16);c.fillRect(-7,-10,10,3);
+    c.fillStyle=light;c.fillRect(-11,-12,16,2);
+    ellipse(c,-5,2,4,4,dark);ellipse(c,-5,2,2.5,2.5,light);
+    const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const life=!e.wreck&&!char&&e.health>0?e.weaponMuzzle||0:0,tip=ARTILLERY.barrelTip;
+    c.save();c.translate(reduced?0:-5*clamp(life/WEAPON_MUZZLE_TIME,0,1),0);
+    c.fillStyle=dark;c.fillRect(8,-4,14,8);
+    path(c,[[16,-3],[27,-3],[tip-7,-1.5],[tip,-1.5],[tip,1.5],[tip-7,1.5],[27,3],[16,3]],armor,dark);
+    c.fillStyle=light;c.fillRect(21,-2.5,17,1);c.fillRect(tip-7,-3,7,1);
+    c.fillStyle=dark;c.fillRect(tip-7,-3,7,6);
+    c.fillStyle=light;c.fillRect(tip-6,-3,5,1);
+    c.fillStyle='#17231a';c.fillRect(tip-5,-3,2,1);c.fillRect(tip-5,2,2,1);c.fillRect(tip-1,-1.5,1,3);
+    if(life&&!reduced)this.muzzleEffect(c,life,tip,18,.075);
+    c.restore();c.restore();
   }
   spotlightTexture(){
     if(!this.spotlightBeam){
@@ -831,6 +868,7 @@ export class Renderer {
     ellipse(c,-25,-20,1.5,1.5,char?'#565b4a':'#e2c482');
   }
   tankTurret(c,e,char) {
+    if(e.type==='artillery'){this.artilleryTurret(c,e,char);return;}
     c.save();c.rotate((e.turret??e.angle)-e.angle);
     path(c,[[-9,-10],[9,-10],[16,-5],[16,5],[8,10],[-9,10],[-13,4],[-13,-4]],char?'#4b503d':'#a49f75',char?'#171b16':'#c5b68966');
     path(c,[[-9,-10],[9,-10],[16,-5],[16,5],[8,10],[-9,10],[-13,4],[-13,-4]],this.tankShade(c));

@@ -235,8 +235,8 @@ function fireEnemy(e){
     else if(kind==='tank'||kind==='artillery'||kind==='boss'||kind==='drone')e.weaponMuzzle=WEAPON_MUZZLE_TIME;
     for(let i=0;i<stats.shotCount;i++){
       const angle=a+(i-(stats.shotCount-1)/2)*stats.spread,speed=stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
-      const tip=kind==='artillery'?42:30;
-      g.bullets.push({x:e.x+Math.cos(a)*tip,y:e.y+Math.sin(a)*tip,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:kind==='rocketSemi'?'enemyRocket':'shell',damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
+      const tip=kind==='artillery'?ARTILLERY.barrelTip:30,offset=kind==='artillery'?ARTILLERY.turretOffset:0;
+      g.bullets.push({x:e.x+Math.cos(e.angle)*offset+Math.cos(a)*tip,y:e.y+Math.sin(e.angle)*offset+Math.sin(a)*tip,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:kind==='rocketSemi'?'enemyRocket':'shell',damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
     }
     const multiplier=kind==='rocketSemi'?stats[`${settings.difficulty}Interval`]:1;
     e.cooldown=(stats.fireInterval-Math.min(g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+Math.random()*stats.fireRandom)*multiplier;
@@ -246,8 +246,8 @@ function fireEnemy(e){
     }
   }
   const audio=positionalAudio(e);
-  const muzzle=kind==='artillery'?42:33;
-  burst(e.x+Math.cos(a)*muzzle,e.y+Math.sin(a)*muzzle,'#f0c185',4,.3);sound.play(kind==='rocketSemi'?'missile':kind==='aa'?'aa':'enemy',audio.pan,audio.gain);
+  const muzzle=kind==='artillery'?ARTILLERY.barrelTip:33,offset=kind==='artillery'?ARTILLERY.turretOffset:0;
+  burst(e.x+Math.cos(e.angle)*offset+Math.cos(a)*muzzle,e.y+Math.sin(e.angle)*offset+Math.sin(a)*muzzle,'#f0c185',4,.3);sound.play(kind==='rocketSemi'?'missile':kind==='aa'?'aa':'enemy',audio.pan,audio.gain);
 }
 function incomingMissile(){
   const p=g.player;let threat=null,nearest=FLARE_RANGE;

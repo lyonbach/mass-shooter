@@ -16,10 +16,10 @@ function fireSplinters(x,y,size){
     g.particles.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life,maxLife:life,color:Math.random()<.45?'#fff0ad':'#ff9b59',size:.8+Math.random()*1.7,fireSplinter:true});
   }
 }
-function destructionSound(x,y){sound.play('explode',{position:{x,y}});}
-function explosion(x,y,size=75,life=.65){
+function destructionSound(x,y,gain=1){sound.play('explode',{position:{x,y},gain});}
+function explosion(x,y,size=75,life=.65,gain=1){
   g.explosions.push({x,y,size,life,maxLife:life});burst(x,y,'#f9c57f',46,size/65);burst(x,y,'#28342a',16,.45,true);fireSplinters(x,y,size);
-  g.shake=Math.max(g.shake,size/6);destructionSound(x,y);
+  g.shake=Math.max(g.shake,size/6);destructionSound(x,y,gain);
 }
 function flakBurst(x,y){
   const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -132,6 +132,22 @@ function updateEffects(dt){
       decal.transitionAge+=dt;
     }
     decal.age=newAge;decal.burnTime=Math.max(0,WRECK_FIRE_TIME-newAge);
+    if(decal.type==='artillery'&&decal.burnTime>0){
+      decal.ammoSparkTimer=(decal.ammoSparkTimer??.5)-dt;
+      decal.ammoExplosionTimer=(decal.ammoExplosionTimer??(1.5+Math.random()))-dt;
+      if(decal.ammoSparkTimer<=0||decal.ammoExplosionTimer<=0){
+        const forward=-26+Math.random()*12,side=(Math.random()<.5?-1:1)*(9+Math.random()*5);
+        const x=decal.x+Math.cos(decal.angle)*forward-Math.sin(decal.angle)*side,y=decal.y+Math.sin(decal.angle)*forward+Math.cos(decal.angle)*side;
+        if(decal.ammoSparkTimer<=0){
+          if(settings.effects&&!(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches))burst(x,y,'#ffc66d',7,.55);
+          decal.ammoSparkTimer=.6+Math.random()*1.1;
+        }
+        if(decal.ammoExplosionTimer<=0){
+          explosion(x,y,16+Math.random()*12,.35,.5);
+          decal.ammoExplosionTimer=1.8+Math.random()*2.2;
+        }
+      }
+    }
   }
   for(const enemy of g.enemies){
     if(enemy.health<=0)continue;
@@ -149,7 +165,7 @@ function updateEffects(dt){
     source.life-=dt;source.timer-=dt;
     if(source.life>0&&source.timer<=0){emitWreckSmoke(source);source.timer*=1+(1-source.life/WRECK_SMOKE_TIME)*2;}
     const wreck=source.wreck;
-    if(wreck&&wreck.burnTime>0&&settings.effects&&!(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches)){
+    if(wreck&&wreck.type!=='artillery'&&wreck.burnTime>0&&settings.effects&&!(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches)){
       wreck.sparkTimer=(wreck.sparkTimer??(1+(wreck.seed||0)*.3))-dt;
       if(wreck.sparkTimer<=0){burst(wreck.x,wreck.y,'#ffb65f',3,.35);wreck.sparkTimer=1.5+(wreck.seed||0)*.25;}
     }
