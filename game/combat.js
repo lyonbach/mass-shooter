@@ -1,18 +1,8 @@
 import { environmentFor, environmentGeometry, generateProps } from '../environment.js';
-import { TAU, clamp, distance, turn, segmentHitsCircle, armorDamageMultiplier, ENEMIES, WEAPONS, COMMANDER, ARTILLERY, ROCKET_IGNITION_DELAY } from '../core.js';
-import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, TANK_TRACK_HALF_WIDTH, GOLIATH_TRACK_HALF_WIDTH, TREAD_MARK_LIFETIME, TREAD_MARK_LIMIT, TREAD_MARK_SPACING, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
-import { MUZZLE_FUME_OFFSET, HELICOPTER_FUME_INTERVAL, HELICOPTER_FUME_OFFSET, AA_MUZZLE_TIME, LAUNCHER_IGNITION_TIME, WEAPON_MUZZLE_TIME } from './constants.js';
-export function updateDroneVisual(e,dt,reduced=false){
-  const vx=Number.isFinite(e.vx)?e.vx:0,vy=Number.isFinite(e.vy)?e.vy:0,speed=Math.hypot(vx,vy);
-  const fast=e.type==='kamikaze',rate=fast?6:3.5,response=1-Math.exp(-rate*Math.max(0,dt));
-  const heading=Number.isFinite(e.visualHeading)?e.visualHeading:(Number.isFinite(e.angle)?e.angle:0);
-  const delta=speed>3?Math.atan2(Math.sin(Math.atan2(vy,vx)-heading),Math.cos(Math.atan2(vy,vx)-heading)):0;
-  e.visualHeading=heading+delta*response;
-  const bank=reduced?0:clamp(delta,-1,1)*(fast?.18:.1);
-  const pitch=reduced?0:clamp(speed/(e.speed||1),0,1)*(fast?.12:.07);
-  e.visualBank=(Number.isFinite(e.visualBank)?e.visualBank:0)+(bank-(Number.isFinite(e.visualBank)?e.visualBank:0))*response;
-  e.visualPitch=(Number.isFinite(e.visualPitch)?e.visualPitch:0)+(pitch-(Number.isFinite(e.visualPitch)?e.visualPitch:0))*response;
-}
+import { TAU, clamp, distance, turn, segmentHitsCircle, armorDamageMultiplier, ENEMIES, WEAPONS, COMMANDER, ROCKET_IGNITION_DELAY } from '../core.js';
+import { FLARE_RANGE, FLARE_COOLDOWN, FLARE_DEFLECTION_CHANCE, MISSILE_ALARM_INTERVAL, PLAYER_ACCELERATION, PLAYER_BANK_RESPONSE, PLAYER_DECELERATION, PLAYER_TOUCH_TURN_RATE, PLAYER_TURN_RATE, PLAYER_CANNON_TURN_RATE, ROCKET_RAIL_FORWARD, ROCKET_RAIL_OFFSET, ROCKET_NOZZLE_OFFSET, ROCKET_TRAIL_SPACING, ROCKET_TRAIL_LOW_SPACING, ROCKET_TRAIL_STEP_LIMIT, WRECK_SMOKE_TIME, WRECK_FIRE_TIME, WRECK_STOP_SPEED } from './constants.js';
+import { MUZZLE_FUME_OFFSET, HELICOPTER_FUME_INTERVAL, HELICOPTER_FUME_OFFSET, WEAPON_MUZZLE_TIME } from './constants.js';
+export { updateDroneVisual } from './vehicles.js';
 export function createCombat(runtime){
   const {g,settings,sound,keys,pointer,$,t}=runtime;
   const burst=(...args)=>runtime.burst(...args),explosion=(...args)=>runtime.explosion(...args),float=(...args)=>runtime.float(...args);
@@ -72,7 +62,7 @@ function updateCamera(dt,instant=false){
 function hitEnemy(e,damage,source='other',origin){
   if(e.health<=0)return;
   e.health-=damage*armorDamageMultiplier(e,origin);e.hit=.12;
-  const ground=e.type!=='drone'&&e.type!=='kamikaze',cannonWreck=ground&&source==='cannon'&&e.health<=0;
+  const ground=!flying(e),cannonWreck=ground&&source==='cannon'&&e.health<=0;
   if(!cannonWreck)burst(e.x,e.y,'#ebd99c',4,.5);
   if(e.specialBoss&&e.health>0){
     const stage=e.health<=e.maxHealth/3?2:e.health<=e.maxHealth*2/3?1:0;
@@ -150,7 +140,7 @@ function damageProp(prop,damage){
 }
 // Ground units cannot wade through rivers or lakes: they steer to a bridge when water blocks the way
 // and are stopped at the shore otherwise. Air units ignore water.
-const flying=e=>e.type==='drone'||e.type==='kamikaze';
+const flying=e=>e.movingVehicle.airborne;
 function crossesWater(e,target){
   const w=g.geometry;
   for(let i=1;i<=12;i++){const f=i/12;if(w.inWater(e.x+(target.x-e.x)*f,e.y+(target.y-e.y)*f,e.radius*.5))return true;}
@@ -200,54 +190,8 @@ function detonate(b){
   g.bullets.forEach(other=>{if(!other.friendly&&distance(other,b)<135)other.life=0;});
 }
 function fireEnemy(e){
-  if(e.health<=0)return;
-  const a=e.turret,p=g.player,kind=e.type,stats=ENEMIES[kind];
-  if(kind==='artillery'&&(e.artilleryPhase!=='firing'||e.supportLegs!==1||Math.hypot(e.vx||0,e.vy||0)>0))return;
-  if(e.specialBoss){
-    if(e.phase==='entry')return;
-    if(e.phase==='advance'){e.phase='shells';e.shotsFired=0;}
-    if(e.phase==='reload'){e.phase='cannon';e.shotsFired=0;}
-    const cannon=e.phase==='cannon',barrel=e.shotsFired%2;
-    const aim=cannon?(e.cannonAngle??a):a;
-    const side=(barrel?1:-1)*(cannon?COMMANDER.cannonOffset:9)*COMMANDER.scale,forward=(cannon?39:COMMANDER.shellBarrelTip)*COMMANDER.scale;
-    const angle=aim+(cannon?(Math.random()-.5)*WEAPONS.gun.spread:0);
-    const speed=cannon?WEAPONS.gun.speed:(stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap))*COMMANDER.shellSpeedMultiplier;
-    const x=e.x+Math.cos(aim)*forward-Math.sin(aim)*side,y=e.y+Math.sin(aim)*forward+Math.cos(aim)*side;
-    g.bullets.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:cannon?WEAPONS.gun.life:stats.projectileLife,friendly:false,kind:cannon?'enemyGun':'heavyShell',damage:cannon?WEAPONS.gun.damage:stats.projectileDamage*COMMANDER.shellDamageMultiplier});
-    e.commanderMuzzle={barrel,cannon,life:WEAPON_MUZZLE_TIME};
-    e.shotsFired++;
-    if(e.shotsFired===(cannon?COMMANDER.cannonCount:COMMANDER.shellCount)){
-      e.phase=cannon?'advance':'reload';e.cooldown=cannon?COMMANDER.advanceTime:COMMANDER.reloadTime;
-    }else e.cooldown=cannon?WEAPONS.gun.cooldown:COMMANDER.shellInterval;
-    burst(x,y,'#ffd28b',cannon?6:14,cannon?.35:.65);
-    const audio=positionalAudio(e);sound.play(cannon?'shot':'enemy',audio.pan,audio.gain);
-    return;
-  }
-  if(kind==='aa'){
-    if(!e.burstRemaining)e.burstRemaining=stats.shotCount;
-    e.aaMuzzle={barrel:(stats.shotCount-e.burstRemaining)%2,life:AA_MUZZLE_TIME};
-    const angle=Math.random()*TAU,range=e.burstRemaining===stats.shotCount?0:Math.sqrt(Math.random())*stats.warningSpread;
-    g.warnings.push({x:clamp(p.x+Math.cos(angle)*range,0,g.world.width),y:clamp(p.y+Math.sin(angle)*range,0,g.world.height),life:stats.warningDelay,radius:stats.explosionRadius,damage:stats.projectileDamage});
-    e.burstRemaining--;
-    e.cooldown=e.burstRemaining?stats.burstInterval:stats.fireInterval+Math.random()*stats.fireRandom;
-  }else{
-    if(kind==='rocketSemi')e.launchIgnition=LAUNCHER_IGNITION_TIME;
-    else if(kind==='tank'||kind==='artillery'||kind==='boss'||kind==='drone')e.weaponMuzzle=WEAPON_MUZZLE_TIME;
-    for(let i=0;i<stats.shotCount;i++){
-      const angle=a+(i-(stats.shotCount-1)/2)*stats.spread,speed=stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
-      const tip=kind==='artillery'?ARTILLERY.barrelTip:30,offset=kind==='artillery'?ARTILLERY.turretOffset:0;
-      g.bullets.push({x:e.x+Math.cos(e.angle)*offset+Math.cos(a)*tip,y:e.y+Math.sin(e.angle)*offset+Math.sin(a)*tip,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:kind==='rocketSemi'?'enemyRocket':'shell',damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
-    }
-    const multiplier=kind==='rocketSemi'?stats[`${settings.difficulty}Interval`]:1;
-    e.cooldown=(stats.fireInterval-Math.min(g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+Math.random()*stats.fireRandom)*multiplier;
-    if(kind==='artillery'){
-      e.volleysFired++;
-      if(e.volleysFired===ARTILLERY.volleyCount){e.artilleryPhase='reloading';e.cooldown*=ARTILLERY.volleyCount;}
-    }
-  }
-  const audio=positionalAudio(e);
-  const muzzle=kind==='artillery'?ARTILLERY.barrelTip:33,offset=kind==='artillery'?ARTILLERY.turretOffset:0;
-  burst(e.x+Math.cos(e.angle)*offset+Math.cos(a)*muzzle,e.y+Math.sin(e.angle)*offset+Math.sin(a)*muzzle,'#f0c185',4,.3);sound.play(kind==='rocketSemi'?'missile':kind==='aa'?'aa':'enemy',audio.pan,audio.gain);
+  if(e.health<=0||!e.movingVehicle.canFire(e))return;
+  if(e.gun)e.gun.fire(e,runtime,positionalAudio(e));
 }
 function incomingMissile(){
   const p=g.player;let threat=null,nearest=FLARE_RANGE;
@@ -334,64 +278,16 @@ function update(dt){
   }else if(g.spawnRemaining>0){g.spawnTimer-=dt;if(g.spawnTimer<=0){runtime.spawnEnemy();g.spawnRemaining--;g.spawnTimer=g.plan.interval;}}
   for(const e of g.enemies){
     if(e.health<=0)continue;e.hit=Math.max(0,e.hit-dt);
-    if(e.aaMuzzle){e.aaMuzzle.life-=dt;if(e.aaMuzzle.life<=0)delete e.aaMuzzle;}
-    if(e.launchIgnition>0){e.launchIgnition-=dt;if(e.launchIgnition<=0)delete e.launchIgnition;}
-    if(e.weaponMuzzle>0){e.weaponMuzzle-=dt;if(e.weaponMuzzle<=0)delete e.weaponMuzzle;}
-    if(e.commanderMuzzle){e.commanderMuzzle.life-=dt;if(e.commanderMuzzle.life<=0)delete e.commanderMuzzle;}
-    const stats=ENEMIES[e.type],a=Math.atan2(p.y-e.y,p.x-e.x),d=distance(e,p),stop=stats.stopDistance;
-    let vx=0,vy=0;
-    const goal=groundGoal(e,p),ga=goal===p?a:Math.atan2(goal.y-e.y,goal.x-e.x);
-    if(e.specialBoss&&e.phase==='entry'&&e.x>0&&e.x<W&&e.y>60&&e.y<H){e.phase='shells';e.cooldown=2;}
-    if(e.type==='artillery'){
-      e.artilleryPhase??='moving';e.supportLegs??=0;e.volleysFired??=0;
-      const inField=e.x>0&&e.x<W&&e.y>60&&e.y<H;
-      const reposition=d>stop+(e.artilleryPhase==='moving'?0:ARTILLERY.repositionMargin)||goal!==p||!inField;
-      if(reposition&&e.artilleryPhase!=='moving'&&e.artilleryPhase!=='retracting')e.artilleryPhase='retracting';
-      if(e.artilleryPhase==='moving'&&!reposition){e.artilleryPhase='deploying';e.cooldown=0;}
-      if(e.artilleryPhase==='deploying'){
-        e.supportLegs=Math.min(1,e.supportLegs+dt/ARTILLERY.deploymentTime);
-        if(e.supportLegs===1){e.artilleryPhase='firing';e.volleysFired=0;e.cooldown=0;}
-      }else if(e.artilleryPhase==='retracting'){
-        e.supportLegs=Math.max(0,e.supportLegs-dt/ARTILLERY.deploymentTime);
-        if(e.supportLegs===0){e.artilleryPhase='moving';e.volleysFired=0;e.cooldown=0;}
-      }
+    const stats=ENEMIES[e.type],a=Math.atan2(p.y-e.y,p.x-e.x),goal=groundGoal(e,p);
+    const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+    e.movingVehicle.move(e,{target:p,goal,enemies:g.enemies,time:g.time,dt,resolveMove:groundMove,world:g.world,treadMarks:g.treadMarks,reduced});
+    if(e.gun)e.gun.update(e,a,dt);
+    else{
+      e.turret=turn(e.turret,a,dt*stats.turretRate);
+      e.cooldown-=dt;e.charge=clamp(1-e.cooldown/.7,0,1);
     }
-    const moving=e.type==='artillery'?e.artilleryPhase==='moving':e.specialBoss?e.phase==='entry'||e.phase==='advance':d>stop||goal!==p;
-    if(moving){vx=Math.cos(ga)*e.speed;vy=Math.sin(ga)*e.speed;}
-    if(stats.strafeSpeed){vx+=Math.cos(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;vy+=Math.sin(a+Math.PI/2)*Math.sin(g.time*1.3+e.seed)*stats.strafeSpeed;}
-    // Gentle separation keeps armor from stacking into one unreadable target.
-    if(e.type!=='artillery'||moving)for(const other of g.enemies){if(e===other||other.health<=0)continue;const dist=distance(e,other),min=e.radius+other.radius+9;if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}}
-    [vx,vy]=groundMove(e,vx,vy,dt);
-    e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
-    if(e.type==='drone'||e.type==='kamikaze')updateDroneVisual(e,dt,typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
-    const previousAngle=e.angle,heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
-    const turnMultiplier=e.specialBoss?COMMANDER.turnMultiplier:1;
-    if(e.type!=='artillery'||moving)e.angle=turn(e.angle,heading,dt*stats.turnRate*turnMultiplier);
-    if(e.type!=='drone'&&e.type!=='kamikaze'){
-      const forwardDistance=(vx*Math.cos(previousAngle)+vy*Math.sin(previousAngle))*dt;
-      const turnDistance=Math.atan2(Math.sin(e.angle-previousAngle),Math.cos(e.angle-previousAngle))*(e.specialBoss?COMMANDER.trackOffset:e.type==='boss'?GOLIATH_TRACK_HALF_WIDTH:TANK_TRACK_HALF_WIDTH);
-      const trackScale=e.specialBoss?COMMANDER.scale:e.type==='boss'?1.8:1;
-      const leftTrackDistance=forwardDistance+turnDistance,rightTrackDistance=forwardDistance-turnDistance;
-      e.leftTrackPhase=((e.leftTrackPhase||0)+leftTrackDistance/trackScale)%6;
-      e.rightTrackPhase=((e.rightTrackPhase||0)+rightTrackDistance/trackScale)%6;
-      e.trackPhase=((e.trackPhase||0)+forwardDistance/trackScale)%6;
-      e.treadDistance=(e.treadDistance||0)+Math.max(Math.abs(leftTrackDistance),Math.abs(rightTrackDistance));
-      if(e.treadDistance>=TREAD_MARK_SPACING){
-        e.treadDistance%=TREAD_MARK_SPACING;
-        const boss=e.type==='boss';
-        g.treadMarks.push({x:e.x,y:e.y,angle:e.angle,life:TREAD_MARK_LIFETIME,maxLife:TREAD_MARK_LIFETIME,trackOffset:e.specialBoss?COMMANDER.trackOffset:boss?36:18,trackLength:e.specialBoss?COMMANDER.trackLength:boss?30:16,trackWidth:boss?24:6});
-        if(g.treadMarks.length>TREAD_MARK_LIMIT)g.treadMarks.shift();
-      }
-    }
-    e.turret=turn(e.turret,a,dt*stats.turretRate);
-    if(e.specialBoss)e.cannonAngle=turn(e.cannonAngle??e.turret,a,dt*PLAYER_CANNON_TURN_RATE);
-    e.cooldown-=dt;e.charge=clamp(1-e.cooldown/.7,0,1);
-    if(e.type==='artillery'){
-      if(e.artilleryPhase==='reloading'&&e.cooldown<=0){e.artilleryPhase='firing';e.volleysFired=0;}
-      if(e.artilleryPhase!=='firing')e.charge=0;
-    }
-    if(e.type!=='kamikaze'&&e.cooldown<=0&&e.x>0&&e.x<W&&e.y>60&&e.y<H)fireEnemy(e);
-    if(distance(e,p)<e.radius+22){if(e.type==='kamikaze')hitEnemy(e,e.health);else damagePlayer(stats.contactDamage);}
+    if(e.gun&&e.cooldown<=0&&e.x>0&&e.x<W&&e.y>60&&e.y<H)fireEnemy(e);
+    if(distance(e,p)<e.radius+22){if(e.movingVehicle.contactDetonation)hitEnemy(e,e.health);else damagePlayer(stats.contactDamage);}
     if(g.state!=='playing')return;
   }
   if(p.health<=p.maxHealth*.25){

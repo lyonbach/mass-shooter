@@ -115,14 +115,15 @@ function updateEffects(dt){
       const travel=(end-start)-(end*end-start*start)/(2*WRECK_COAST_TIME);
       const dx=decal.initialVx*travel,dy=decal.initialVy*travel,x=decal.x,y=decal.y;
       decal.x+=dx;decal.y+=dy;
-      const forward=dx*Math.cos(decal.angle)+dy*Math.sin(decal.angle),scale=decal.specialBoss?COMMANDER.scale:decal.type==='boss'?1.8:1;
+      const vehicle=decal.movingVehicle;
+      const forward=dx*Math.cos(decal.angle)+dy*Math.sin(decal.angle),scale=vehicle?.scale??(decal.specialBoss?COMMANDER.scale:decal.type==='boss'?1.8:1);
       decal.leftTrackPhase=((decal.leftTrackPhase??decal.trackPhase??0)+forward/scale)%6;
       decal.rightTrackPhase=((decal.rightTrackPhase??decal.trackPhase??0)+forward/scale)%6;
       decal.trackPhase=((decal.trackPhase||0)+forward/scale)%6;
       const distance=Math.abs(forward),previous=decal.treadDistance||0;
       for(let at=TREAD_MARK_SPACING-previous;at<=distance;at+=TREAD_MARK_SPACING){
         const boss=decal.type==='boss',fraction=at/distance;
-        g.treadMarks.push({x:x+dx*fraction,y:y+dy*fraction,angle:decal.angle,life:TREAD_MARK_LIFETIME,maxLife:TREAD_MARK_LIFETIME,trackOffset:decal.specialBoss?COMMANDER.trackOffset:boss?36:18,trackLength:decal.specialBoss?COMMANDER.trackLength:boss?30:16,trackWidth:boss?24:6});
+        g.treadMarks.push({x:x+dx*fraction,y:y+dy*fraction,angle:decal.angle,life:TREAD_MARK_LIFETIME,maxLife:TREAD_MARK_LIFETIME,trackOffset:vehicle?.trackOffset??(decal.specialBoss?COMMANDER.trackOffset:boss?36:18),trackLength:vehicle?.trackLength??(decal.specialBoss?COMMANDER.trackLength:boss?30:16),trackWidth:vehicle?.trackWidth??(boss?24:6)});
         if(g.treadMarks.length>TREAD_MARK_LIMIT)g.treadMarks.shift();
       }
       decal.treadDistance=(previous+distance)%TREAD_MARK_SPACING;

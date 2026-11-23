@@ -12,7 +12,8 @@ export const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const lerp = (a, b, t) => a + (b - a) * t;
 export function armorDamageMultiplier(enemy,origin){
-  if(!origin||!['tank','boss','artillery','aa'].includes(enemy.type))return 1;
+  const directional=enemy.movingVehicle?.directionalArmor??['tank','boss','artillery','aa'].includes(enemy.type);
+  if(!origin||!directional)return 1;
   const dx=origin.x-enemy.x,dy=origin.y-enemy.y,length=Math.hypot(dx,dy);
   if(!length)return 1;
   const facing=(dx*Math.cos(enemy.angle)+dy*Math.sin(enemy.angle))/length;
