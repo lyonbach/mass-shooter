@@ -1,6 +1,7 @@
 export function createInput(runtime){
   const {g,settings,sound,$,canvas,dialog,keys,pointer,t}=runtime;
 $('settings-open').addEventListener('click',runtime.openSettings);$('settings-close').addEventListener('click',runtime.closeSettings);$('settings-done').addEventListener('click',runtime.closeSettings);
+$('help-open').addEventListener('click',()=>runtime.openSettings('help'));$('help-done').addEventListener('click',runtime.closeSettings);
 dialog.addEventListener('cancel',event=>{event.preventDefault();runtime.closeSettings();});
 $('volume').addEventListener('input',event=>{settings.volume=event.target.value/100;sound.init();sound.configure();runtime.saveSettings();runtime.updateSettingsUI();});
 for(const id of ['music','shake','effects'])$(id).addEventListener('change',()=>{settings[id]=$(id).checked;sound.configure();runtime.saveSettings();if(id==='effects')runtime.resize();});
