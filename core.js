@@ -4,11 +4,19 @@ import { WEAPON_DATA } from './weapon-data.js';
 export const ENEMIES = ENEMY_DATA;
 export const MAPS = LEVEL_DATA;
 export const WEAPONS = WEAPON_DATA;
+export const COMMANDER = {wave:15,healthMultiplier:5,speed:16,radius:112,scale:1.8,shellCount:12,shellInterval:.3,shellBarrelTip:15+49*1.3,shellSpeedMultiplier:1.8,shellDamageMultiplier:2,reloadTime:1,cannonCount:30,cannonOffset:5,advanceTime:3,turnMultiplier:.125,spotlightFlickerTime:1.2,exhaustForward:-66,exhaustOffset:24,trackOffset:72,trackLength:96,trackWidth:24};
 export const ROCKET_IGNITION_DELAY = .3;
 export const TAU = Math.PI * 2;
 export const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const lerp = (a, b, t) => a + (b - a) * t;
+export function armorDamageMultiplier(enemy,origin){
+  if(!origin||!['tank','boss','artillery','aa'].includes(enemy.type))return 1;
+  const dx=origin.x-enemy.x,dy=origin.y-enemy.y,length=Math.hypot(dx,dy);
+  if(!length)return 1;
+  const facing=(dx*Math.cos(enemy.angle)+dy*Math.sin(enemy.angle))/length;
+  return facing>=Math.SQRT1_2?1:facing<=-Math.SQRT1_2?1.7:1.4;
+}
 export function turn(current, target, rate) {
   const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
   return current + delta * clamp(rate, 0, 1);
@@ -21,7 +29,8 @@ export function segmentHitsCircle(ax, ay, bx, by, cx, cy, radius) {
 export function wavePlan(wave, difficulty = 'normal') {
   const factor = { easy: 0.8, normal: 1, hard: 1.2 }[difficulty] || 1;
   const boss = wave % 5 === 0;
-  return { count: boss ? 5 + Math.floor(wave / 2) : Math.round((4 + wave * 2) * factor),
+  const specialBoss=wave===COMMANDER.wave;
+  return { count: boss&&!specialBoss ? 5 + Math.floor(wave / 2) : Math.round((4 + wave * 2) * factor),specialBoss,
     interval: Math.max(0.4, 1.6 - wave * 0.065), boss,
     health: 1 + Math.floor((wave - 1) / 5) * 0.18,
     damage: { easy: 0.7, normal: 1, hard: 1.3 }[difficulty] || 1 };

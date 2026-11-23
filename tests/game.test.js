@@ -35,6 +35,253 @@ function createGame(reducedMotion=false) {
 }
 function enemy(overrides={}){return{x:600,y:300,type:'tank',health:4,maxHealth:4,speed:0,points:110,radius:25,angle:0,turret:0,cooldown:10,charge:0,hit:0,seed:0,...overrides};}
 
+test('wave fifteen remains a normal battle until clear, then gates upgrades on the commander',async()=>{
+  const game=createGame();await game.start();const g=game.g;
+  g.wave=14;game.nextWave();
+  assert.equal(g.wave,15);assert.equal(g.enemies.length,0);assert.equal(g.spawnRemaining,34);
+  const dayMap=g.map,props=g.props;
+  assert.equal(game.sound.scene,'waves');
+  g.spawnRemaining=0;g.enemies=[enemy({health:1})];
+  g.warnings=[{x:0,y:0,life:.1,radius:1,damage:1}];
+  game.hitEnemy(g.enemies[0],1,'cannon');game.update(.05);
+  assert.equal(g.enemies.length,0);assert.equal(g.specialBossPending,true);
+  g.bullets=[{x:0,y:0,vx:0,vy:0,life:10,friendly:false}];game.update(.1);
+  const boss=g.enemies[0];
+  assert.equal(boss.type,'boss');assert.equal(boss.specialBoss,true);
+  assert.equal(environment.environmentFor(g.map).time,'night');
+  assert.equal(environment.environmentFor(dayMap).time,'day');assert.equal(g.props,props);
+  assert.equal(boss.maxHealth,(core.ENEMIES.boss.health+15*core.ENEMIES.boss.healthPerWave)*g.plan.health*5);
+  assert.ok(boss.speed<core.ENEMIES.boss.speed);
+  assert.equal(g.bullets.length,0);assert.equal(g.waveWait,-1);assert.equal(g.state,'playing');
+  assert.equal(game.sound.scene,'boss');
+  const map=g.map;game.update(.05);assert.equal(g.enemies.length,1);assert.equal(g.map,map);
+  game.hitEnemy(boss,boss.health,'cannon');game.update(.05);
+  assert.ok(g.waveWait>0);assert.equal(g.decals.at(-1).specialBoss,true);
+  assert.equal(g.wreckSmoke.at(-1).wreck,g.decals.at(-1));
+  game.update(1.5);assert.equal(g.state,'playing');
+  game.update(2);assert.equal(g.state,'upgrade');
+  game.selectUpgrade(game.getChoices()[0].id);
+  assert.equal(g.wave,16);assert.equal(g.specialBossPending,false);assert.equal(g.decals.length,0);
+});
+
+test('commander fires six heavy shells per barrel, pauses one second, alternates thirty cannon rounds, then advances',async()=>{
+  const game=createGame();await game.start();const g=game.g,p=g.player;
+  g.spawnRemaining=0;g.geometry=null;
+  const boss=game.spawnEnemy('commander');
+  Object.assign(boss,{x:500,y:300,angle:0,turret:0,phase:'shells',cooldown:0});
+  p.x=1200;p.y=300;p.health=p.maxHealth=1e9;
+  const shots=[];
+  // Record through the real update loop; projectiles may leave the world before the cycle ends.
+  const step=()=>{
+    const before=new Set(g.bullets);game.update(.01);
+    const bullet=g.bullets.find(b=>!before.has(b)&&!b.friendly);
+    if(bullet)shots.push({bullet,barrel:boss.commanderMuzzle.barrel,cannon:boss.commanderMuzzle.cannon,time:g.time});
+  };
+  for(let i=0;i<1000&&boss.phase!=='reload';i++)step();
+  assert.equal(shots.length,12);assert.deepEqual(shots.map(s=>s.barrel),[0,1,0,1,0,1,0,1,0,1,0,1]);
+  assert.ok(shots.every(s=>s.bullet.kind==='heavyShell'&&s.bullet.damage===core.ENEMIES.boss.projectileDamage*2));
+  assert.ok(shots.every(s=>Math.abs(Math.hypot(s.bullet.vx,s.bullet.vy)-(core.ENEMIES.boss.projectileSpeed+g.wave*core.ENEMIES.boss.projectileSpeedPerWave)*1.8)<1e-9));
+  assert.equal(boss.cooldown,1);
+  const stationary={x:boss.x,y:boss.y},lastShell=shots.at(-1).time;
+  for(let i=0;i<99;i++)step();
+  assert.equal(boss.phase,'reload');assert.equal(shots.length,12);
+  assert.equal(boss.x,stationary.x);assert.equal(boss.y,stationary.y);
+  for(let i=0;i<500&&boss.phase!=='advance';i++)step();
+  assert.equal(shots.length,42);assert.ok(shots[12].time-lastShell>=1&&shots[12].time-lastShell<1.02);
+  assert.ok(shots.slice(12).every(s=>s.cannon&&s.bullet.kind==='enemyGun'&&s.bullet.damage===core.WEAPONS.gun.damage&&Math.abs(Math.hypot(s.bullet.vx,s.bullet.vy)-core.WEAPONS.gun.speed)<1e-9));
+  assert.equal(shots.slice(12).filter(s=>s.barrel===0).length,15);assert.equal(shots.slice(12).filter(s=>s.barrel===1).length,15);
+  assert.equal(boss.x,stationary.x);assert.equal(boss.y,stationary.y);
+  for(let i=0;i<301;i++)step();
+  assert.ok(boss.x>stationary.x+45&&boss.x<stationary.x+50);
+  assert.equal(boss.phase,'shells');assert.equal(shots.length,43);
+  assert.equal(shots.at(-1).cannon,false);
+});
+
+test('commander damage milestones explode once each and retain hull fires without changing combat health',async()=>{
+  const game=createGame();await game.start();const g=game.g,boss=game.spawnEnemy('commander');
+  boss.health=boss.maxHealth=300;
+  game.hitEnemy(boss,99,'cannon');assert.equal(boss.damageStage,0);assert.equal(g.explosions.length,0);
+  game.hitEnemy(boss,1,'cannon');
+  assert.equal(boss.damageStage,1);assert.equal(boss.damageFires.length,3);assert.equal(g.explosions.length,3);
+  assert.equal(boss.health,200);assert.equal(g.player.health,100);
+  assert.equal(boss.spotlightFlicker,1.2);
+  game.hitEnemy(boss,99,'cannon');assert.equal(g.explosions.length,3);
+  game.hitEnemy(boss,1,'cannon');
+  assert.equal(boss.damageStage,2);assert.equal(boss.damageFires.length,6);assert.equal(g.explosions.length,6);
+  game.hitEnemy(boss,1,'cannon');assert.equal(g.explosions.length,6);
+  assert.equal(g.kills,0);assert.equal(g.decals.length,0);
+  const fires=structuredClone(boss.damageFires);
+  boss.angle+=Math.PI/2;game.updateEffects(0);
+  assert.deepEqual(boss.damageFires,fires);
+  boss.damageSparkTimer=0;game.updateEffects(0);
+  assert.equal(g.particles.filter(p=>p.color==='#ffc66d').length,5);
+  assert.ok(boss.damageSparkTimer>=1.3&&boss.damageSparkTimer<=3.3);
+  game.updateEffects(0);assert.equal(g.particles.filter(p=>p.color==='#ffc66d').length,5);
+  const timer=boss.spotlightFlicker;game.pause();game.frame(1000);game.frame(2000);
+  assert.equal(boss.spotlightFlicker,timer);
+  game.hitEnemy(boss,boss.health,'cannon');
+  assert.equal(g.explosions.length,7);assert.equal(g.deathBursts.length,15);
+});
+
+test('one large nonfatal hit triggers both commander damage milestones but a fatal hit goes straight to death',async()=>{
+  const game=createGame();await game.start();const boss=game.spawnEnemy('commander');
+  boss.health=boss.maxHealth=300;game.hitEnemy(boss,260,'rocket');
+  assert.equal(boss.damageStage,2);assert.equal(boss.damageFires.length,6);assert.equal(game.g.explosions.length,6);
+  const next=game.spawnEnemy('commander');game.hitEnemy(next,next.health,'rocket');
+  assert.equal(next.damageStage,0);assert.equal(next.damageFires.length,0);
+  assert.equal(game.g.explosions.length,7);
+});
+
+test('commander explodes on cannon and rocket deaths with many small hull-wide secondary blasts',async()=>{
+  for(const source of ['cannon','rocket']){
+    const game=createGame();await game.start();const g=game.g,boss=game.spawnEnemy('commander');
+    Object.assign(boss,{x:500,y:300,angle:0,vx:10,vy:0});g.spawnRemaining=0;
+    const score=g.score,kills=g.kills;
+    game.hitEnemy(boss,boss.health,source);
+    assert.equal(g.explosions.length,1);assert.equal(g.deathBursts.length,15);
+    assert.equal(g.explosions[0].maxLife,2.6);
+    assert.equal(g.deathBursts.filter(b=>b.size>=72&&b.size<=100).length,3);
+    assert.equal(g.deathBursts.filter(b=>b.size>=24&&b.size<=42).length,12);
+    assert.ok(g.deathBursts.every(b=>b.life===1.3));
+    assert.ok(Math.min(...g.deathBursts.map(b=>b.x))<430&&Math.max(...g.deathBursts.map(b=>b.x))>570);
+    assert.ok(Math.min(...g.deathBursts.map(b=>b.y))<270&&Math.max(...g.deathBursts.map(b=>b.y))>330);
+    assert.equal(g.decals.length,1);assert.equal(g.wreckSmoke[0].wreck,g.decals[0]);
+    assert.equal(g.kills,kills+1);assert.ok(g.score>score);
+    game.hitEnemy(boss,100,source);assert.equal(g.deathBursts.length,15);assert.equal(g.kills,kills+1);
+    game.updateEffects(1.1);assert.ok(g.deathBursts.length>0);
+    game.updateEffects(1.1);assert.equal(g.deathBursts.length,0);
+    assert.equal(game.sound.calls.filter(call=>call.name==='explode').length,16);
+  }
+});
+
+test('commander hull turns eight times slower while its turret retains its speed and cannons aim independently',async()=>{
+  const game=createGame();await game.start();const g=game.g;
+  g.spawnRemaining=0;g.geometry=null;g.player.x=700;g.player.y=500;
+  const boss=game.spawnEnemy('commander');
+  Object.assign(boss,{x:700,y:300,angle:0,turret:0,cannonAngle:0,phase:'reload',cooldown:1});
+  game.update(.1);
+  assert.ok(Math.abs(boss.angle-Math.PI/2*.1*core.ENEMIES.boss.turnRate/8)<1e-9);
+  assert.ok(Math.abs(boss.turret-Math.PI/2*.1*core.ENEMIES.boss.turretRate)<1e-9);
+  assert.ok(Math.abs(boss.cannonAngle-Math.PI/2)<1e-9);
+  g.enemies=[enemy({type:'boss',x:700,y:300,radius:49})];game.update(.1);
+  assert.ok(Math.abs(g.enemies[0].angle-boss.angle*8)<1e-9);
+  assert.ok(Math.abs(g.enemies[0].turret-boss.turret)<1e-9);
+});
+
+test('heavy turret shell impacts explode at helicopter contact without adding splash damage',async()=>{
+  const game=createGame();await game.start();const g=game.g,p=g.player;
+  g.spawnRemaining=100;g.geometry=null;
+  p.x=600;p.y=300;p.health=100;p.invulnerable=0;
+  const tank=enemy({x:600,y:360,health:100,maxHealth:100,cooldown:100});g.enemies=[tank];
+  g.bullets=[{x:500,y:300,vx:1000,vy:0,life:1,friendly:false,damage:36,kind:'heavyShell'}];
+  game.update(.1);
+  assert.equal(p.health,64);assert.equal(tank.health,100);
+  assert.equal(g.bullets.length,0);assert.equal(g.explosions.length,1);
+  assert.deepEqual({x:g.explosions[0].x,y:g.explosions[0].y},{x:583,y:300});
+  assert.equal(game.sound.calls.filter(call=>call.name==='explode').length,1);
+  g.bullets=[{x:500,y:300,vx:1000,vy:0,life:1,friendly:false,damage:1,kind:'enemyGun'}];
+  game.update(.1);assert.equal(g.explosions.length,1);
+});
+
+test('commander engine smoke comes from two rear hull exhausts and stops on pause and death',async()=>{
+  const game=createGame();await game.start();const g=game.g,boss=game.spawnEnemy('commander');
+  Object.assign(boss,{x:500,y:300,angle:Math.PI/2,turret:0});
+  game.updateEffects(0);
+  const smoke=g.particles.filter(p=>p.tankFume);
+  assert.equal(smoke.length,2);
+  assert.ok(smoke.every(p=>Math.abs(p.y-(300+core.COMMANDER.exhaustForward*core.COMMANDER.scale))<1e-9));
+  assert.ok(Math.abs(Math.abs(smoke[0].x-smoke[1].x)-2*core.COMMANDER.exhaustOffset*core.COMMANDER.scale)<1e-9);
+  const positions=smoke.map(p=>({x:p.x,y:p.y,life:p.life}));
+  game.pause();game.frame(1000);game.frame(2000);
+  assert.deepEqual(smoke.map(p=>({x:p.x,y:p.y,life:p.life})),positions);
+  game.hitEnemy(boss,boss.health,'cannon');game.updateEffects(.1);
+  assert.equal(g.particles.filter(p=>p.tankFume).length,2);
+  await game.start();assert.equal(g.particles.some(p=>p.tankFume),false);
+});
+
+test('commander cannon shots follow their own aim rather than the main turret and emit additional sparks',async()=>{
+  const game=createGame();await game.start();const boss=game.spawnEnemy('commander');
+  Object.assign(boss,{x:500,y:300,turret:0,cannonAngle:Math.PI/2,phase:'cannon',shotsFired:0});
+  const particles=game.g.particles.length;
+  game.fireEnemy(boss);
+  const b=game.g.bullets.at(-1);
+  assert.ok(b.vy>0&&Math.abs(b.vx)<20);
+  assert.ok(Math.abs(b.x-(500+core.COMMANDER.cannonOffset*core.COMMANDER.scale))<1e-9);
+  assert.ok(Math.abs(b.y-(300+39*core.COMMANDER.scale))<1e-9);
+  assert.equal(game.g.particles.length-particles,6);
+  boss.phase='shells';boss.shotsFired=0;game.fireEnemy(boss);
+  assert.equal(game.g.particles.length-particles,20);
+  assert.ok(Math.abs(game.g.bullets.at(-1).x-(boss.x+core.COMMANDER.shellBarrelTip*core.COMMANDER.scale))<1e-9);
+});
+
+test('directional armor uses hull orientation for armored units but never for trucks or drones',async()=>{
+  const game=createGame();await game.start();
+  for(const type of ['tank','boss','artillery','aa','rocketSemi','drone','kamikaze']){
+    for(const angle of [0,Math.PI/2,-Math.PI+0.1]){
+      for(const [direction,multiplier] of [[0,1],[Math.PI/2,1.4],[-Math.PI/2,1.4],[Math.PI,1.7]]){
+        const e=enemy({type,angle,turret:angle+Math.PI,health:100,maxHealth:100});
+        const origin={x:e.x+Math.cos(angle+direction)*100,y:e.y+Math.sin(angle+direction)*100};
+        game.hitEnemy(e,10,'cannon',origin);
+        assert.ok(Math.abs(e.health-(100-10*(['rocketSemi','drone','kamikaze'].includes(type)?1:multiplier)))<1e-9);
+      }
+    }
+  }
+  const e=enemy({health:100});game.hitEnemy(e,10);assert.equal(e.health,90);
+  game.hitEnemy(e,10,'rocket',e);assert.equal(e.health,80);
+});
+
+test('real cannon hits use their incoming direction and rocket blasts use their explosion position',async()=>{
+  const game=createGame();await game.start();const g=game.g;
+  g.spawnRemaining=0;g.geometry=null;g.props=[];g.player.x=1000;g.player.y=300;
+  const tank=enemy({x:600,y:300,health:100,maxHealth:100});
+  g.enemies=[tank];
+  g.bullets=[{x:500,y:300,vx:1000,vy:0,life:1,friendly:true,damage:10,kind:'gun'}];
+  game.update(.1);assert.equal(tank.health,83);
+  tank.health=100;
+  g.bullets=[{x:600,y:360,vx:0,vy:0,life:.001,friendly:true,damage:10,kind:'rocket',target:null}];
+  game.update(.01);
+  const blast=g.explosions.at(-1),distance=Math.hypot(blast.x-tank.x,blast.y-tank.y);
+  assert.ok(Math.abs(tank.health-(100-10*(1-distance/230)*1.4))<1e-9);
+});
+
+test('commander enters the battlefield before attacking and pauses its cycle with the game',async()=>{
+  const game=createGame();await game.start();const g=game.g;
+  g.spawnRemaining=100;g.geometry=null;
+  const boss=game.spawnEnemy('commander');
+  Object.assign(boss,{x:-10,y:300,angle:0,turret:0,cooldown:0});
+  g.player.x=900;g.player.y=300;
+  game.fireEnemy(boss);assert.equal(g.bullets.length,0);
+  for(let i=0;i<25;i++)game.update(.05);
+  assert.equal(boss.phase,'shells');assert.ok(boss.x>0);
+  const pose={x:boss.x,phase:boss.phase,cooldown:boss.cooldown};
+  game.pause();game.frame(1000);game.frame(2000);
+  assert.deepEqual({x:boss.x,phase:boss.phase,cooldown:boss.cooldown},pose);
+  await game.start();assert.equal(g.specialBossPending,false);assert.equal(g.enemies.length,0);
+});
+
+test('commander is selectable in the test range without starting a wave encounter',async()=>{
+  const game=createGame();await game.start('test');
+  game.elements.get('test-enemy').value='commander';
+  game.elements.get('test-max-active').value=1;
+  await game.start('test');game.update(.05);
+  assert.equal(game.g.testRange.enemy,'commander');
+  assert.equal(game.g.enemies.length,1);assert.equal(game.g.enemies[0].specialBoss,true);
+  assert.equal(environment.environmentFor(game.g.map).time,'night');
+  assert.equal(game.g.specialBossPending,false);
+});
+
+test('commander can enter the wave fifteen map from each battlefield edge',async()=>{
+  for(const side of [0,1,2,3]){
+    const game=createGame();await game.start();const g=game.g;
+    g.wave=14;game.nextWave();g.spawnRemaining=0;g.specialBossPending=false;
+    g.player.health=g.player.maxHealth=1e9;
+    const random=Math.random;let boss;
+    try{Math.random=()=>side/4+.125;boss=game.spawnEnemy('commander');}finally{Math.random=random;}
+    for(let i=0;i<2000&&boss.phase==='entry';i++)game.update(.05);
+    assert.equal(boss.phase,'shells',`entry from side ${side} at ${boss.x}, ${boss.y}`);
+  }
+});
+
 test('props are rebuilt per wave; destroyed barrels blast nearby enemies and props but spare the player',async()=>{
   const game=createGame();await game.start();
   assert.ok(game.g.props.length>0);

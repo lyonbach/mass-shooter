@@ -46,7 +46,7 @@
         <button id="pause" class="icon-button pause-button" aria-label="Pause game" title="Pause (Esc)" hidden><svg><use href="#i-pause"/></svg></button>
         <div class="combo" id="combo" hidden><strong id="combo-value">×2</strong><span data-i18n="hud.combo">KILL STREAK</span></div>
         <div class="announcement" id="announcement" role="status" aria-live="polite"><span id="announcement-tag"></span><strong id="announcement-title"></strong><small id="announcement-note"></small></div>
-        <div class="boss-hud" id="boss-hud" hidden><span data-i18n="hud.boss">⚠ &nbsp; GOLIATH / ARMORED COMMAND VEHICLE</span><div><i id="boss-fill"></i></div></div>
+        <div class="boss-hud" id="boss-hud" hidden><span id="boss-label" data-i18n="hud.boss">⚠ &nbsp; GOLIATH / ARMORED COMMAND VEHICLE</span><div><i id="boss-fill"></i></div></div>
         <div class="bottom-hud" id="bottom-hud"><div class="location"><span class="crosshair-symbol">⌖</span><div><span data-i18n="hud.base">FORWARD OPERATING BASE</span> <small><span data-i18n="mission.sector">SECTOR 07</span> · <span id="sector-name">DESERT FRONT</span></small></div></div><div class="abilities"><div class="ability" id="heat-ability"><span data-i18n="hud.cannonHeat">CANNON HEAT</span> <b id="heat-status">0%</b><div id="heat-meter" role="progressbar" aria-label="Cannon heat" data-i18n-aria="hud.cannonHeat" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="heat-fill"></i></div></div><div class="ability" id="dash-ability"><kbd>SHIFT</kbd><span data-i18n="hud.dash">DASH</span> <b id="dash-status">READY</b><i id="dash-fill"></i></div><div class="ability" id="rocket-ability"><kbd>E</kbd><span data-i18n="hud.rocket">ROCKET</span> <b id="rocket-status">3 / 3</b><i id="rocket-fill"></i></div></div></div>
         <div class="overlay" id="overlay">
           <div class="intro" id="intro-panel">
@@ -61,7 +61,7 @@
             <section class="test-range" id="test-range" hidden>
               <span class="panel-kicker">TEST RANGE</span>
               <div class="test-grid">
-                <label>ENEMY<select id="test-enemy"><option value="tank">TANK</option><option value="drone">DRONE</option><option value="artillery">ARTILLERY</option><option value="kamikaze">KAMIKAZE</option><option value="aa">AA</option><option value="rocketSemi">MISSILE LAUNCHER</option><option value="boss">GOLIATH</option></select></label>
+                <label>ENEMY<select id="test-enemy"><option value="tank">TANK</option><option value="drone">DRONE</option><option value="artillery">ARTILLERY</option><option value="kamikaze">KAMIKAZE</option><option value="aa">AA</option><option value="rocketSemi">MISSILE LAUNCHER</option><option value="boss">GOLIATH</option><option value="commander">GOLIATH COMMANDER</option></select></label>
                 <label>SPAWN RATE<select id="test-interval"><option value=".35">FAST</option><option value="1" selected>NORMAL</option><option value="2">SLOW</option></select></label>
                 <label>ACTIVE LIMIT<select id="test-max-active"><option value="1">1</option><option value="3" selected>3</option><option value="6">6</option><option value="12">12</option></select></label>
                 <label>HEALTH<select id="test-health"><option value=".5">50%</option><option value="1" selected>100%</option><option value="2">200%</option><option value="5">500%</option></select></label>

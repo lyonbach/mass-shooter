@@ -25,7 +25,7 @@ function updateHud(){
   $('touch-flare').hidden=settings.difficulty!=='hard';$('touch-flare').disabled=p.flareCooldown>0;
   $('combo').hidden=multiplier<2;$('combo-value').textContent=`×${multiplier}`;
   const boss=g.enemies.find(e=>e.type==='boss');$('boss-hud').hidden=!boss||g.state==='over';
-  if(boss)$('boss-fill').style.width=`${clamp(boss.health/boss.maxHealth*100,0,100)}%`;
+  if(boss){$('boss-fill').style.width=`${clamp(boss.health/boss.maxHealth*100,0,100)}%`;$('boss-label').textContent=t(boss.specialBoss?'hud.commander':'hud.boss');}
 }
 function showUpgrades(){
   g.bullets=[];g.bannerTime=0;$('announcement').classList.remove('visible');
