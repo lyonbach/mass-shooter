@@ -1,5 +1,7 @@
 import { TAU, enemyType, mapForWave, wavePlan, ENEMIES, COMMANDER } from '../core.js';
 import { SCREEN_SMOKE_CHANCE } from './constants.js';
+import { createVehicle } from './vehicles.js';
+import { createGun } from './guns.js';
 export function createWaves(runtime){
   const {g,settings,renderer,sound,$,pad,t}=runtime;
   const announce=(...args)=>runtime.announce(...args);
@@ -38,6 +40,9 @@ function spawnEnemy(forced){
     enemy.smokeScreen=Math.random()<SCREEN_SMOKE_CHANCE;
     if(enemy.smokeScreen){enemy.screenSmokeTimer=0;runtime.emitScreenSmoke(enemy);}
   }
+  enemy.movingVehicle=createVehicle(type,specialBoss);enemy.gun=createGun(type,specialBoss);
+  enemy.movingVehicle.initialize(enemy);
+  if(enemy.gun)enemy.gun.initialize(enemy);
   if(g.testRange){enemy.health*=g.testRange.health;enemy.maxHealth=enemy.health;}
   g.enemies.push(enemy);return enemy;
 }
