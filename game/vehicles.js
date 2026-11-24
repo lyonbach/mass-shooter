@@ -25,6 +25,7 @@ export class MovingVehicle {
   canSeparate(e,moving){return true;}
   canTurn(e,moving){return true;}
   canFire(e){return true;}
+  resolveMotion(e,vx,vy,dt,resolveMove){return resolveMove(e,vx,vy,dt);}
 
   move(e,context){
     const {target,goal,enemies,time,dt,resolveMove,treadMarks,reduced}=context;
@@ -41,7 +42,7 @@ export class MovingVehicle {
       const dist=distance(e,other),min=e.radius+other.radius+9;
       if(dist>0&&dist<min){vx+=(e.x-other.x)/dist*(min-dist)*1.5;vy+=(e.y-other.y)/dist*(min-dist)*1.5;}
     }
-    [vx,vy]=resolveMove(e,vx,vy,dt);
+    [vx,vy]=this.resolveMotion(e,vx,vy,dt,resolveMove);
     e.vx=vx;e.vy=vy;e.x+=vx*dt;e.y+=vy*dt;
     if(this.airborne)updateDroneVisual(e,dt,reduced);
     const heading=Math.hypot(vx,vy)>3?Math.atan2(vy,vx):a;
@@ -136,6 +137,31 @@ export class CommanderVehicle extends GoliathVehicle {
 
 export class RocketVehicle extends MovingVehicle {
   constructor(stats){super(stats);this.antenna=false;this.directionalArmor=false;}
+  canSeparate(e,moving){return moving;}
+  canTurn(e,moving){return false;}
+
+  resolveMotion(e,vx,vy,dt,resolveMove){
+    e.steering=0;
+    const speed=Math.min(Math.hypot(vx,vy),e.speed);
+    if(speed<=.01)return [0,0];
+    const [navX,navY]=resolveMove(e,vx,vy,dt);
+    const heading=Math.hypot(navX,navY)>.01?Math.atan2(navY,navX):Math.atan2(vy,vx);
+    const delta=Math.atan2(Math.sin(heading-e.angle),Math.cos(heading-e.angle));
+    const maxTurn=Math.min(dt*this.stats.turnRate,speed*dt/48),steer=clamp(delta,-maxTurn,maxTurn);
+    for(const direction of [1,-1]){
+      const driveSpeed=direction===1?speed:speed*.5;
+      const angle=e.angle+steer*(direction===1?1:-.5);
+      const driveX=Math.cos(angle)*driveSpeed*direction,driveY=Math.sin(angle)*driveSpeed*direction;
+      const [safeX,safeY]=resolveMove(e,driveX,driveY,dt);
+      // Use obstacle avoidance as steering advice, never as sideways truck motion.
+      if(Math.abs(safeX-driveX)<.0001&&Math.abs(safeY-driveY)<.0001){
+        e.angle=angle;e.steering=clamp(delta,-.45,.45);
+        return [driveX,driveY];
+      }
+    }
+    return [0,0];
+  }
+
   draw(renderer,c,e,char){renderer.rocketHull(c,e,char);}
 }
 
