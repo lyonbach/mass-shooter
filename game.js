@@ -5,6 +5,8 @@ import { createCombat } from './game/combat.js';
 import { createWaves } from './game/waves.js';
 import { createUpgrades } from './game/upgrades.js';
 import { createLoop } from './game/loop.js';
+import { createProfile } from './game/profile.js';
+import { createScores } from './game/scores.js';
 
 const runtime=createState();
 Object.assign(runtime, createEntities(runtime));
@@ -12,8 +14,11 @@ Object.assign(runtime, createWaves(runtime));
 Object.assign(runtime, createLoop(runtime));
 Object.assign(runtime, createCombat(runtime));
 Object.assign(runtime, createUpgrades(runtime));
+Object.assign(runtime, createProfile(runtime));
+Object.assign(runtime, createScores(runtime));
 Object.assign(runtime, createInput(runtime));
 runtime.initialize();
+if(!runtime.g.playerName)runtime.openSettings('callsign');
 
 // Read-only QA state, opt-in so normal play exposes no debugging interface.
 if(typeof location!=='undefined'&&new URLSearchParams(location.search).has('debug')){

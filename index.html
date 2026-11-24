@@ -234,6 +234,15 @@
               <div><strong id="result-time">00:00</strong><span data-i18n="panel.flightTime">FLIGHT TIME</span></div>
             </div><button class="primary-button" id="retry" data-i18n="panel.retry">TAKE OFF AGAIN
               <span>↗</span></button>
+            <section id="scores-section" aria-labelledby="scores-title">
+              <h3 id="scores-title" data-i18n="scores.title">GLOBAL TOP 10</h3>
+              <p class="settings-note" data-i18n="scores.notice">Submitting publishes your callsign and score.</p>
+              <button class="text-button" id="score-submit" data-i18n="scores.submit">SUBMIT SCORE</button>
+              <p id="score-submit-status" class="settings-note" role="status"></p>
+              <ol id="high-scores"></ol>
+              <p id="scores-status" class="settings-note" role="status"></p>
+              <button class="text-button" id="scores-refresh" data-i18n="scores.refresh">REFRESH SCORES</button>
+            </section>
           </div>
           <div class="panel upgrade-panel" id="upgrade-panel" hidden><span class="panel-kicker"
               data-i18n="panel.upgrade.kicker">AREA SECURED</span>
@@ -266,6 +275,7 @@
           <use href="#i-cross" />
         </svg></button></div>
     <div id="settings-content">
+    <button class="text-button" id="callsign-edit" data-i18n="callsign.edit">CHANGE CALLSIGN</button>
     <h2 id="settings-title" data-i18n="settings.title">FLIGHT <em>SETTINGS</em></h2><label class="setting"
       for="volume"><span data-i18n="settings.volume">Master volume</span><output id="volume-value">60%</output><input
         id="volume" type="range" min="0" max="100" value="60"></label><label class="setting toggle"><span
@@ -277,6 +287,17 @@
     <p class="settings-note" data-i18n="settings.note">Settings and your high score are saved in this browser.<br>Audio
       starts after your first interaction.</p><button class="primary-button" id="settings-done"
       data-i18n="settings.done">DONE <span>✓</span></button>
+    </div>
+    <div id="callsign-content" hidden>
+      <h2 id="callsign-title" data-i18n="callsign.title">CHOOSE YOUR CALLSIGN</h2>
+      <form id="callsign-form" novalidate>
+        <label class="setting" for="callsign-input" data-i18n="callsign.label">Callsign</label>
+        <input id="callsign-input" type="text" autocomplete="nickname" spellcheck="false"
+          aria-describedby="callsign-note callsign-error" required>
+        <p class="settings-note" id="callsign-note" data-i18n="callsign.note">2–16 characters: letters, numbers, spaces, _ or -. Saved in this browser. Published only when you submit a score.</p>
+        <p id="callsign-error" role="alert"></p>
+        <button class="primary-button" type="submit" data-i18n="callsign.save">SAVE CALLSIGN</button>
+      </form>
     </div>
     <div id="help-content" hidden>
       <h2 id="help-title" data-i18n="manual.heading">Trust your instincts.</h2>
