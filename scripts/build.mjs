@@ -79,8 +79,7 @@ await writeFile(new URL('enemy-data.js',root),data);
 const audioFiles=['audio/sound-data.js','audio/core/engine.js','audio/core/primitives.js','audio/core/effect.js',
   'audio/effects/gun-shot.js','audio/effects/enemy-shots.js','audio/effects/impacts.js','audio/effects/explosion.js',
   'audio/effects/rocket.js','audio/effects/ui.js','audio/effects/rotor.js','audio/music/index.js','audio/music/player.js','audio/index.js'];
-const files=['enemy-data.js','level-data.js','weapon-data.js','i18n.js','core.js','environment.js',...audioFiles,'audio.js','renderer.js','game/constants.js','game/state.js','game/entities.js','game/waves.js','game/loop.js','game/combat.js','game/upgrades.js','game/input.js','game/profile.js','game.js'];
-files.splice(files.indexOf('game.js'),0,'game/scores.js');
+const files=['enemy-data.js','level-data.js','weapon-data.js','i18n.js','core.js','environment.js',...audioFiles,'audio.js','renderer.js','game/constants.js','game/vehicles.js','game/guns.js','game/state.js','game/entities.js','game/waves.js','game/loop.js','game/combat.js','game/upgrades.js','game/input.js','game/profile.js','game/scores.js','game.js'];
 const modules=[];
 for(const file of files){
   const source=(await readFile(new URL(file,root),'utf8'))
