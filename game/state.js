@@ -15,7 +15,7 @@ export function createState(){
   if(['easy','normal','hard'].includes(stored?.difficulty))settings.difficulty=stored.difficulty;
   if(languages[stored?.language])settings.language=stored.language;
   setLocale(settings.language);
-  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{/* Private mode can disable storage. */}};
+  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{return false;}};
   const sound=new SoundEngine(settings),renderer=new Renderer(canvas,settings),keys=new Set();
   const pointer={x:600,y:230,screenX:null,screenY:null,down:false};
   const bestValue=read('blackout.best',0);

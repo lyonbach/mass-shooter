@@ -57,6 +57,7 @@ function endGame(){
   $('record-label').textContent=t(g.score>previous?'record.new':'record.again');
   $('result-score').textContent=g.score.toLocaleString(settings.language);$('result-wave').textContent=pad(g.wave,2);$('result-kills').textContent=g.kills;$('result-time').textContent=clock(g.time);
   runtime.setState('over','over-panel');runtime.focusPanel('retry');
+  runtime.showScores();
 }
 function updateSettingsUI(){
   $('help-open').title=t('help.label');
@@ -67,14 +68,18 @@ function updateSettingsUI(){
 }
 function toggleMute(){settings.muted=!settings.muted;sound.init();sound.configure();saveSettings();updateSettingsUI();}
 function openSettings(view='settings'){
-  if(dialog.open)return;
+  if(dialog.open&&view!=='callsign')return;
   const help=view==='help';
-  $('settings-content').hidden=help;$('help-content').hidden=!help;
+  const callsign=view==='callsign';
+  $('settings-content').hidden=help||callsign;$('help-content').hidden=!help;$('callsign-content').hidden=!callsign;
   const kicker=help?'manual.title':'settings.kicker',close=help?'help.close':'settings.close';
   $('dialog-kicker').dataset.i18n=kicker;$('dialog-kicker').textContent=t(kicker);
   $('settings-close').dataset.i18nAria=close;$('settings-close').setAttribute('aria-label',t(close));
-  dialog.setAttribute('aria-labelledby',help?'help-title':'settings-title');
-  runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();sound.init();
+  dialog.setAttribute('aria-labelledby',callsign?'callsign-title':help?'help-title':'settings-title');
+  if(callsign)runtime.prepareCallsign();
+  if(!dialog.open){runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();}
+  if(callsign)$('callsign-input').focus();
+  sound.init();
 }
 function closeSettings(){dialog.close();if(runtime.settingsPaused){runtime.settingsPaused=false;runtime.resume();}}
   return {updateHud,showUpgrades,selectUpgrade,pause,resume,endGame,updateSettingsUI,toggleMute,openSettings,closeSettings};

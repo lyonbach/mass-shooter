@@ -14,6 +14,19 @@
 }
 
 .hud-label { font-size: 13px; }
+#callsign-input { width: 100%; box-sizing: border-box; padding: 14px; border: 1px solid #64774a; background: #111b14; color: var(--lime); font: inherit; }
+#callsign-input:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+#callsign-input[aria-invalid="true"] { border-color: #ff9185; }
+#callsign-error { color: #ff9185; font-size: 13px; min-height: 1.5em; }
+#callsign-edit { margin-bottom: 18px; }
+#over-panel { max-height: 100%; overflow-y: auto; box-sizing: border-box; }
+#scores-section { margin-top: 24px; padding-top: 18px; border-top: 1px solid #64774a; }
+#scores-title { font-size: 15px; letter-spacing: .08em; }
+#high-scores { max-height: 180px; overflow-y: auto; padding-left: 28px; text-align: left; }
+#high-scores li { padding: 5px 8px; font-size: 13px; }
+#high-scores li span { display: inline-block; max-width: 70%; overflow-wrap: anywhere; vertical-align: top; }
+#high-scores li strong { float: right; }
+#score-submit:disabled, #scores-refresh:disabled { opacity: .5; cursor: default; }
 .hull-reading strong, .score-hud > strong { font-size: 47px; }
 .hull-reading small { font-size: 16px; }
 .hull-reading > span, .wave-hud > span:last-child, .score-hud > span:last-child { font-size: 12px; }

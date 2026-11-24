@@ -411,6 +411,13 @@ const languages = { en:'English',tr:'Türkçe',de:'Deutsch',es:'Español',fr:'Fr
 
 const translations = {
   en:{
+    'scores.title':'GLOBAL TOP 10','scores.notice':'Submitting publishes your callsign and score.','scores.submit':'SUBMIT SCORE','scores.refresh':'REFRESH SCORES',
+    'scores.loading':'Loading scores...','scores.empty':'No scores yet.','scores.unavailable':'Scores unavailable. Try refreshing later.','scores.sending':'Submitting score...',
+    'scores.saved':'Score submitted.','scores.limited':'Server busy. Score not submitted; submissions are limited.','scores.uncertain':'Submission could not be confirmed. Refresh the list to check; no automatic retry was made.',
+    'callsign.sessionOnly':'Browser storage unavailable. Callsign kept for this session only.',
+    'callsign.title':'CHOOSE YOUR CALLSIGN','callsign.label':'Callsign','callsign.edit':'CHANGE CALLSIGN','callsign.save':'SAVE CALLSIGN',
+    'callsign.note':'2–16 characters: letters, numbers, spaces, _ or -. Saved in this browser. Published only when you submit a score.',
+    'callsign.invalid':'Enter 2–16 characters, starting with a letter or number. Use letters, numbers, spaces, _ or -.',
     'help.label':'Help','help.close':'Close help',
     'nav.online':'SYSTEM ONLINE','nav.language':'Language','nav.soundOn':'Turn sound on','nav.soundOff':'Turn sound off',
     'mission.sector':'SECTOR 07','mission.heading':'AIR SUPERIORITY IS YOURS.','mission.note':'Retreat is not an option.',
@@ -457,6 +464,13 @@ const translations = {
     'map.desert':'DESERT FRONT','map.valley':'GREEN VALLEY','map.canyon':'RED ZONE'
   },
   tr:{
+    'scores.title':'DÜNYA İLK 10','scores.notice':'Gönderdiğinde çağrı adın ve puanın herkese açık olur.','scores.submit':'PUANI GÖNDER','scores.refresh':'PUANLARI YENİLE',
+    'scores.loading':'Puanlar yükleniyor...','scores.empty':'Henüz puan yok.','scores.unavailable':'Puanlara ulaşılamıyor. Daha sonra yenile.','scores.sending':'Puan gönderiliyor...',
+    'scores.saved':'Puan gönderildi.','scores.limited':'Sunucu meşgul. Gönderim sınırı nedeniyle puan gönderilemedi.','scores.uncertain':'Gönderim doğrulanamadı. Kontrol etmek için listeyi yenile; otomatik tekrar yapılmadı.',
+    'callsign.sessionOnly':'Tarayıcı depolaması kullanılamıyor. Çağrı adı yalnızca bu oturum için saklandı.',
+    'callsign.title':'ÇAĞRI ADINI SEÇ','callsign.label':'Çağrı adı','callsign.edit':'ÇAĞRI ADINI DEĞİŞTİR','callsign.save':'ÇAĞRI ADINI KAYDET',
+    'callsign.note':'2–16 karakter: harf, rakam, boşluk, _ veya -. Bu tarayıcıya kaydedilir. Yalnızca puan gönderdiğinde yayınlanır.',
+    'callsign.invalid':'Harf veya rakamla başlayan 2–16 karakter gir. Harf, rakam, boşluk, _ veya - kullan.',
     'help.label':'Yardım','help.close':'Yardımı kapat',
     'nav.online':'SİSTEM ÇEVRİMİÇİ','nav.language':'Dil','nav.soundOn':'Sesi aç','nav.soundOff':'Sesi kapat',
     'mission.sector':'SEKTÖR 07','mission.heading':'HAVA ÜSTÜNLÜĞÜ SENDE.','mission.note':'Geri çekilmek bir seçenek değil.',
@@ -503,6 +517,13 @@ const translations = {
     'map.desert':'ÇÖL HATTI','map.valley':'YEŞİL VADİ','map.canyon':'KIZIL BÖLGE'
   },
   de:{
+    'scores.title':'WELTWEITE TOP 10','scores.notice':'Beim Senden werden Rufname und Punktzahl veröffentlicht.','scores.submit':'PUNKTE SENDEN','scores.refresh':'BESTENLISTE AKTUALISIEREN',
+    'scores.loading':'Punkte werden geladen...','scores.empty':'Noch keine Punkte.','scores.unavailable':'Bestenliste nicht verfügbar. Später erneut laden.','scores.sending':'Punkte werden gesendet...',
+    'scores.saved':'Punkte gesendet.','scores.limited':'Server ausgelastet. Punkte wegen Anfragelimit nicht gesendet.','scores.uncertain':'Übermittlung nicht bestätigt. Liste zur Prüfung aktualisieren; kein automatischer Neuversuch.',
+    'callsign.sessionOnly':'Browserspeicher nicht verfügbar. Rufname nur für diese Sitzung gespeichert.',
+    'callsign.title':'WÄHLE DEINEN RUFNAMEN','callsign.label':'Rufname','callsign.edit':'RUFNAMEN ÄNDERN','callsign.save':'RUFNAMEN SPEICHERN',
+    'callsign.note':'2–16 Zeichen: Buchstaben, Zahlen, Leerzeichen, _ oder -. In diesem Browser gespeichert. Veröffentlichung nur beim Senden von Punkten.',
+    'callsign.invalid':'Gib 2–16 Zeichen ein, beginnend mit einem Buchstaben oder einer Zahl. Erlaubt: Buchstaben, Zahlen, Leerzeichen, _ oder -.',
     'help.label':'Hilfe','help.close':'Hilfe schließen',
     'nav.online':'SYSTEM ONLINE','nav.language':'Sprache','nav.soundOn':'Ton einschalten','nav.soundOff':'Ton ausschalten',
     'mission.sector':'SEKTOR 07','mission.heading':'DIE LUFTHOHEIT GEHÖRT DIR.','mission.note':'Rückzug ist keine Option.',
@@ -549,6 +570,13 @@ const translations = {
     'map.desert':'WÜSTENFRONT','map.valley':'GRÜNES TAL','map.canyon':'ROTE ZONE'
   },
   es:{
+    'scores.title':'TOP 10 GLOBAL','scores.notice':'Al enviar se publican tu indicativo y puntuación.','scores.submit':'ENVIAR PUNTUACIÓN','scores.refresh':'ACTUALIZAR PUNTUACIONES',
+    'scores.loading':'Cargando puntuaciones...','scores.empty':'Todavía no hay puntuaciones.','scores.unavailable':'Puntuaciones no disponibles. Actualiza más tarde.','scores.sending':'Enviando puntuación...',
+    'scores.saved':'Puntuación enviada.','scores.limited':'Servidor ocupado. No se envió la puntuación por el límite de solicitudes.','scores.uncertain':'No se pudo confirmar el envío. Actualiza la lista para comprobarlo; no se reintentó automáticamente.',
+    'callsign.sessionOnly':'Almacenamiento no disponible. El indicativo se conserva solo durante esta sesión.',
+    'callsign.title':'ELIGE TU INDICATIVO','callsign.label':'Indicativo','callsign.edit':'CAMBIAR INDICATIVO','callsign.save':'GUARDAR INDICATIVO',
+    'callsign.note':'2–16 caracteres: letras, números, espacios, _ o -. Se guarda en este navegador. Solo se publica al enviar una puntuación.',
+    'callsign.invalid':'Introduce 2–16 caracteres, empezando por una letra o un número. Usa letras, números, espacios, _ o -.',
     'help.label':'Ayuda','help.close':'Cerrar ayuda',
     'nav.online':'SISTEMA EN LÍNEA','nav.language':'Idioma','nav.soundOn':'Activar sonido','nav.soundOff':'Desactivar sonido',
     'mission.sector':'SECTOR 07','mission.heading':'LA SUPERIORIDAD AÉREA ES TUYA.','mission.note':'Retirarse no es una opción.',
@@ -595,6 +623,13 @@ const translations = {
     'map.desert':'FRENTE DEL DESIERTO','map.valley':'VALLE VERDE','map.canyon':'ZONA ROJA'
   },
   fr:{
+    'scores.title':'TOP 10 MONDIAL','scores.notice':'L’envoi publie votre indicatif et votre score.','scores.submit':'ENVOYER LE SCORE','scores.refresh':'ACTUALISER LES SCORES',
+    'scores.loading':'Chargement des scores...','scores.empty':'Aucun score pour le moment.','scores.unavailable':'Scores indisponibles. Réessayez plus tard.','scores.sending':'Envoi du score...',
+    'scores.saved':'Score envoyé.','scores.limited':'Serveur occupé. Score non envoyé en raison de la limite de requêtes.','scores.uncertain':'Envoi non confirmé. Actualisez la liste pour vérifier ; aucune nouvelle tentative automatique.',
+    'callsign.sessionOnly':'Stockage indisponible. Indicatif conservé uniquement pour cette session.',
+    'callsign.title':'CHOISISSEZ VOTRE INDICATIF','callsign.label':'Indicatif','callsign.edit':'MODIFIER L’INDICATIF','callsign.save':'ENREGISTRER L’INDICATIF',
+    'callsign.note':'2–16 caractères : lettres, chiffres, espaces, _ ou -. Enregistré dans ce navigateur. Publié uniquement lors de l’envoi d’un score.',
+    'callsign.invalid':'Saisissez 2–16 caractères, en commençant par une lettre ou un chiffre. Utilisez des lettres, chiffres, espaces, _ ou -.',
     'help.label':'Aide','help.close':'Fermer l’aide',
     'nav.online':'SYSTÈME EN LIGNE','nav.language':'Langue','nav.soundOn':'Activer le son','nav.soundOff':'Couper le son',
     'mission.sector':'SECTEUR 07','mission.heading':'LA SUPÉRIORITÉ AÉRIENNE EST À VOUS.','mission.note':'Se replier n’est pas une option.',
@@ -3778,7 +3813,7 @@ function createState(){
   if(['easy','normal','hard'].includes(stored?.difficulty))settings.difficulty=stored.difficulty;
   if(languages[stored?.language])settings.language=stored.language;
   setLocale(settings.language);
-  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{/* Private mode can disable storage. */}};
+  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{return false;}};
   const sound=new SoundEngine(settings),renderer=new Renderer(canvas,settings),keys=new Set();
   const pointer={x:600,y:230,screenX:null,screenY:null,down:false};
   const bestValue=read('blackout.best',0);
@@ -4480,6 +4515,7 @@ function endGame(){
   $('record-label').textContent=t(g.score>previous?'record.new':'record.again');
   $('result-score').textContent=g.score.toLocaleString(settings.language);$('result-wave').textContent=pad(g.wave,2);$('result-kills').textContent=g.kills;$('result-time').textContent=clock(g.time);
   runtime.setState('over','over-panel');runtime.focusPanel('retry');
+  runtime.showScores();
 }
 function updateSettingsUI(){
   $('help-open').title=t('help.label');
@@ -4490,14 +4526,18 @@ function updateSettingsUI(){
 }
 function toggleMute(){settings.muted=!settings.muted;sound.init();sound.configure();saveSettings();updateSettingsUI();}
 function openSettings(view='settings'){
-  if(dialog.open)return;
+  if(dialog.open&&view!=='callsign')return;
   const help=view==='help';
-  $('settings-content').hidden=help;$('help-content').hidden=!help;
+  const callsign=view==='callsign';
+  $('settings-content').hidden=help||callsign;$('help-content').hidden=!help;$('callsign-content').hidden=!callsign;
   const kicker=help?'manual.title':'settings.kicker',close=help?'help.close':'settings.close';
   $('dialog-kicker').dataset.i18n=kicker;$('dialog-kicker').textContent=t(kicker);
   $('settings-close').dataset.i18nAria=close;$('settings-close').setAttribute('aria-label',t(close));
-  dialog.setAttribute('aria-labelledby',help?'help-title':'settings-title');
-  runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();sound.init();
+  dialog.setAttribute('aria-labelledby',callsign?'callsign-title':help?'help-title':'settings-title');
+  if(callsign)runtime.prepareCallsign();
+  if(!dialog.open){runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();}
+  if(callsign)$('callsign-input').focus();
+  sound.init();
 }
 function closeSettings(){dialog.close();if(runtime.settingsPaused){runtime.settingsPaused=false;runtime.resume();}}
   return {updateHud,showUpgrades,selectUpgrade,pause,resume,endGame,updateSettingsUI,toggleMute,openSettings,closeSettings};
@@ -4563,6 +4603,105 @@ $('touch-dash').addEventListener('pointerdown',event=>{event.preventDefault();g.
   return {pointerPosition};
 }
 
+// game/profile.js
+function createProfile(runtime){
+  const {$,g,read,write,t}=runtime,input=$('callsign-input'),error=$('callsign-error');
+  const normalize=value=>value.normalize('NFC').trim().replace(/\s+/gu,' ');
+  const valid=value=>[...value].length>=2&&[...value].length<=16&&/^[\p{L}\p{N}][\p{L}\p{M}\p{N} _-]*$/u.test(value);
+  const stored=read('blackout.playerName','');
+  g.playerName=typeof stored==='string'&&valid(normalize(stored))?normalize(stored):'';
+  function prepareCallsign(){
+    input.value=g.playerName;input.removeAttribute('aria-invalid');error.textContent='';
+  }
+  input.addEventListener('input',()=>{input.removeAttribute('aria-invalid');error.textContent='';});
+  $('callsign-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    const name=normalize(input.value);
+    if(!valid(name)){
+      error.textContent=t('callsign.invalid');input.setAttribute('aria-invalid','true');input.focus();return;
+    }
+    g.playerName=name;
+    const saved=write('blackout.playerName',name);
+    runtime.closeSettings();
+    if(!saved)runtime.announce(t('callsign.label'),t('callsign.sessionOnly'),'',5);
+  });
+  $('callsign-edit').addEventListener('click',()=>runtime.openSettings('callsign'));
+  return {prepareCallsign};
+}
+
+// game/scores.js
+const SCORES_URL='https://ltb22rfjxf66txpe2jlgzomwkm0qyqbo.lambda-url.eu-central-1.on.aws/scores';
+
+function createScores(runtime){
+  const {$,g,settings,t}=runtime,list=$('high-scores'),status=$('scores-status'),submit=$('score-submit');
+  let run=null,loading=false;
+
+  async function loadScores(){
+    if(loading)return;
+    loading=true;$('scores-refresh').disabled=true;
+    const current=run;
+    status.textContent=t('scores.loading');
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);
+    try{
+      const response=await fetch(`${SCORES_URL}?limit=10`,{signal:controller.signal,cache:'no-store'});
+      if(!response.ok)throw new Error(`Score lookup failed: HTTP ${response.status}`);
+      const data=await response.json();
+      if(!Array.isArray(data.scores)||!data.scores.every(item=>item&&typeof item.name==='string'&&item.name.length<=128&&Number.isSafeInteger(item.score)&&item.score>=0))throw new Error('Invalid leaderboard response');
+      if(current!==run)return;
+      list.replaceChildren();
+      for(const entry of data.scores.slice(0,10)){
+        const row=document.createElement('li'),name=document.createElement('span'),score=document.createElement('strong');
+        name.textContent=entry.name;score.textContent=entry.score.toLocaleString(settings.language);
+        row.append(name,score);list.append(row);
+      }
+      status.textContent=data.scores.length?'':t('scores.empty');
+    }catch(error){
+      console.warn('Unable to load leaderboard',error);
+      if(current===run)status.textContent=t('scores.unavailable');
+    }finally{
+      clearTimeout(timeout);loading=false;$('scores-refresh').disabled=false;
+      if(current!==run&&g.state==='over')void loadScores();
+    }
+  }
+
+  function showScores(){
+    run={score:g.score,attempted:false,pending:false};
+    $('scores-section').hidden=Boolean(g.testRange);
+    submit.disabled=false;$('score-submit-status').textContent='';
+    list.replaceChildren();
+    if(!g.testRange)void loadScores();
+  }
+
+  async function submitScore(){
+    if(g.state!=='over'||g.testRange||!run||run.attempted||run.pending)return;
+    if(!g.playerName){runtime.openSettings('callsign');return;}
+    const current=run,name=g.playerName;
+    current.pending=true;current.attempted=true;submit.disabled=true;
+    $('score-submit-status').textContent=t('scores.sending');
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);
+    try{
+      const response=await fetch(SCORES_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,score:current.score}),signal:controller.signal});
+      if(current!==run)return;
+      if(response.status===429){
+        $('score-submit-status').textContent=t('scores.limited');
+        return;
+      }
+      if(!response.ok)throw new Error(`Score submission failed: HTTP ${response.status}`);
+      $('score-submit-status').textContent=t('scores.saved');
+      void loadScores();
+    }catch(error){
+      console.warn('Unable to confirm score submission',error);
+      if(current===run)$('score-submit-status').textContent=t('scores.uncertain');
+    }finally{
+      clearTimeout(timeout);current.pending=false;
+    }
+  }
+
+  submit.addEventListener('click',submitScore);
+  $('scores-refresh').addEventListener('click',()=>void loadScores());
+  return {showScores};
+}
+
 // game.js
 
 const runtime=createState();
@@ -4571,8 +4710,11 @@ Object.assign(runtime, createWaves(runtime));
 Object.assign(runtime, createLoop(runtime));
 Object.assign(runtime, createCombat(runtime));
 Object.assign(runtime, createUpgrades(runtime));
+Object.assign(runtime, createProfile(runtime));
+Object.assign(runtime, createScores(runtime));
 Object.assign(runtime, createInput(runtime));
 runtime.initialize();
+if(!runtime.g.playerName)runtime.openSettings('callsign');
 
 // Read-only QA state, opt-in so normal play exposes no debugging interface.
 if(typeof location!=='undefined'&&new URLSearchParams(location.search).has('debug')){

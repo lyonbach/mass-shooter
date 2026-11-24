@@ -2,6 +2,13 @@ export const languages = { en:'English',tr:'Türkçe',de:'Deutsch',es:'Español'
 
 export const translations = {
   en:{
+    'scores.title':'GLOBAL TOP 10','scores.notice':'Submitting publishes your callsign and score.','scores.submit':'SUBMIT SCORE','scores.refresh':'REFRESH SCORES',
+    'scores.loading':'Loading scores...','scores.empty':'No scores yet.','scores.unavailable':'Scores unavailable. Try refreshing later.','scores.sending':'Submitting score...',
+    'scores.saved':'Score submitted.','scores.limited':'Server busy. Score not submitted; submissions are limited.','scores.uncertain':'Submission could not be confirmed. Refresh the list to check; no automatic retry was made.',
+    'callsign.sessionOnly':'Browser storage unavailable. Callsign kept for this session only.',
+    'callsign.title':'CHOOSE YOUR CALLSIGN','callsign.label':'Callsign','callsign.edit':'CHANGE CALLSIGN','callsign.save':'SAVE CALLSIGN',
+    'callsign.note':'2–16 characters: letters, numbers, spaces, _ or -. Saved in this browser. Published only when you submit a score.',
+    'callsign.invalid':'Enter 2–16 characters, starting with a letter or number. Use letters, numbers, spaces, _ or -.',
     'help.label':'Help','help.close':'Close help',
     'nav.online':'SYSTEM ONLINE','nav.language':'Language','nav.soundOn':'Turn sound on','nav.soundOff':'Turn sound off',
     'mission.sector':'SECTOR 07','mission.heading':'AIR SUPERIORITY IS YOURS.','mission.note':'Retreat is not an option.',
@@ -48,6 +55,13 @@ export const translations = {
     'map.desert':'DESERT FRONT','map.valley':'GREEN VALLEY','map.canyon':'RED ZONE'
   },
   tr:{
+    'scores.title':'DÜNYA İLK 10','scores.notice':'Gönderdiğinde çağrı adın ve puanın herkese açık olur.','scores.submit':'PUANI GÖNDER','scores.refresh':'PUANLARI YENİLE',
+    'scores.loading':'Puanlar yükleniyor...','scores.empty':'Henüz puan yok.','scores.unavailable':'Puanlara ulaşılamıyor. Daha sonra yenile.','scores.sending':'Puan gönderiliyor...',
+    'scores.saved':'Puan gönderildi.','scores.limited':'Sunucu meşgul. Gönderim sınırı nedeniyle puan gönderilemedi.','scores.uncertain':'Gönderim doğrulanamadı. Kontrol etmek için listeyi yenile; otomatik tekrar yapılmadı.',
+    'callsign.sessionOnly':'Tarayıcı depolaması kullanılamıyor. Çağrı adı yalnızca bu oturum için saklandı.',
+    'callsign.title':'ÇAĞRI ADINI SEÇ','callsign.label':'Çağrı adı','callsign.edit':'ÇAĞRI ADINI DEĞİŞTİR','callsign.save':'ÇAĞRI ADINI KAYDET',
+    'callsign.note':'2–16 karakter: harf, rakam, boşluk, _ veya -. Bu tarayıcıya kaydedilir. Yalnızca puan gönderdiğinde yayınlanır.',
+    'callsign.invalid':'Harf veya rakamla başlayan 2–16 karakter gir. Harf, rakam, boşluk, _ veya - kullan.',
     'help.label':'Yardım','help.close':'Yardımı kapat',
     'nav.online':'SİSTEM ÇEVRİMİÇİ','nav.language':'Dil','nav.soundOn':'Sesi aç','nav.soundOff':'Sesi kapat',
     'mission.sector':'SEKTÖR 07','mission.heading':'HAVA ÜSTÜNLÜĞÜ SENDE.','mission.note':'Geri çekilmek bir seçenek değil.',
@@ -94,6 +108,13 @@ export const translations = {
     'map.desert':'ÇÖL HATTI','map.valley':'YEŞİL VADİ','map.canyon':'KIZIL BÖLGE'
   },
   de:{
+    'scores.title':'WELTWEITE TOP 10','scores.notice':'Beim Senden werden Rufname und Punktzahl veröffentlicht.','scores.submit':'PUNKTE SENDEN','scores.refresh':'BESTENLISTE AKTUALISIEREN',
+    'scores.loading':'Punkte werden geladen...','scores.empty':'Noch keine Punkte.','scores.unavailable':'Bestenliste nicht verfügbar. Später erneut laden.','scores.sending':'Punkte werden gesendet...',
+    'scores.saved':'Punkte gesendet.','scores.limited':'Server ausgelastet. Punkte wegen Anfragelimit nicht gesendet.','scores.uncertain':'Übermittlung nicht bestätigt. Liste zur Prüfung aktualisieren; kein automatischer Neuversuch.',
+    'callsign.sessionOnly':'Browserspeicher nicht verfügbar. Rufname nur für diese Sitzung gespeichert.',
+    'callsign.title':'WÄHLE DEINEN RUFNAMEN','callsign.label':'Rufname','callsign.edit':'RUFNAMEN ÄNDERN','callsign.save':'RUFNAMEN SPEICHERN',
+    'callsign.note':'2–16 Zeichen: Buchstaben, Zahlen, Leerzeichen, _ oder -. In diesem Browser gespeichert. Veröffentlichung nur beim Senden von Punkten.',
+    'callsign.invalid':'Gib 2–16 Zeichen ein, beginnend mit einem Buchstaben oder einer Zahl. Erlaubt: Buchstaben, Zahlen, Leerzeichen, _ oder -.',
     'help.label':'Hilfe','help.close':'Hilfe schließen',
     'nav.online':'SYSTEM ONLINE','nav.language':'Sprache','nav.soundOn':'Ton einschalten','nav.soundOff':'Ton ausschalten',
     'mission.sector':'SEKTOR 07','mission.heading':'DIE LUFTHOHEIT GEHÖRT DIR.','mission.note':'Rückzug ist keine Option.',
@@ -140,6 +161,13 @@ export const translations = {
     'map.desert':'WÜSTENFRONT','map.valley':'GRÜNES TAL','map.canyon':'ROTE ZONE'
   },
   es:{
+    'scores.title':'TOP 10 GLOBAL','scores.notice':'Al enviar se publican tu indicativo y puntuación.','scores.submit':'ENVIAR PUNTUACIÓN','scores.refresh':'ACTUALIZAR PUNTUACIONES',
+    'scores.loading':'Cargando puntuaciones...','scores.empty':'Todavía no hay puntuaciones.','scores.unavailable':'Puntuaciones no disponibles. Actualiza más tarde.','scores.sending':'Enviando puntuación...',
+    'scores.saved':'Puntuación enviada.','scores.limited':'Servidor ocupado. No se envió la puntuación por el límite de solicitudes.','scores.uncertain':'No se pudo confirmar el envío. Actualiza la lista para comprobarlo; no se reintentó automáticamente.',
+    'callsign.sessionOnly':'Almacenamiento no disponible. El indicativo se conserva solo durante esta sesión.',
+    'callsign.title':'ELIGE TU INDICATIVO','callsign.label':'Indicativo','callsign.edit':'CAMBIAR INDICATIVO','callsign.save':'GUARDAR INDICATIVO',
+    'callsign.note':'2–16 caracteres: letras, números, espacios, _ o -. Se guarda en este navegador. Solo se publica al enviar una puntuación.',
+    'callsign.invalid':'Introduce 2–16 caracteres, empezando por una letra o un número. Usa letras, números, espacios, _ o -.',
     'help.label':'Ayuda','help.close':'Cerrar ayuda',
     'nav.online':'SISTEMA EN LÍNEA','nav.language':'Idioma','nav.soundOn':'Activar sonido','nav.soundOff':'Desactivar sonido',
     'mission.sector':'SECTOR 07','mission.heading':'LA SUPERIORIDAD AÉREA ES TUYA.','mission.note':'Retirarse no es una opción.',
@@ -186,6 +214,13 @@ export const translations = {
     'map.desert':'FRENTE DEL DESIERTO','map.valley':'VALLE VERDE','map.canyon':'ZONA ROJA'
   },
   fr:{
+    'scores.title':'TOP 10 MONDIAL','scores.notice':'L’envoi publie votre indicatif et votre score.','scores.submit':'ENVOYER LE SCORE','scores.refresh':'ACTUALISER LES SCORES',
+    'scores.loading':'Chargement des scores...','scores.empty':'Aucun score pour le moment.','scores.unavailable':'Scores indisponibles. Réessayez plus tard.','scores.sending':'Envoi du score...',
+    'scores.saved':'Score envoyé.','scores.limited':'Serveur occupé. Score non envoyé en raison de la limite de requêtes.','scores.uncertain':'Envoi non confirmé. Actualisez la liste pour vérifier ; aucune nouvelle tentative automatique.',
+    'callsign.sessionOnly':'Stockage indisponible. Indicatif conservé uniquement pour cette session.',
+    'callsign.title':'CHOISISSEZ VOTRE INDICATIF','callsign.label':'Indicatif','callsign.edit':'MODIFIER L’INDICATIF','callsign.save':'ENREGISTRER L’INDICATIF',
+    'callsign.note':'2–16 caractères : lettres, chiffres, espaces, _ ou -. Enregistré dans ce navigateur. Publié uniquement lors de l’envoi d’un score.',
+    'callsign.invalid':'Saisissez 2–16 caractères, en commençant par une lettre ou un chiffre. Utilisez des lettres, chiffres, espaces, _ ou -.',
     'help.label':'Aide','help.close':'Fermer l’aide',
     'nav.online':'SYSTÈME EN LIGNE','nav.language':'Langue','nav.soundOn':'Activer le son','nav.soundOff':'Couper le son',
     'mission.sector':'SECTEUR 07','mission.heading':'LA SUPÉRIORITÉ AÉRIENNE EST À VOUS.','mission.note':'Se replier n’est pas une option.',
