@@ -23,6 +23,12 @@ export class Gun {
 
   startMuzzle(e){e.weaponMuzzle=WEAPON_MUZZLE_TIME;}
 
+  fireShot(e,{g},angle){
+    const stats=this.stats,speed=stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
+    const point=this.position(e,this.tip);
+    g.bullets.push({...point,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:this.projectileKind,damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
+  }
+
   interval(e,{g}){
     const stats=this.stats;
     return stats.fireInterval-Math.min(g.wave*stats.fireWaveReduction,stats.fireWaveReductionCap)+Math.random()*stats.fireRandom;
@@ -30,12 +36,10 @@ export class Gun {
 
   fire(e,runtime,audio){
     if(e.health<=0)return;
-    const {g,sound}=runtime,stats=this.stats,a=e.turret;
+    const {sound}=runtime,stats=this.stats,a=e.turret;
     this.startMuzzle(e);
     for(let i=0;i<stats.shotCount;i++){
-      const angle=a+(i-(stats.shotCount-1)/2)*stats.spread,speed=stats.projectileSpeed+Math.min(g.wave*stats.projectileSpeedPerWave,stats.projectileSpeedCap);
-      const point=this.position(e,this.tip);
-      g.bullets.push({...point,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:stats.projectileLife,friendly:false,kind:this.projectileKind,damage:stats.projectileDamage,turn:stats.rocketTurn,acceleration:stats.rocketAcceleration,maxSpeed:stats.rocketMaxSpeed,trail:0});
+      this.fireShot(e,runtime,a+(i-(stats.shotCount-1)/2)*stats.spread);
     }
     e.cooldown=this.interval(e,runtime);
     const point=this.position(e,this.muzzleTip);
@@ -98,10 +102,28 @@ export class RocketGun extends Gun {
 }
 
 export class DroneGun extends Gun {
+  constructor(stats){
+    super(stats,{forward:10.4,tip:13,muzzleTip:13,recoil:1,flashSize:3});
+    this.projectileKind='enemyRifle';
+  }
+
+  initialize(e){e.burstRemaining=0;}
+
+  fire(e,runtime,audio){
+    if(e.health<=0)return;
+    if(!e.burstRemaining)e.burstRemaining=this.stats.shotCount;
+    this.startMuzzle(e);
+    this.fireShot(e,runtime,e.turret+(Math.random()-.5)*this.stats.spread);
+    e.burstRemaining--;
+    e.cooldown=e.burstRemaining?this.stats.burstInterval:this.interval(e,runtime);
+    const point=this.position(e,this.muzzleTip);
+    runtime.burst(point.x,point.y,'#ffd28b',2,.15);
+    runtime.sound.play('shot',audio.pan,audio.gain*.5);
+  }
+
   draw(renderer,c,e,char,{heading=e.angle,reduced=false}={}){
-    if(e.wreck||char||reduced||e.health<=0||!(e.weaponMuzzle>0))return;
-    c.save();c.translate(this.forward+10.4,this.side);c.rotate((e.turret??e.angle)-heading);
-    renderer.muzzleEffect(c,e.weaponMuzzle,0,5,.075);c.restore();
+    c.save();c.translate(this.forward,this.side);c.rotate((e.turret??e.angle)-heading);
+    renderer.droneGun(c,e,char,reduced);c.restore();
   }
 }
 

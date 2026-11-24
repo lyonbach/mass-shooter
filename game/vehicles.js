@@ -7,8 +7,8 @@ export function updateDroneVisual(e,dt,reduced=false){
   const heading=Number.isFinite(e.visualHeading)?e.visualHeading:(Number.isFinite(e.angle)?e.angle:0);
   const delta=speed>3?Math.atan2(Math.sin(Math.atan2(vy,vx)-heading),Math.cos(Math.atan2(vy,vx)-heading)):0;
   e.visualHeading=heading+delta*response;
-  const bank=reduced?0:clamp(delta,-1,1)*(fast?.18:.1);
-  const pitch=reduced?0:clamp(speed/(e.speed||1),0,1)*(fast?.12:.07);
+  const bank=reduced?0:clamp(delta,-1,1)*(fast?.18:.14);
+  const pitch=reduced?0:clamp(speed/(e.speed||1),0,1)*(fast?.12:.09);
   e.visualBank=(Number.isFinite(e.visualBank)?e.visualBank:0)+(bank-(Number.isFinite(e.visualBank)?e.visualBank:0))*response;
   e.visualPitch=(Number.isFinite(e.visualPitch)?e.visualPitch:0)+(pitch-(Number.isFinite(e.visualPitch)?e.visualPitch:0))*response;
 }

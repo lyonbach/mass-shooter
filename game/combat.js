@@ -111,10 +111,10 @@ function hitEnemy(e,damage,source='other',origin){
     if(!g.testRange&&(g.kills%4===0||e.type==='boss'))g.pickups.push({x:clamp(e.x,40,g.world.width-40),y:clamp(e.y,120,g.world.height-60),life:25});
   }else sound.play('hit',{position:{x:e.x,y:e.y}});
 }
-function damagePlayer(amount){
+function damagePlayer(amount,source='other'){
   const p=g.player;if(p.invulnerable>0||g.state!=='playing')return;
   p.health=Math.max(0,p.health-amount*g.plan.damage);p.invulnerable=.65;g.shake=10;g.combo=0;g.comboTimer=0;
-  burst(p.x,p.y,'#f5c78d',14);sound.play('damage');
+  burst(p.x,p.y,'#f5c78d',14);sound.play(source==='enemyRifle'||source==='enemyGun'?'shot':'damage');
   $('damage-flash').classList.remove('hit');void $('damage-flash').offsetWidth;$('damage-flash').classList.add('hit');
   if(p.health<=25&&p.health>0)runtime.announce(t('hull.repairing'),t('supply.collect'),t('supply.note'),1.8);
   if(p.health<=0){
@@ -340,7 +340,7 @@ function update(dt){
         if(b.kind==='heavyShell')explosion(x,y,55,.45);
         else runtime.missileContact(x,y);
       }
-      b.life=0;damagePlayer(b.damage);if(g.state!=='playing')return;
+      b.life=0;damagePlayer(b.damage,b.kind);if(g.state!=='playing')return;
     }
     if(b.x < -90 || b.x > W+90 || b.y < -90 || b.y > H+90)b.life=0;
   }
