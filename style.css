@@ -1124,6 +1124,8 @@ dialog h2 {
 
 .toggle {
     position: relative;
+    flex-wrap: nowrap;
+    gap: 16px;
     cursor: pointer
 }
 
@@ -1136,16 +1138,17 @@ dialog h2 {
     cursor: pointer
 }
 
-.toggle>span {
+.toggle input+span {
     width: 30px;
     height: 16px;
+    flex-shrink: 0;
     border: 1px solid #62724c;
     background: #10170b;
     pointer-events: none;
     position: relative
 }
 
-.toggle>span:after {
+.toggle input+span:after {
     content: "";
     position: absolute;
     left: 3px;
