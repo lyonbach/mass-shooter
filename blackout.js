@@ -418,6 +418,7 @@ const translations = {
     'callsign.title':'CHOOSE YOUR CALLSIGN','callsign.label':'Callsign','callsign.edit':'CHANGE CALLSIGN','callsign.save':'SAVE CALLSIGN',
     'callsign.note':'2–16 characters: letters, numbers, spaces, _ or -. Saved in this browser. Published only when you submit a score.',
     'callsign.invalid':'Enter 2–16 characters, starting with a letter or number. Use letters, numbers, spaces, _ or -.',
+    'scores.hall':'HALL OF FAME','scores.close':'Close hall of fame',
     'help.label':'Help','help.close':'Close help',
     'nav.online':'SYSTEM ONLINE','nav.language':'Language','nav.soundOn':'Turn sound on','nav.soundOff':'Turn sound off',
     'mission.sector':'SECTOR 07','mission.heading':'AIR SUPERIORITY IS YOURS.','mission.note':'Retreat is not an option.',
@@ -471,6 +472,7 @@ const translations = {
     'callsign.title':'ÇAĞRI ADINI SEÇ','callsign.label':'Çağrı adı','callsign.edit':'ÇAĞRI ADINI DEĞİŞTİR','callsign.save':'ÇAĞRI ADINI KAYDET',
     'callsign.note':'2–16 karakter: harf, rakam, boşluk, _ veya -. Bu tarayıcıya kaydedilir. Yalnızca puan gönderdiğinde yayınlanır.',
     'callsign.invalid':'Harf veya rakamla başlayan 2–16 karakter gir. Harf, rakam, boşluk, _ veya - kullan.',
+    'scores.hall':'ŞEREF TABLOSU','scores.close':'Şeref tablosunu kapat',
     'help.label':'Yardım','help.close':'Yardımı kapat',
     'nav.online':'SİSTEM ÇEVRİMİÇİ','nav.language':'Dil','nav.soundOn':'Sesi aç','nav.soundOff':'Sesi kapat',
     'mission.sector':'SEKTÖR 07','mission.heading':'HAVA ÜSTÜNLÜĞÜ SENDE.','mission.note':'Geri çekilmek bir seçenek değil.',
@@ -524,6 +526,7 @@ const translations = {
     'callsign.title':'WÄHLE DEINEN RUFNAMEN','callsign.label':'Rufname','callsign.edit':'RUFNAMEN ÄNDERN','callsign.save':'RUFNAMEN SPEICHERN',
     'callsign.note':'2–16 Zeichen: Buchstaben, Zahlen, Leerzeichen, _ oder -. In diesem Browser gespeichert. Veröffentlichung nur beim Senden von Punkten.',
     'callsign.invalid':'Gib 2–16 Zeichen ein, beginnend mit einem Buchstaben oder einer Zahl. Erlaubt: Buchstaben, Zahlen, Leerzeichen, _ oder -.',
+    'scores.hall':'RUHMESHALLE','scores.close':'Ruhmeshalle schließen',
     'help.label':'Hilfe','help.close':'Hilfe schließen',
     'nav.online':'SYSTEM ONLINE','nav.language':'Sprache','nav.soundOn':'Ton einschalten','nav.soundOff':'Ton ausschalten',
     'mission.sector':'SEKTOR 07','mission.heading':'DIE LUFTHOHEIT GEHÖRT DIR.','mission.note':'Rückzug ist keine Option.',
@@ -577,6 +580,7 @@ const translations = {
     'callsign.title':'ELIGE TU INDICATIVO','callsign.label':'Indicativo','callsign.edit':'CAMBIAR INDICATIVO','callsign.save':'GUARDAR INDICATIVO',
     'callsign.note':'2–16 caracteres: letras, números, espacios, _ o -. Se guarda en este navegador. Solo se publica al enviar una puntuación.',
     'callsign.invalid':'Introduce 2–16 caracteres, empezando por una letra o un número. Usa letras, números, espacios, _ o -.',
+    'scores.hall':'SALÓN DE LA FAMA','scores.close':'Cerrar salón de la fama',
     'help.label':'Ayuda','help.close':'Cerrar ayuda',
     'nav.online':'SISTEMA EN LÍNEA','nav.language':'Idioma','nav.soundOn':'Activar sonido','nav.soundOff':'Desactivar sonido',
     'mission.sector':'SECTOR 07','mission.heading':'LA SUPERIORIDAD AÉREA ES TUYA.','mission.note':'Retirarse no es una opción.',
@@ -630,6 +634,7 @@ const translations = {
     'callsign.title':'CHOISISSEZ VOTRE INDICATIF','callsign.label':'Indicatif','callsign.edit':'MODIFIER L’INDICATIF','callsign.save':'ENREGISTRER L’INDICATIF',
     'callsign.note':'2–16 caractères : lettres, chiffres, espaces, _ ou -. Enregistré dans ce navigateur. Publié uniquement lors de l’envoi d’un score.',
     'callsign.invalid':'Saisissez 2–16 caractères, en commençant par une lettre ou un chiffre. Utilisez des lettres, chiffres, espaces, _ ou -.',
+    'scores.hall':'TEMPLE DE LA RENOMMÉE','scores.close':'Fermer le temple de la renommée',
     'help.label':'Aide','help.close':'Fermer l’aide',
     'nav.online':'SYSTÈME EN LIGNE','nav.language':'Langue','nav.soundOn':'Activer le son','nav.soundOff':'Couper le son',
     'mission.sector':'SECTEUR 07','mission.heading':'LA SUPÉRIORITÉ AÉRIENNE EST À VOUS.','mission.note':'Se replier n’est pas une option.',
@@ -3368,7 +3373,7 @@ class Renderer {
     const c=this.ctx,W=g.world.width,H=g.world.height,t=g.visualTime,camera=g.camera,zoom=camera.zoom;
     c.setTransform(this.scale,0,0,this.scale,0,0);c.clearRect(0,0,W,H);
     c.setTransform(this.scale*zoom,0,0,this.scale*zoom,-camera.x*this.scale*zoom,-camera.y*this.scale*zoom);
-    c.save();if(this.settings.shake&&g.shake>0){c.translate((Math.random()-.5)*g.shake,(Math.random()-.5)*g.shake);}
+    c.save();if(g.state!=='over'&&this.settings.shake&&g.shake>0){c.translate((Math.random()-.5)*g.shake,(Math.random()-.5)*g.shake);}
     c.drawImage(this.terrain,0,0,W,H);
     for(const mark of g.treadMarks||[]){
       c.save();c.translate(mark.x,mark.y);c.rotate(mark.angle);c.globalAlpha=clamp(mark.life/mark.maxLife,0,1)*.45;
@@ -3826,7 +3831,7 @@ function createState(){
   function resize(){const rect=arena.getBoundingClientRect(),old={...g.world};g.touch=matchMedia('(pointer:coarse), (max-width:600px)').matches;g.world.width=clamp(rect.width*1.3,680,1700);g.world.height=g.world.width*rect.height/rect.width;if(old.width&&old.height){for(const obj of [g.player,...g.enemies,...g.pickups,...g.decals,...g.props,...g.treadMarks,...g.bullets,...g.particles,...g.floaters,...g.explosions,...g.deathBursts,...g.warnings,...g.wreckSmoke]){obj.x=obj.x/old.width*g.world.width;obj.y=obj.y/old.height*g.world.height;}pointer.x=pointer.x/old.width*g.world.width;pointer.y=pointer.y/old.height*g.world.height;if(pointer.screenX!==null){pointer.screenX=pointer.screenX/old.width*g.world.width;pointer.screenY=pointer.screenY/old.height*g.world.height;}}renderer.resize(g.world,rect,g.map);runtime.refreshGeometry?.();runtime.updateCamera(0,true);}
   function clearInput(){keys.clear();pointer.down=false;runtime.gamePointer=null;runtime.firePointer=null;runtime.joystick={x:0,y:0,id:null};$('joystick-knob').style.transform='';}
   function updateStateText(){$('feed-status').textContent=t(`status.${g.state}`);$('mission-status').textContent=t(`mission.${g.state}`);}
-  function setState(state,panel){g.state=state;clearInput();overlay.hidden=!panel;panels.forEach(id=>$(id).hidden=id!==panel);$('pause').hidden=state!=='playing';$('touch-controls').hidden=state!=='playing';$('bottom-hud').hidden=!['playing','ready'].includes(state);arena.classList.toggle('playing',state==='playing');sound.setActive(state==='playing');updateStateText();if(state==='ready'||state==='over')sound.setMusicScene('menu');}
+  function setState(state,panel){g.state=state;canvas.classList.toggle('game-over',state==='over');if(state==='over')g.shake=0;clearInput();overlay.hidden=!panel;panels.forEach(id=>$(id).hidden=id!==panel);$('pause').hidden=state!=='playing';$('touch-controls').hidden=state!=='playing';$('bottom-hud').hidden=!['playing','ready'].includes(state);arena.classList.toggle('playing',state==='playing');sound.setActive(state==='playing');updateStateText();if(state==='ready'||state==='over')sound.setMusicScene('menu');}
   function focusPanel(id){requestAnimationFrame(()=>$(id).focus({preventScroll:true}));}
   function announce(tag,title,note='',duration=2.5){$('announcement-tag').textContent=tag;$('announcement-title').textContent=title;$('announcement-note').textContent=note;g.bannerTime=duration;$('announcement').classList.add('visible');}
   function activateMenuMusic(){if(g.state==='ready'||g.state==='over')void sound.init();}
@@ -4529,11 +4534,12 @@ function openSettings(view='settings'){
   if(dialog.open&&view!=='callsign')return;
   const help=view==='help';
   const callsign=view==='callsign';
-  $('settings-content').hidden=help||callsign;$('help-content').hidden=!help;$('callsign-content').hidden=!callsign;
-  const kicker=help?'manual.title':'settings.kicker',close=help?'help.close':'settings.close';
+  const hall=view==='hall';
+  $('settings-content').hidden=help||callsign||hall;$('help-content').hidden=!help;$('callsign-content').hidden=!callsign;$('hall-content').hidden=!hall;
+  const kicker=hall?'scores.hall':help?'manual.title':'settings.kicker',close=hall?'scores.close':help?'help.close':'settings.close';
   $('dialog-kicker').dataset.i18n=kicker;$('dialog-kicker').textContent=t(kicker);
   $('settings-close').dataset.i18nAria=close;$('settings-close').setAttribute('aria-label',t(close));
-  dialog.setAttribute('aria-labelledby',callsign?'callsign-title':help?'help-title':'settings-title');
+  dialog.setAttribute('aria-labelledby',hall?'hall-title':callsign?'callsign-title':help?'help-title':'settings-title');
   if(callsign)runtime.prepareCallsign();
   if(!dialog.open){runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();}
   if(callsign)$('callsign-input').focus();
@@ -4634,11 +4640,14 @@ const SCORES_URL='https://ltb22rfjxf66txpe2jlgzomwkm0qyqbo.lambda-url.eu-central
 
 function createScores(runtime){
   const {$,g,settings,t}=runtime,list=$('high-scores'),status=$('scores-status'),submit=$('score-submit');
-  let run=null,loading=false;
+  const overView={list,status,refresh:$('scores-refresh'),loading:false};
+  const hallView={list:$('hall-scores'),status:$('hall-status'),refresh:$('hall-refresh'),loading:false};
+  let run=null;
 
-  async function loadScores(){
-    if(loading)return;
-    loading=true;$('scores-refresh').disabled=true;
+  async function loadScores(view=overView){
+    if(view.loading)return;
+    view.loading=true;view.refresh.disabled=true;
+    const {list,status}=view;
     const current=run;
     status.textContent=t('scores.loading');
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);
@@ -4647,7 +4656,7 @@ function createScores(runtime){
       if(!response.ok)throw new Error(`Score lookup failed: HTTP ${response.status}`);
       const data=await response.json();
       if(!Array.isArray(data.scores)||!data.scores.every(item=>item&&typeof item.name==='string'&&item.name.length<=128&&Number.isSafeInteger(item.score)&&item.score>=0))throw new Error('Invalid leaderboard response');
-      if(current!==run)return;
+      if(view===overView&&current!==run)return;
       list.replaceChildren();
       for(const entry of data.scores.slice(0,10)){
         const row=document.createElement('li'),name=document.createElement('span'),score=document.createElement('strong');
@@ -4657,10 +4666,10 @@ function createScores(runtime){
       status.textContent=data.scores.length?'':t('scores.empty');
     }catch(error){
       console.warn('Unable to load leaderboard',error);
-      if(current===run)status.textContent=t('scores.unavailable');
+      if(view!==overView||current===run)status.textContent=t('scores.unavailable');
     }finally{
-      clearTimeout(timeout);loading=false;$('scores-refresh').disabled=false;
-      if(current!==run&&g.state==='over')void loadScores();
+      clearTimeout(timeout);view.loading=false;view.refresh.disabled=false;
+      if(view===overView&&current!==run&&g.state==='over')void loadScores();
     }
   }
 
@@ -4699,6 +4708,12 @@ function createScores(runtime){
 
   submit.addEventListener('click',submitScore);
   $('scores-refresh').addEventListener('click',()=>void loadScores());
+  $('hall-open').addEventListener('click',()=>{
+    runtime.openSettings('hall');
+    void loadScores(hallView);
+  });
+  $('hall-refresh').addEventListener('click',()=>void loadScores(hallView));
+  $('hall-done').addEventListener('click',()=>runtime.closeSettings());
   return {showScores};
 }
 

@@ -71,11 +71,12 @@ function openSettings(view='settings'){
   if(dialog.open&&view!=='callsign')return;
   const help=view==='help';
   const callsign=view==='callsign';
-  $('settings-content').hidden=help||callsign;$('help-content').hidden=!help;$('callsign-content').hidden=!callsign;
-  const kicker=help?'manual.title':'settings.kicker',close=help?'help.close':'settings.close';
+  const hall=view==='hall';
+  $('settings-content').hidden=help||callsign||hall;$('help-content').hidden=!help;$('callsign-content').hidden=!callsign;$('hall-content').hidden=!hall;
+  const kicker=hall?'scores.hall':help?'manual.title':'settings.kicker',close=hall?'scores.close':help?'help.close':'settings.close';
   $('dialog-kicker').dataset.i18n=kicker;$('dialog-kicker').textContent=t(kicker);
   $('settings-close').dataset.i18nAria=close;$('settings-close').setAttribute('aria-label',t(close));
-  dialog.setAttribute('aria-labelledby',callsign?'callsign-title':help?'help-title':'settings-title');
+  dialog.setAttribute('aria-labelledby',hall?'hall-title':callsign?'callsign-title':help?'help-title':'settings-title');
   if(callsign)runtime.prepareCallsign();
   if(!dialog.open){runtime.settingsPaused=g.state==='playing';if(runtime.settingsPaused)runtime.pause();dialog.showModal();}
   if(callsign)$('callsign-input').focus();

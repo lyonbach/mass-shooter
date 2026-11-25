@@ -2,11 +2,14 @@ const SCORES_URL='https://ltb22rfjxf66txpe2jlgzomwkm0qyqbo.lambda-url.eu-central
 
 export function createScores(runtime){
   const {$,g,settings,t}=runtime,list=$('high-scores'),status=$('scores-status'),submit=$('score-submit');
-  let run=null,loading=false;
+  const overView={list,status,refresh:$('scores-refresh'),loading:false};
+  const hallView={list:$('hall-scores'),status:$('hall-status'),refresh:$('hall-refresh'),loading:false};
+  let run=null;
 
-  async function loadScores(){
-    if(loading)return;
-    loading=true;$('scores-refresh').disabled=true;
+  async function loadScores(view=overView){
+    if(view.loading)return;
+    view.loading=true;view.refresh.disabled=true;
+    const {list,status}=view;
     const current=run;
     status.textContent=t('scores.loading');
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);
@@ -15,7 +18,7 @@ export function createScores(runtime){
       if(!response.ok)throw new Error(`Score lookup failed: HTTP ${response.status}`);
       const data=await response.json();
       if(!Array.isArray(data.scores)||!data.scores.every(item=>item&&typeof item.name==='string'&&item.name.length<=128&&Number.isSafeInteger(item.score)&&item.score>=0))throw new Error('Invalid leaderboard response');
-      if(current!==run)return;
+      if(view===overView&&current!==run)return;
       list.replaceChildren();
       for(const entry of data.scores.slice(0,10)){
         const row=document.createElement('li'),name=document.createElement('span'),score=document.createElement('strong');
@@ -25,10 +28,10 @@ export function createScores(runtime){
       status.textContent=data.scores.length?'':t('scores.empty');
     }catch(error){
       console.warn('Unable to load leaderboard',error);
-      if(current===run)status.textContent=t('scores.unavailable');
+      if(view!==overView||current===run)status.textContent=t('scores.unavailable');
     }finally{
-      clearTimeout(timeout);loading=false;$('scores-refresh').disabled=false;
-      if(current!==run&&g.state==='over')void loadScores();
+      clearTimeout(timeout);view.loading=false;view.refresh.disabled=false;
+      if(view===overView&&current!==run&&g.state==='over')void loadScores();
     }
   }
 
@@ -67,5 +70,11 @@ export function createScores(runtime){
 
   submit.addEventListener('click',submitScore);
   $('scores-refresh').addEventListener('click',()=>void loadScores());
+  $('hall-open').addEventListener('click',()=>{
+    runtime.openSettings('hall');
+    void loadScores(hallView);
+  });
+  $('hall-refresh').addEventListener('click',()=>void loadScores(hallView));
+  $('hall-done').addEventListener('click',()=>runtime.closeSettings());
   return {showScores};
 }
