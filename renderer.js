@@ -1102,7 +1102,7 @@ export class Renderer {
     const c=this.ctx,W=g.world.width,H=g.world.height,t=g.visualTime,camera=g.camera,zoom=camera.zoom;
     c.setTransform(this.scale,0,0,this.scale,0,0);c.clearRect(0,0,W,H);
     c.setTransform(this.scale*zoom,0,0,this.scale*zoom,-camera.x*this.scale*zoom,-camera.y*this.scale*zoom);
-    c.save();if(this.settings.shake&&g.shake>0){c.translate((Math.random()-.5)*g.shake,(Math.random()-.5)*g.shake);}
+    c.save();if(g.state!=='over'&&this.settings.shake&&g.shake>0){c.translate((Math.random()-.5)*g.shake,(Math.random()-.5)*g.shake);}
     c.drawImage(this.terrain,0,0,W,H);
     for(const mark of g.treadMarks||[]){
       c.save();c.translate(mark.x,mark.y);c.rotate(mark.angle);c.globalAlpha=clamp(mark.life/mark.maxLife,0,1)*.45;

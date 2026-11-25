@@ -138,6 +138,7 @@
                 class="selected" aria-pressed="true">PILOT</button><button data-difficulty="hard"
                 aria-pressed="false">ACE</button></div>
             <button class="primary-button" id="start" data-i18n="intro.start">START OPERATION <span>↗</span></button>
+            <button class="text-button" id="hall-open" data-i18n="scores.hall">HALL OF FAME</button>
             <button class="text-button" id="test-range-open">OPEN TEST RANGE</button>
             <span class="intro-note" data-i18n="intro.objective">OBJECTIVE: SURVIVE / COMMANDER EVERY 5 WAVES</span>
             <section class="test-range" id="test-range" hidden>
@@ -239,7 +240,7 @@
               <p class="settings-note" data-i18n="scores.notice">Submitting publishes your callsign and score.</p>
               <button class="text-button" id="score-submit" data-i18n="scores.submit">SUBMIT SCORE</button>
               <p id="score-submit-status" class="settings-note" role="status"></p>
-              <ol id="high-scores"></ol>
+              <ol id="high-scores" class="high-scores"></ol>
               <p id="scores-status" class="settings-note" role="status"></p>
               <button class="text-button" id="scores-refresh" data-i18n="scores.refresh">REFRESH SCORES</button>
             </section>
@@ -298,6 +299,14 @@
         <p id="callsign-error" role="alert"></p>
         <button class="primary-button" type="submit" data-i18n="callsign.save">SAVE CALLSIGN</button>
       </form>
+    </div>
+    <div id="hall-content" hidden>
+      <h2 id="hall-title" data-i18n="scores.hall">HALL OF FAME</h2>
+      <h3 data-i18n="scores.title">GLOBAL TOP 10</h3>
+      <ol id="hall-scores" class="high-scores"></ol>
+      <p id="hall-status" class="settings-note" role="status"></p>
+      <button class="text-button" id="hall-refresh" data-i18n="scores.refresh">REFRESH SCORES</button>
+      <button class="primary-button" id="hall-done" data-i18n="settings.done">DONE <span>✓</span></button>
     </div>
     <div id="help-content" hidden>
       <h2 id="help-title" data-i18n="manual.heading">Trust your instincts.</h2>
